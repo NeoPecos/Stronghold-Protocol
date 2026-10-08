@@ -316,7 +316,7 @@ export function collectEnemyIds({ assets07, enemies05, maps05, ops03 }) {
  * @returns {{ template: any, models: Map<string, any>, notes: string[] }}
  */
 export function buildPlan({ assets07, ops03, enemies05, maps05, audio, modelsData, charword = null, voiceLang = 'cn',
-  voiceSlots = VOICE_BATTLE_SLOTS,
+  voiceLangs = null, voiceSlots = VOICE_BATTLE_SLOTS,
   extraEnemyIds = [], extraTokenIds = [], extraHandbook = {}, localEnemySpines = {}, localTokenSpines = {}, extraOperators = {},
   moduleTypes = [] }) {
   const notes = [];
@@ -622,18 +622,31 @@ export function buildPlan({ assets07, ops03, enemies05, maps05, audio, modelsDat
   // client never requests them, and downloading them adds 360 files / 19.3 MB to every `npm run assets` — pass --voice-all for
   // the complete official set (`voiceSlots: null`, reviewer note on the voice PR).
   const voice = {};
-  for (const [charId, slots] of indexVoice(charword, VOICE_ID_LANG, voiceSlots)) {
-    if (!chars[charId]) continue;            // only the operators this game can field (`chars`: the 138 pool charIds and the 自选 picks)
-    const v = {};
-    for (const [slot, assets] of Object.entries(slots)) {
-      // one leaf per line (部署1 / 部署2 …): an array stays an array so the client can draw one — chaining them as
-      // alternatives of a single leaf would keep only the first line that landed on disk.
-      const lines = assets.map((a) => leaf(voiceAlt(a, voiceLang))).filter(Boolean);
-      if (!lines.length) continue;
-      v[slot] = lines.length === 1 ? lines[0] : lines;
+  /** @type {Record<string, Record<string, any>>} 每种已规划语言的 charId → slot 表 */
+  const voiceByLang = {};
+  // Bilingual planning (中日语音): every language in `voiceLangs` is planned in ONE pass, so the shared models are
+  // processed once. `voiceLangs` defaults to `[voiceLang]`, which keeps the single-language output byte-identical.
+  // The per-language files live in their own dump folder (`voice_cn/` vs `voice/`), so a language never overwrites
+  // another — and the official Japanese dump names its files `cn_nn.mp3` like the Chinese one (plan header note).
+  const langs = [...new Set((Array.isArray(voiceLangs) && voiceLangs.length ? voiceLangs : [voiceLang]).filter((l) => VOICE_DIRS[l]))];
+  for (const lang of langs) {
+    const byChar = {};
+    for (const [charId, slots] of indexVoice(charword, VOICE_ID_LANG, voiceSlots)) {
+      if (!chars[charId]) continue;            // only the operators this game can field (`chars`: the pool charIds and the 自选 picks)
+      const v = {};
+      for (const [slot, assets] of Object.entries(slots)) {
+        // one leaf per line (部署1 / 部署2 …): an array stays an array so the client can draw one — chaining them as
+        // alternatives of a single leaf would keep only the first line that landed on disk.
+        const lines = assets.map((a) => leaf(voiceAlt(a, lang))).filter(Boolean);
+        if (!lines.length) continue;
+        v[slot] = lines.length === 1 ? lines[0] : lines;
+      }
+      if (Object.keys(v).length) byChar[charId] = v;
     }
-    if (Object.keys(v).length) voice[charId] = v;
+    voiceByLang[lang] = byChar;
   }
+  // `audio.voice` stays the PRIMARY language (cn by default) so an old client keeps playing exactly what it did.
+  Object.assign(voice, voiceByLang[voiceLang] || {});
   if (!Object.keys(voice).length) notes.push('battle voice: charword_table.json has no slots (index missing?)');
 
   const template = {
@@ -641,7 +654,11 @@ export function buildPlan({ assets07, ops03, enemies05, maps05, audio, modelsDat
     audio: {
       bgm,
       bossBgm: Object.fromEntries(Object.entries(bossBgm).sort(([a], [b]) => a.localeCompare(b, 'en', { numeric: true }))),
+      // `voice` = the primary language (backward compatible); `voiceLanguages` carries EVERY planned language so the
+      // client can offer a language switch. Both are resolved leaves: a slot whose file is missing on disk is dropped,
+      // so a partial language stays honest (the client falls back per slot).
       voice,
+      voiceLanguages: voiceByLang,
       sfx: { ui: sfxUi, battle: sfxBattle, units: unitsSfx },
     },
   };

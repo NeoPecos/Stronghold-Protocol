@@ -7,7 +7,7 @@
 // official act2autochess `modeDataDict` texts embedded below (desc + effectDescList), so the
 // screen is complete before data is generated. Rounds: solo 标准 = 9, everything else 14 (+R15
 // hidden core on 险境+), per research 00-INDEX §2. Battlefield pool (`modes[].stages`): 标准 always
-// plays 战场#01, 险境 draws one of 8, 绝境 / 终极 one of 7 (m01 excluded).
+// plays 战场#01, 险境 draws one of 9, 绝境 / 终极 one of 7 (m01 excluded).
 // Texts go through t() (docs/I18N.md); the module-level tables hold msgids (N_) translated where they are shown, the
 // config.json mode texts come localized from data.js.
 
@@ -39,7 +39,7 @@ export const MODE_TEXT = {
 };
 
 /** Battlefield pool per difficulty when config.json is absent (the modes' `stages` lists; same for solo and co-op). */
-export const STAGE_POOL = { FUNNY: ['act1autochess_m01'], NORMAL: 8, HARD: 7, ABYSS: 7 };
+export const STAGE_POOL = { FUNNY: ['act1autochess_m01'], NORMAL: 9, HARD: 7, ABYSS: 7 };
 
 /**
  * Display name of a stage: stages.json when it is loaded, else derived from the id (act1 m0N → 战场#0N, act2 m0N → 战场#0(N+4)).
@@ -58,7 +58,7 @@ export function stageLabel(id) {
 
 /**
  * The battlefield note of a difficulty (official wording): a single-stage pool is fixed ("战场固定为 战场#01"), a larger
- * one is drawn at random ("战场随机（共8张）").
+ * one is drawn at random ("战场随机（共9张）").
  * @param {string[] | number | null | undefined} stages the mode's `stages` list (or a count)
  * @returns {string} '' when unknown
  */

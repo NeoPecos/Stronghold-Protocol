@@ -299,7 +299,7 @@ test('stages: 19 rows × 21 cols with known glyphs; paths are contiguous', () =>
     }
     assert.ok(s.groundPaths['9,10->9,2'], `${s.id}: lower gate path`);
   }
-  assert.equal(Object.values(stages).filter((s) => s.active).length, 8);
+  assert.equal(Object.values(stages).filter((s) => s.active).length, 9);
 });
 
 test('bosses, factions, tokens and choices resolve', () => {

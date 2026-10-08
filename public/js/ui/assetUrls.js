@@ -13,13 +13,24 @@ export function uiUrl(m, key) {
 
 /**
  * Operator avatar for a chess record (golden → E2 art when present).
+ *
+ * 干员皮肤 (docs/SKINS.md): `skinId` swaps in the skin's own 180×180 thumbnail. Without it the 干员调配 roster, the
+ * shop cards and the prep underframe kept drawing the DEFAULT portrait after a skin was chosen — the choice only
+ * reached the board models, never the operator's picture.
  * @param {any} m manifest
  * @param {any} chess chess.json record (or { assets: { avatar } })
+ * @param {string|null} [skinId] a chosen skin's id (`char_498_inside@kitchen#2`)
  */
-export function chessAvatarUrl(m, chess) {
+export function chessAvatarUrl(m, chess, skinId = null) {
   const chars = obj(obj(m)?.chars);
   const id = str(chess?.assets?.avatar) || str(chess?.charId);
   if (!chars || !id) return null;
+  if (skinId) {
+    // the skin catalogue lives under the OPERATOR id (assets.json `chars[charId].skins[skinId]`)
+    const skin = obj(obj(chars[id])?.skins)?.[skinId] || obj(obj(chars[str(chess?.charId)])?.skins)?.[skinId];
+    const art = str(skin?.avatar);
+    if (art) return art;
+  }
   if (id.endsWith('_2') && !chars[id]) {
     const base = chars[id.slice(0, -2)];
     return str(base?.avatarE2) || str(base?.avatar);

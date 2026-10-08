@@ -10,6 +10,7 @@ import { html, Modal, Button, Icon, MicroLabel } from './components.js';
 import { createStore, useStore, loadPref, savePref } from '../store.js';
 import { sanitizeSettings, HOTKEY_ACTIONS, DEFAULT_HOTKEYS, hotkeyLabel, rebindHotkey, isDefaultHotkeys, captureHotkey } from './gameLogic.js';
 import { audio } from '../audio.js';
+import { data } from '../data.js';
 import { openGuide } from './guide.js';
 import { detectFeatures } from './device.js';
 import { LangToggle, machineTranslationNote } from './lang.js';
@@ -17,13 +18,17 @@ import { t, tc, N_ } from '../../../shared/i18n.js';
 
 const cx = (...p) => p.flat().filter(Boolean).join(' ');
 
-/** Settings store: { bgm, sfx, voice, muted, damageNumbers, quality, keys }. */
+/** Settings store: { bgm, sfx, voice, voiceLang, muted, damageNumbers, quality, keys }. */
 export const settingsStore = createStore(sanitizeSettings(loadPref('settings', null)));
 
 settingsStore.subscribe((s) => {
   savePref('settings', sanitizeSettings(s));
+  // 中日语音: the language takes effect on the next line (audio.setVoiceLang stops the one on air and drops any line
+  // still decoding, so a switch never lets the old language play late)
+  audio.setVoiceLang(s.voiceLang);
   audio.setVolumes(s);
 });
+audio.setVoiceLang(settingsStore.get().voiceLang);
 audio.setVolumes(settingsStore.get());
 
 /** @param {Partial<ReturnType<typeof sanitizeSettings>>} patch */
@@ -60,6 +65,31 @@ function Toggle({ label, micro, value, onChange }) {
 }
 
 const QUALITY = [['high', N_('高')], ['medium', N_('中')], ['low', N_('低')]];
+/** 分辨率 (RESOLUTION_MODES in gameLogic/settings.js): 'auto' follows 画质, the rest cap the canvas pixel ratio. */
+const RESOLUTION = [['auto', N_('自动')], ['720p', N_('720p')], ['1080p', N_('1080p')], ['1440p', N_('1440p')], ['native', N_('原生')]];
+
+/**
+ * 干员语音 language (中日语音). Only the languages the CURRENT manifest actually carries are offered — read live from
+ * `data/assets.json` `audio.voiceLanguages`, so a Chinese-only install (or an older manifest without the field) shows
+ * no switch at all instead of a control that changes nothing. A language the manifest has never heard of is 'cn'.
+ */
+const VOICE_LANG_LABEL = Object.freeze([['cn', N_('中文')], ['jp', N_('日语')]]);
+function voiceLangRow(s) {
+  let known = [];
+  try {
+    const langs = data.get('assets')?.audio?.voiceLanguages;
+    known = langs && typeof langs === 'object' ? Object.keys(langs) : [];
+  } catch { known = []; }
+  const opts = VOICE_LANG_LABEL.filter(([id]) => known.includes(id));
+  if (opts.length < 2) return null; // nothing to switch between: keep 设置 exactly as it was
+  return html`<div class="set-row" data-testid="voice-lang-row">
+    <span class="set-row__label">${t('语音语言')}<${MicroLabel}>VOICE LANGUAGE<//></span>
+    <div class="set-seg" role="radiogroup" aria-label=${t('语音语言')}>
+      ${opts.map(([id, label]) => html`<button key=${id} type="button" role="radio" aria-checked=${s.voiceLang === id ? 'true' : 'false'}
+        data-voice-lang=${id} class=${s.voiceLang === id ? 'is-on' : ''} onClick=${() => updateSettings({ voiceLang: id })}>${t(label)}</button>`)}
+    </div>
+  </div>`;
+}
 /** The rebindable shortcuts' names (msgids), by action. */
 const HOTKEY_NAMES = { refresh: N_('刷新商店'), freeze: N_('冻结 / 解冻商店'), levelUp: N_('升级调度中心'), retreat: N_('撤退选中干员'),
   sell: N_('出售选中干员'), ready: N_('准备就绪 / 暂停（独立模拟）') };
@@ -164,6 +194,7 @@ export function SettingsModal({ open, onClose }) {
       ${mtNote ? html`<p class="set-hint set-lang-note" data-testid="lang-mt-note">${mtNote}</p>` : null}
       <${Slider} label=${t('背景音乐')} micro="BGM" icon="play" value=${s.bgm} onInput=${(v) => updateSettings({ bgm: v })} />
       <${Slider} label=${t('干员语音')} micro="VOICE" icon="mic" value=${s.voice} onInput=${(v) => updateSettings({ voice: v })} />
+      ${voiceLangRow(s)}
       <${Slider} label=${t('音效')} micro="SFX" icon="signal" value=${s.sfx}
         onInput=${(v) => { updateSettings({ sfx: v }); if (!tested) { setTested(true); setTimeout(() => setTested(false), 400); audio.sfx('click'); } }} />
       <${Toggle} label=${t('静音')} micro="MUTE" value=${s.muted} onChange=${(v) => updateSettings({ muted: v })} />
@@ -175,6 +206,14 @@ export function SettingsModal({ open, onClose }) {
             class=${s.quality === id ? 'is-on' : ''} onClick=${() => updateSettings({ quality: id })}>${t(label)}</button>`)}
         </div>
       </div>
+      <div class="set-row" data-testid="resolution-row">
+        <span class="set-row__label">${t('分辨率')}<${MicroLabel}>RESOLUTION<//></span>
+        <div class="set-seg" role="radiogroup" aria-label=${t('分辨率')}>
+          ${RESOLUTION.map(([id, label]) => html`<button key=${id} type="button" role="radio" aria-checked=${s.resolution === id ? 'true' : 'false'}
+            data-resolution=${id} class=${s.resolution === id ? 'is-on' : ''} onClick=${() => updateSettings({ resolution: id })}>${t(label)}</button>`)}
+        </div>
+      </div>
+      <p class="set-hint">${t('分辨率：自动跟随画质。觉得干员偏糊就调高；手机发热或掉帧就调低。')}</p>
       <${HotkeySection} keys=${s.keys} touchUi=${touchUi} />
       <p class="set-hint">${touchUi ? t('触屏操作：点击单位选中（撤退 / 出售）· 长按单位或卡牌查看详情 · 拖动部署后滑动选择朝向') : t('右键查看详情')}</p>
     </div>

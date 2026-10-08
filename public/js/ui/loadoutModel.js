@@ -9,7 +9,7 @@
 // them only the default skill / module is offered. The option rules are shared with the server
 // (shared/protocol.js loadoutOptions / checkLoadout), so a sanitised loadout is always accepted.
 
-import { loadoutOptions, checkLoadout, resolveLoadout, MODULE_NONE, LOADOUT_LIMITS } from '../../../shared/protocol.js';
+import { loadoutOptions, checkLoadout, resolveLoadout, MODULE_NONE, LOADOUT_LIMITS, isSkinId, SKIN_LIMITS } from '../../../shared/protocol.js';
 import { t, N_ } from '../../../shared/i18n.js';
 
 export { MODULE_NONE };
@@ -71,20 +71,63 @@ export const LOADOUT_EXPORT_KIND = 'stronghold.loadout';
 export const LOADOUT_IMPORT_MAX_BYTES = 256 * 1024;
 
 /**
- * Portable payload of a loadout, as downloaded / copied by 导出.
- * @param {Record<string, any>} entries `room.loadout.entries`
- * @param {{ now?: number }} [o]
+ * Filter and sanitise skin choices `{ [baseChessId]: skinId }` (干员皮肤, docs/SKINS.md).
+ * `isSkinId`, not `isId`: skin ids carry `@` and `#` (`char_002_amiya@winter#1`).
+ * @param {any} raw
+ * @returns {Record<string, string>}
  */
-export function exportPayload(entries, { now = Date.now() } = {}) {
+export function sanitizeSkins(raw) {
+  const out = {};
+  if (!isObj(raw)) return out;
+  const limit = (SKIN_LIMITS && SKIN_LIMITS.entries) || 160;
+  for (const [id, skinId] of Object.entries(raw)) {
+    if (Object.keys(out).length >= limit) break;
+    if (UNSAFE_IDS.has(id) || !/^[A-Za-z0-9_\-.:]{1,64}$/.test(id)) continue;
+    if (isSkinId(skinId)) out[id] = skinId;
+  }
+  return out;
+}
+
+/**
+ * 增量合并皮肤：仅覆盖 `importedSkins` 里声明了的干员，其余保留玩家当前配置。
+ * (The `entries` side replaces wholesale; a skin map is small enough that a partial import is the kinder default.)
+ * @param {Record<string, string>} currentSkins
+ * @param {Record<string, string>} importedSkins
+ */
+export function mergeSkins(currentSkins, importedSkins) {
+  if (!isObj(importedSkins)) return currentSkins || {};
+  const next = { ...(currentSkins || {}) };
+  for (const [id, skinId] of Object.entries(importedSkins)) {
+    if (skinId) next[id] = skinId;
+    else delete next[id];
+  }
+  return next;
+}
+
+/**
+ * Portable payload of a loadout, as downloaded / copied by 导出.
+ *
+ * `skins` (干员皮肤, docs/SKINS.md) rides along as a SIBLING field, not inside `entries`: `sanitizeEntries` keeps only
+ * `{ skill, module }` and `room.loadout`'s validator does not know the field, so folding it in would drop it. Missing
+ * `skins` = an older file (the skin choices are left alone); present = replaced wholesale, like `entries`.
+ * @param {Record<string, any>} entries `room.loadout.entries`
+ * @param {{ now?: number, skins?: Record<string, string>|null }} [o]
+ */
+export function exportPayload(entries, { now = Date.now(), skins = null } = {}) {
   const clean = {};
   for (const [id, e] of Object.entries(entries || {})) if (isObj(e)) clean[id] = { ...e };
-  return {
+  const out = {
     kind: LOADOUT_EXPORT_KIND,
     v: LOADOUT_VERSION,
     exportedAt: new Date(Number.isFinite(now) ? now : Date.now()).toISOString(),
     count: Object.keys(clean).length,
     entries: clean,
   };
+  if (skins && isObj(skins)) {
+    const cleanSkins = sanitizeSkins(skins);
+    if (Object.keys(cleanSkins).length > 0) out.skins = cleanSkins;
+  }
+  return out;
 }
 
 /** Pretty JSON of `exportPayload` — one preset per file / clipboard payload. */
@@ -98,7 +141,7 @@ export function serializeExport(entries, opts) {
  * only — the caller still runs `sanitizeEntries` against the loaded data, because a preset from another season may name
  * chess / skills / modules this build does not have. `__proto__` / `constructor` keys are skipped (see parseStored).
  * @param {any} input payload object or serialised text
- * @returns {{ ok: true, entries: Record<string, any> } | { ok: false, error: string }}
+ * @returns {{ ok: true, entries: Record<string, any>, skins: Record<string, string>|null } | { ok: false, error: string }}
  */
 export function parseImport(input) {
   let raw = input;
@@ -115,8 +158,10 @@ export function parseImport(input) {
   const kind = typeof raw.kind === 'string' ? raw.kind : null;
   if (kind && kind !== LOADOUT_EXPORT_KIND) return { ok: false, error: t('这不是干员调配的数据') };
   const entries = parseStored(raw);
-  if (!Object.keys(entries).length) return { ok: false, error: t('里面没有有效的调配条目') };
-  return { ok: true, entries };
+  // 干员皮肤 (docs/SKINS.md): a payload may carry skins only — a file that just dresses operators is still importable
+  const skins = isObj(raw.skins) ? sanitizeSkins(raw.skins) : null;
+  if (!Object.keys(entries).length && (!skins || !Object.keys(skins).length)) return { ok: false, error: t('里面没有有效的调配条目') };
+  return { ok: true, entries, skins };
 }
 
 // ---- options & choices ---------------------------------------------------------------------------------------------

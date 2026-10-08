@@ -188,9 +188,14 @@ export function seedAssets(store) {
  * @param {HTMLElement} host
  * @returns {Promise<ReturnType<typeof guardView>>}
  */
-export async function mountFieldView(host) {
+export async function mountFieldView(host, stageId = null) {
   const pref = renderPref();
-  const opts = { data, assets: data.get('assets'), audio, settings: settingsStore.get(), padding: hudPadding, hud: hudBands };
+  // `opts.board` is deliberately NOT set from the settings any more (see the note in useFieldView): the board layer is
+  // the renderer's own choice — the official 3D board when the local art, three.js and WebGL2 allow it, the 2D atlas
+  // board otherwise — and a view is still free to be created with `board: '2d' | '3d'` by its caller (upstream contract,
+  // plus the dev `?board=` override).
+  const s = settingsStore.get();
+  const opts = { data, assets: data.get('assets'), audio, settings: s, stageId, padding: hudPadding, hud: hudBands };
   if (pref !== 'fallback') {
     try {
       // the shared asset store (public/js/assets.js) keeps its Spine cache across remounts (next match, reconnect)
@@ -221,19 +226,33 @@ export async function mountFieldView(host) {
  * Preact hook: mount a field view into `hostRef` once; returns { view, kind } (view null while loading).
  * @param {{ current: HTMLElement|null }} hostRef
  */
-export function useFieldView(hostRef) {
+/**
+ * Mount `mountFieldView` into `hostRef` and keep it wired to the app (settings, resize).
+ *
+ * `stageId` (the match's own stage, `m.public.stageId`) is read ONCE, when the view is created: the board's world
+ * textures are baked into the scene at creation, so the theme must be chosen then (render/board3d/theme.js). A stage
+ * that arrives later — or not at all — draws the default world, which is what every match did before themes existed.
+ * @param {{ current: any }} hostRef
+ * @param {string|null} [stageId]
+ */
+export function useFieldView(hostRef, stageId = null) {
   const [state, setState] = useState({ view: null, kind: 'loading' });
   const viewRef = useRef(null);
   useEffect(() => {
     let dead = false;
     const host = hostRef.current;
     if (!host) return undefined;
-    mountFieldView(host).then((view) => {
+    mountFieldView(host, stageId).then((view) => {
       if (dead) { view.destroy(); return; }
       viewRef.current = view;
       globalThis.__SP_VIEW__ = view; // dev / E2E introspection (view.raw.stats?.())
       setState({ view, kind: view.kind });
     }, (err) => console.error('[field] mount failed', err));
+    // NOTE (2026-10-08, owner's report): a `board` setting wired here to the renderer's own `setBoardMode` was REMOVED.
+    // On a real machine the board kept drawing 3D whatever the setting said, so the control silently did nothing — a
+    // dead switch is worse than none. The renderer still honours `opts.board` when a view is CREATED and `?board=2d|3d`
+    // still overrides (dev), which is upstream's own contract; a user-facing switch will not return until the runtime
+    // switch is proven to work.
     const unsub = settingsStore.subscribe((s) => viewRef.current?.setSettings?.(s));
     const onResize = () => viewRef.current?.resize();
     window.addEventListener('resize', onResize);

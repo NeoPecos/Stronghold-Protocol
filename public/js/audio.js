@@ -259,6 +259,46 @@ export const VOICE_PRIORITY = Object.freeze({
   gacha: 60, squadFirst: 45, squad: 30, place: 20, select: 10,
 });
 
+/**
+ * 干员语音 language (中日语音), and the languages a manifest may carry in `audio.voiceLanguages`.
+ *
+ * `cn` is the default and the fallback: `audio.voice` has always been the Chinese bank, so a player who never opens
+ * 设置 hears exactly what they used to, and an older manifest (no `audio.voiceLanguages` at all) is fully supported —
+ * every language then resolves to that one bank.
+ */
+export const VOICE_LANG_DEFAULT = 'cn';
+export const VOICE_LANGS_SUPPORTED = Object.freeze(['cn', 'jp']);
+
+/**
+ * The URL of one operator battle line for a language, with the per-slot fallback chain (中日语音):
+ * the chosen language's bank first, then the primary `audio.voice`, then silence (`null`). A slot's value may be a
+ * single URL or an array of lines, in which case one is drawn at random.
+ *
+ * Exported so the fallback rules can be unit-tested without a Web Audio context (they are pure lookups).
+ * @param {any} audio the manifest's `audio` section
+ * @param {string} lang 'cn' | 'jp'
+ * @param {string} charId
+ * @param {string} slot
+ * @returns {string|null}
+ */
+export function voiceLineOf(audio, lang, charId, slot) {
+  if (!audio || typeof charId !== 'string' || typeof slot !== 'string') return null;
+  const langs = audio.voiceLanguages && typeof audio.voiceLanguages === 'object' ? audio.voiceLanguages : null;
+  const primary = audio.voice && typeof audio.voice === 'object' ? audio.voice : null;
+  const banks = [
+    langs && langs[lang],                 // the chosen language
+    langs && langs[VOICE_LANG_DEFAULT],   // its primary (cn) — also covers a manifest whose `voice` key moved
+    primary,                              // `audio.voice`, the bank an older manifest has
+  ];
+  for (const bank of banks) {
+    if (!bank) continue;
+    const line = bank[charId] ? bank[charId][slot] : undefined;
+    const url = Array.isArray(line) ? line[Math.floor(Math.random() * line.length)] : line;
+    if (typeof url === 'string' && url) return url;
+  }
+  return null;
+}
+
 /** Per-unit per-slot cooldowns (ms): the official 10 s of the 作战中 (passive skill) lines, 3 s between 接敌 lines. */
 export const VOICE_COOLDOWN_MS = Object.freeze({
   start: 0, faceEnemy: 3000,
@@ -450,6 +490,8 @@ export class AudioManager {
     this.sfxGain = null;
     this.voiceGain = null;
     this.volumes = { bgm: 0.6, sfx: 0.8, voice: 0.8, muted: false };
+    /** 干员语音 language (中日语音): which `audio.voiceLanguages` bank `voice()` draws from; 'cn' keeps the old behaviour. */
+    this.voiceLang = VOICE_LANG_DEFAULT;
     this.buffers = new Map(); // url → Promise<AudioBuffer|null> (insertion order = LRU)
     this.bufBytes = new Map(); // url → decoded PCM bytes (the byte budget of the LRU, see _buffer)
     this.warned = new Set();
@@ -579,6 +621,25 @@ export class AudioManager {
     if (this.warned.has(key)) return;
     this.warned.add(key);
     try { console.warn(`[audio] ${key} unavailable`, err?.message || err || ''); } catch { /* ignore */ }
+  }
+
+  /**
+   * 干员语音 language (中日语音). Switching takes effect on the NEXT line and stops the one on air — a line still
+   * fetching/decoding must not start afterwards, which is exactly what `_stopVoice` guarantees (it advances
+   * `voiceToken`, and every deferred step in `_playVoice` re-checks its token).
+   *
+   * Deliberately does NOT touch `this.buffers`: cache entries are keyed by the full asset URL, so the two languages
+   * never collide, and holding on to the other language's decoded lines costs at most a few hundred KB of the LRU
+   * budget (audio.js _buffer) — cheaper than re-decoding after every toggle, and it keeps BGM/SFX untouched.
+   * @param {string} lang 'cn' | 'jp' (anything else ⇒ the default, cn)
+   * @returns {boolean} whether the language changed
+   */
+  setVoiceLang(lang) {
+    const next = VOICE_LANGS_SUPPORTED.includes(lang) ? lang : VOICE_LANG_DEFAULT;
+    if (next === this.voiceLang) return false;
+    this.voiceLang = next;
+    try { this._stopVoice(); } catch { /* ignore */ }
+    return true;
   }
 
   /**
@@ -823,9 +884,18 @@ export class AudioManager {
   // ---- operator battle voice ----------------------------------------------------------------------------------
 
   /**
-   * Play an operator's battle line (`audio.voice[charId][slot]`; a slot with several lines draws one at random).
+   * Play an operator's battle line (`audio.voiceLanguages[lang][charId][slot]`, else the primary `audio.voice` bank;
+   * a slot with several lines draws one at random).
    * Only in battle: every caller is a running battle's own event stream or its settlement (user request — the 休整期
    * is silent). The line must pass VoiceGate: one at a time, a global gap, a per-unit cooldown, higher priority wins.
+   *
+   * 中日语音: the bank is picked by the settings' `voiceLang`, falling back PER SLOT — an operator (or a single line)
+   * the chosen dub lacks still speaks the primary language rather than going silent, which is what keeps a partially
+   * covered language honest instead of faking completeness. A manifest without `audio.voiceLanguages` (an older
+   * install, or only `audio.voice` downloaded) therefore behaves exactly as before.
+   *
+   * No looping retries: `_buffer` retries its URL once internally (`{ retry }`) and is then evicted, so a line that
+   * fails to fetch or decode frees the gate and the next event picks a fresh bank — a broken URL never spins.
    * @param {string} charId e.g. 'char_263_skadi'
    * @param {'start'|'faceEnemy'|'select'|'place'|'skill1'|'skill2'|'skill3'|'skill4'|'squad'|'squadFirst'
    *   |'resultFour'|'resultThree'|'resultTwo'|'resultLose'|'gacha'} slot
@@ -836,8 +906,8 @@ export class AudioManager {
     try {
       if (!this.ctx || !this.voiceGain || this.volumes.muted || this.volumes.voice <= 0) return false;
       if (typeof charId !== 'string' || typeof slot !== 'string') return false;
-      const line = this.getManifest()?.audio?.voice?.[charId]?.[slot];
-      const url = Array.isArray(line) ? line[Math.floor(Math.random() * line.length)] : line;
+      const audio = this.getManifest()?.audio;
+      const url = voiceLineOf(audio, this.voiceLang, charId, slot);
       if (typeof url !== 'string' || !url) return false;
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const verdict = this.voiceGate.request(slot, o.unitKey ?? null, now);
@@ -1045,7 +1115,7 @@ export function installAudio(deps) {
   try {
     manifestGetter = typeof deps?.getManifest === 'function' ? deps.getManifest : manifestGetter;
     audio.install();
-    if (deps?.settings) audio.setVolumes(deps.settings);
+    if (deps?.settings) { audio.setVoiceLang(deps.settings.voiceLang); audio.setVolumes(deps.settings); }
     if (typeof deps?.subscribe === 'function' && typeof deps?.getState === 'function') {
       const sync = (s) => {
         try {

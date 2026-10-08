@@ -43,3 +43,6 @@ desktop.ini
 .idea/
 .vscode/
 .claude/
+
+# tools/snapshot-state.mjs 的交接快照（含逐文件哈希，体积大，不入库）
+.snapshot/

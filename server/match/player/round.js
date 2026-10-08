@@ -118,6 +118,11 @@ export class PlayerRound {
           u.skillIndex = lo.skillIndex;
           u.moduleId = lo.moduleId;
         }
+        // 干员皮肤 (docs/SKINS.md): carry the chosen skin into the sim; keyed by base chess id, so a chess upgraded to
+        // golden keeps it. `undefined` (never null) when absent — the wire-format contract test (DESIGN §8.2) relies on
+        // JSON.stringify dropping it.
+        const skin = this.skins[(this.gd.chess(piece.id) || {}).baseId || piece.id] || this.skins[piece.id];
+        if (skin) u.skin = skin;
         if (carry && carry.has(piece.uid)) u.carryState = carry.get(piece.uid);
         units.push(u);
       } else if (piece.kind === 'token') {

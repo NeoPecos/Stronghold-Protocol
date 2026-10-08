@@ -92,7 +92,11 @@ const HELP = `Usage: node tools/fetch-assets.mjs [options]
   --offline         no network: post-process what is on disk and rebuild data/assets.json
   --dry-run         print the plan and exit
   --refresh-index   re-download the audio_data.json / charword_table.json / models_data.json indexes
-  --voice-lang=cn   operator battle voice language: cn (default) | jp | en | kr
+  --voice-lang=cn   operator battle voice language: cn (default) | jp | en | kr — the PRIMARY language, written to
+                    audio.voice (what an old client plays)
+  --voice-langs=cn,jp  plan several voice languages in ONE pass (中日语音): the first is the primary, every language is
+                    written to audio.voiceLanguages[<lang>]. Each language lives in its own dump folder, so a language
+                    never overwrites another; a slot the dump lacks is simply absent and the client falls back.
   --voice-all       plan every official voice slot, including the prep-only lines no battle plays
                     (干员报到 / 编入队伍 / 任命队长; 360 files / 19.3 MB more per run — off by default)
   --prune           delete files under public/assets that the manifest no longer references
@@ -113,10 +117,10 @@ failures. Only explicitly enabled GitHub downloads use the third-party proxy.`;
 /**
  * Parse CLI flags.
  * @param {string[]} argv
- * @returns {{concurrency:number, force:boolean, offline:boolean, dryRun:boolean, refreshIndex:boolean, prune:boolean, allowShrink:boolean, addOnly:boolean, localSpines:boolean, voiceLang:string, voiceAll:boolean, help:boolean, source:string}}
+ * @returns {{concurrency:number, force:boolean, offline:boolean, dryRun:boolean, refreshIndex:boolean, prune:boolean, allowShrink:boolean, addOnly:boolean, localSpines:boolean, voiceLang:string, voiceLangs:string[]|null, voiceAll:boolean, help:boolean, source:string}}
  */
 export function parseArgs(argv) {
-  const o = { concurrency: 16, force: false, offline: false, dryRun: false, refreshIndex: false, prune: false, allowShrink: false, addOnly: false, localSpines: false, voiceLang: 'cn', voiceAll: false, help: false, source: process.env.SP_ASSET_SOURCE || 'direct' };
+  const o = { concurrency: 16, force: false, offline: false, dryRun: false, refreshIndex: false, prune: false, allowShrink: false, addOnly: false, localSpines: false, voiceLang: 'cn', voiceLangs: null, voiceAll: false, help: false, source: process.env.SP_ASSET_SOURCE || 'direct' };
   for (const a of argv) {
     const [k, v] = a.split('=');
     if (k === '--concurrency') o.concurrency = Math.max(1, Math.min(64, parseInt(v, 10) || 16));
@@ -130,6 +134,14 @@ export function parseArgs(argv) {
     else if (k === '--add-only') o.addOnly = true;
     else if (k === '--local-spines') o.localSpines = true;
     else if (k === '--voice-lang') { if (!VOICE_DIRS[v]) throw new Error(`unknown --voice-lang ${v} (cn | jp | en | kr)`); o.voiceLang = v; }
+    // 中日语音: plan several languages in one pass (comma-separated). The first is the primary (`audio.voice`).
+    else if (k === '--voice-langs') {
+      const langs = String(v || '').split(',').map((s) => s.trim()).filter(Boolean);
+      for (const l of langs) if (!VOICE_DIRS[l]) throw new Error(`unknown --voice-langs entry ${l} (cn | jp | en | kr)`);
+      if (!langs.length) throw new Error('--voice-langs needs at least one language (cn,jp)');
+      o.voiceLangs = langs;
+      if (!langs.includes(o.voiceLang)) o.voiceLang = langs[0];
+    }
     else if (k === '--voice-all') o.voiceAll = true;
     else if (k === '--help' || k === '-h') o.help = true;
     else throw new Error(`unknown option ${a}\n${HELP}`);
@@ -253,6 +265,10 @@ function countStats(m, bytes, files) {
     ui: Object.keys(m.ui || {}).length,
     sfxUnits: Object.keys(m.audio?.sfx?.units || {}).length,
     voiceChars: Object.keys(m.audio?.voice || {}).length,
+    // 中日语音: how many operators each planned language actually has on disk (a partial language is reported as it is)
+    voiceLangs: m.audio?.voiceLanguages
+      ? Object.fromEntries(Object.entries(m.audio.voiceLanguages).map(([l, byChar]) => [l, Object.keys(byChar || {}).length]))
+      : undefined,
   };
 }
 
@@ -329,6 +345,7 @@ async function main() {
   const localTokenSpines = await syncLocalSpines(opts, 'token');
   const plan = buildPlan({
     assets07, ops03, enemies05, maps05, audio, modelsData, charword, voiceLang: opts.voiceLang,
+    voiceLangs: opts.voiceLangs,
     // default: only the slots a battle can play (plan.mjs VOICE_BATTLE_SLOTS); --voice-all takes the whole official set
     voiceSlots: opts.voiceAll ? null : undefined,
     extraEnemyIds: Object.keys(dataEnemies || {}),

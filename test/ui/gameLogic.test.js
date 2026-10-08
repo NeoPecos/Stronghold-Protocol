@@ -14,6 +14,7 @@ import {
   boardTargets, dropIntent, normalizeDraft, normalizeSp, groupEnemies, factionTypes, snapHud, bossFrac, attackInterval, fmtNum,
   rangeGridBox, shortcutFor, sanitizeSettings, DEFAULT_SETTINGS, normalizeResult, cycleField, fieldLabel, homeFieldId,
   activeBubbles, sortedPlayers, tileKey, prepCapsuleLabel, prepCamera, dropFailureReason, terrainInfo,
+  RESOLUTION_MODES, resolutionCap, boardResolutionCap,
 } from '../../public/js/ui/gameLogic.js';
 import { pairPlayers } from '../../server/match/finalAssault.js';
 import { PHASE, GEO } from '../../shared/constants.js';
@@ -642,11 +643,50 @@ describe('keyboard & settings', () => {
   test('sanitizeSettings', () => {
     assert.deepEqual(sanitizeSettings(null), { ...DEFAULT_SETTINGS });
     assert.deepEqual(sanitizeSettings({ bgm: 3, sfx: -1, voice: 2, muted: 'yes', damageNumbers: false, quality: 'ultra' }),
-      { bgm: 1, sfx: 0, voice: 1, muted: false, damageNumbers: false, quality: 'high', keys: { ...DEFAULT_SETTINGS.keys } },
+      { bgm: 1, sfx: 0, voice: 1, voiceLang: 'cn', resolution: 'auto', muted: false, damageNumbers: false, quality: 'high', keys: { ...DEFAULT_SETTINGS.keys } },
       'a saved profile without `keys` (before 0.2.0) gets the default key map (test/ui/feedback5-hotkeys.test.js)');
     assert.equal(sanitizeSettings({ bgm: 0.5 }).voice, DEFAULT_SETTINGS.voice, 'a saved profile without `voice` gets the default');
     assert.equal(sanitizeSettings({ bgm: 0.333 }).bgm, 0.33);
     assert.equal(sanitizeSettings({ quality: 'low' }).quality, 'low');
+    // 干员语音 language (中日语音): only cn/jp survive; a save from before the switch, or a hand-edited value, is cn
+    assert.equal(DEFAULT_SETTINGS.voiceLang, 'cn', 'the default keeps every existing player on Chinese');
+    for (const raw of [undefined, null, '', 'jp2', 'JP', 'en', 'kr', 7, {}, []]) {
+      assert.equal(sanitizeSettings({ voiceLang: raw }).voiceLang, 'cn', `${JSON.stringify(raw)} ⇒ cn`);
+    }
+    assert.equal(sanitizeSettings({ voiceLang: 'jp' }).voiceLang, 'jp');
+    assert.deepEqual(sanitizeSettings({ voiceLang: 'jp' }), { ...DEFAULT_SETTINGS, voiceLang: 'jp' }, 'only the language changes');
+  });
+
+  // 分辨率 / RESOLUTION (project owner's request, 2026-10-08): a phone whose operator models read blurry needs MORE
+  // PIXELS for the sprites, and that must be selectable without also turning on the board's expensive features — so the
+  // canvas pixel-ratio cap is its own setting, independent of 画质.
+  test('分辨率: auto keeps the quality table, the fixed modes cap on their own, and every value sanitises', () => {
+    assert.equal(DEFAULT_SETTINGS.resolution, 'auto', 'the default changes nothing for an existing player');
+    assert.equal(resolutionCap('auto'), null, 'auto is "the caller decides"');
+    assert.equal(resolutionCap('nope'), null, 'an unknown value is treated as auto, never as a low cap');
+    assert.equal(resolutionCap(undefined), null);
+    assert.deepEqual(RESOLUTION_MODES, ['auto', '720p', '1080p', '1440p', 'native']);
+    // monotonic: a higher mode never asks for fewer pixels
+    const caps = RESOLUTION_MODES.filter((m) => m !== 'auto').map((m) => resolutionCap(m));
+    for (let i = 1; i < caps.length; i++) assert.ok(caps[i] >= caps[i - 1], `${RESOLUTION_MODES[i + 1]} >= ${RESOLUTION_MODES[i]}`);
+    assert.equal(resolutionCap('720p'), 1);
+    assert.equal(resolutionCap('native'), 2);
+    // the 3D board is fill-bound (the PBR board): its own cap never exceeds the sprite cap and stays below it mid-range
+    for (const m of RESOLUTION_MODES) {
+      const sprite = resolutionCap(m);
+      const board = boardResolutionCap(m);
+      if (sprite == null) { assert.equal(board, null, m); continue; }
+      assert.ok(board <= sprite, `${m}: the board never asks for more pixels than the sprites`);
+      assert.ok(board >= 1 && board <= 2, m);
+    }
+    assert.equal(boardResolutionCap('720p'), 1);
+    assert.equal(boardResolutionCap('1080p'), 1.25);
+    assert.equal(boardResolutionCap('native'), 2);
+    // sanitising: only the listed modes survive; anything else falls back to auto
+    for (const bad of ['4k', '', null, 2, {}, []]) {
+      assert.equal(sanitizeSettings({ resolution: bad }).resolution, 'auto', JSON.stringify(bad));
+    }
+    for (const m of RESOLUTION_MODES) assert.equal(sanitizeSettings({ resolution: m }).resolution, m, m);
   });
 });
 
