@@ -537,6 +537,7 @@ export class UnitView {
    */
   retryAssets() {
     if (this.destroyed) return;
+    this._loadTierChip();
     if (!this._pic || this._pic.state === 'none') this._loadPicture();
     if (this.actor) return;
     if (!this._spineBusy) { this._retryAt = 0; this._loadSpine(true); return; }
@@ -666,7 +667,12 @@ export class UnitView {
       this.chip = new P.Sprite(tierChip(this.tier, this.golden));
       this.chip.anchor.set(0.5);
       h.addChild(this.chip);
+      this._loadTierChip();
     }
+    this.equipTrack = bar(P, h, 0x101514, 0.92);
+    this.equipSlots = [bar(P, h, 0xe4e8e6), bar(P, h, 0xe4e8e6)];
+    this.equipTrack.visible = false;
+    for (const slot of this.equipSlots) slot.visible = false;
     this.icons = [];
     for (let i = 0; i < 4; i++) {
       const s = new P.Sprite(P.Texture.EMPTY);
@@ -680,7 +686,25 @@ export class UnitView {
     this.blockIcon.visible = false;
     this.ctx.layers.groundFx.addChild(this.blockIcon);
     this.countText = null;
+    this.equipCount = 0;
     this.itemPips = [];
+  }
+
+  _loadTierChip() {
+    const assets = this.ctx.assets;
+    if (!this.chip || !assets?.image) return;
+    const local = assets.localUrl?.('ui/battle', `autochess_level_${this.tier}`);
+    const fallback = assets.ui?.(`shopCard/img_chess_level_${this.tier}`);
+    const url = local || fallback;
+    if (!url || this._chipUrl === url) return;
+    this._chipUrl = url;
+    assets.image(url).then((image) => {
+      if (this.destroyed || this._chipUrl !== url) return;
+      if (image) this.chip.texture = this.P.Texture.from(image);
+      else if (local && fallback) assets.image(fallback).then((fallbackImage) => {
+        if (!this.destroyed && this._chipUrl === url && fallbackImage) this.chip.texture = this.P.Texture.from(fallbackImage);
+      });
+    });
   }
 
   /** Show a stack count (token stacks in the hand) — BitmapText-free: a tiny canvas-less chip via Text. */
@@ -696,20 +720,9 @@ export class UnitView {
     this.countText.visible = true;
   }
 
-  /** Equipped item pips (prep): list of item icon URLs. */
   setItems(urls) {
-    const P = this.P;
-    const list = Array.isArray(urls) ? urls.slice(0, 2) : [];
-    while (this.itemPips.length > list.length) this.itemPips.pop().destroy();
-    list.forEach((u, i) => {
-      let s = this.itemPips[i];
-      if (!s) { s = new P.Sprite(P.Texture.EMPTY); s.anchor.set(0.5); this.hud.addChild(s); this.itemPips[i] = s; }
-      if (s._url === u) return;
-      s._url = u;
-      const a = this.ctx.assets;
-      s.texture = itemTexture(u || 'none', null, 0x4ed8af);
-      if (u && a?.image) a.image(u).then((img) => { if (!s.destroyed && s._url === u) s.texture = itemTexture(u, img, 0x4ed8af); }, () => {});
-    });
+    this.equipCount = Array.isArray(urls) ? Math.min(urls.length, 2) : 0;
+    this.itemPips = Array.from({ length: this.equipCount }, () => null);
   }
 
   // ---- state input ---------------------------------------------------------------------------------------
@@ -1162,7 +1175,7 @@ export class UnitView {
     let sx = this.shake > 0 ? Math.sin(t * 90) * this.shake * 10 : 0;
     this.shake = Math.max(0, this.shake - dt);
     const x0 = x - bw / 2 + sx;
-    let cy = y - 4;
+    let cy = prep ? y - 4 : this.screen.y - bh - Math.max(2, bh * 0.6) - 7;
     // HP
     this.hpBg.visible = this.hpFill.visible = this.hpGhost.visible = showHp;
     if (showHp) {
@@ -1200,13 +1213,28 @@ export class UnitView {
       this.spGlow.scale.set((spH * 5) / 128);
       this.spGlow.alpha = pulse;
     }
-    // tier chip (left of the bars in battle; above the head in prep)
     if (this.chip) {
-      const cs = clamp(s * (prep ? 0.24 : 0.19), 11, 28) / 44;
+      const cs = clamp(s * (prep ? 0.24 : 0.19), 11, 28) / (this.chip.texture.height || 44);
       this.chip.scale.set(cs);
       this.chip.visible = this.alive;
-      if (prep) this.chip.position.set(x, y - this.chip.height / 2 + 2);
-      else this.chip.position.set(x0 - this.chip.width / 2 - 1, cy + (showSp ? spH / 2 : 0));
+      if (this.chip.visible) this.chip.position.set(x - bw / 2 - this.chip.width / 2, y - 4);
+    }
+    const showEquip = this.alive && !!this.chip;
+    this.equipTrack.visible = showEquip;
+    if (showEquip) {
+      const trackX = x - bw / 2 + 1;
+      this.equipTrack.position.set(trackX, y - 4);
+      this.equipTrack.width = bw;
+      this.equipTrack.height = 13;
+    }
+    for (let i = 0; i < this.equipSlots.length; i++) {
+      const slot = this.equipSlots[i];
+      slot.visible = showEquip;
+      if (!showEquip) continue;
+      slot.tint = i < (this.equipCount || 0) ? 0xffcf45 : 0xe4e8e6;
+      slot.position.set(this.equipTrack.position.x + 4 + i * (bw - 10) / 2, y - 4);
+      slot.width = (bw - 14) / 2;
+      slot.height = 5;
     }
     // status icons row above the bars
     const icons = this._iconKeys();
@@ -1235,17 +1263,10 @@ export class UnitView {
       this.blockIcon.scale.set(clamp(s * 0.22, 9, 22) / 32 * (this.visFacing < 0 ? -1 : 1), clamp(s * 0.22, 9, 22) / 32);
       this.blockIcon.alpha = 0.85 * alpha;
     }
-    // count badge & item pips (prep)
+    // count badge (prep)
     if (this.countText && this.countText.visible) {
       this.countText.scale.set(clamp(s / 90, 0.5, 1.2));
       this.countText.position.set(x + s * 0.32, this.screen.y - s * 0.12);
-    }
-    for (let i = 0; i < this.itemPips.length; i++) {
-      const pip = this.itemPips[i];
-      const ps = clamp(s * 0.26, 12, 30);
-      pip.width = pip.height = ps;
-      pip.position.set(this.screen.x - s * 0.36 + i * (ps + 1), this.screen.y - s * 0.05);
-      pip.visible = this.alive;
     }
   }
 

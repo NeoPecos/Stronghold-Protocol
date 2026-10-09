@@ -446,7 +446,7 @@ function startCombat(phase) {
     const c = data.lookup('chess', p.id);
     const colOff = 0;
     const r = boss ? p.row - 7 : p.row;
-    units.push({ id: id++, kind: 'op', side: 'ally', ownerId: ME, defId: p.id, name: c?.name, tier: c?.tier, golden: !!p.golden, spine: c?.charId, avatar: c?.assets?.avatar, x: p.col + colOff, y: r, facing: 1, maxHp: c?.stats?.maxHp || 1000, uid: p.uid });
+    units.push({ id: id++, kind: 'op', side: 'ally', ownerId: ME, defId: p.id, name: c?.name, tier: c?.tier, golden: !!p.golden, spine: c?.charId, avatar: c?.assets?.avatar, x: p.col + colOff, y: r, facing: 1, maxHp: c?.stats?.maxHp || 1000, uid: p.uid, items: (p.items || []).map((item) => item.id) });
   }
   if (kind !== 'normal') {
     for (const p of board.slice(0, 5)) {

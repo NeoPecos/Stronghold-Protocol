@@ -42,32 +42,6 @@ export function webgl2Available(allowSlow = false) {
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-/**
- * Why the 3D board is or is not used, readable at runtime (dev / field diagnosis).
- *
- * `render/app.js` decides with two values — `webgl2Available(allowSlow)` and `boardArtListed(assets)` — and when the
- * answer is "2D" there is otherwise nothing to read: `stats().board3d` only says `{ on: false }` without saying which
- * of the two said no. The three booleans here are the whole decision, computed on demand (never at boot).
- *
- *   await __SP_BOARD3D_PROBE__() → {
- *     gl2:     WebGL2 ignoring the "major performance caveat" flag (a software renderer still reports true here),
- *     gl2fast: WebGL2 as the DEFAULT `auto` mode asks for it (software / blocklisted ⇒ false → 2D),
- *     listed:  the local-art manifest lists map/autochess/TX_autochessi_D (i.e. the board art is installed),
- *     url:     the URL that listing resolves to (null when not installed),
- *   }
- *
- * In a browser console on the running game: `await __SP_BOARD3D_PROBE__()`.
- */
-export async function board3dProbe(assets) {
-  let listed = false, url = null;
-  try {
-    listed = await boardArtListed(assets);
-    url = assets && typeof assets.localUrl === 'function' ? assets.localUrl(...PACK_IMAGES.D) : null;
-  } catch { /* reported as not listed */ }
-  return { gl2: webgl2Available(true), gl2fast: webgl2Available(false), listed, url };
-}
-if (typeof globalThis !== 'undefined') globalThis.__SP_BOARD3D_PROBE__ = board3dProbe;
-
 /** Manifest key → pack slot. */
 export const PACK_IMAGES = Object.freeze({
   D: ['map/autochess', 'TX_autochessi_D'],

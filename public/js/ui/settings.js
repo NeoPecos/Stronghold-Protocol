@@ -14,6 +14,7 @@ import { data } from '../data.js';
 import { openGuide } from './guide.js';
 import { detectFeatures } from './device.js';
 import { LangToggle, machineTranslationNote } from './lang.js';
+import { Dropdown } from './dropdown.js';
 import { t, tc, N_ } from '../../../shared/i18n.js';
 
 const cx = (...p) => p.flat().filter(Boolean).join(' ');
@@ -208,10 +209,9 @@ export function SettingsModal({ open, onClose }) {
       </div>
       <div class="set-row" data-testid="resolution-row">
         <span class="set-row__label">${t('分辨率')}<${MicroLabel}>RESOLUTION<//></span>
-        <div class="set-seg" role="radiogroup" aria-label=${t('分辨率')}>
-          ${RESOLUTION.map(([id, label]) => html`<button key=${id} type="button" role="radio" aria-checked=${s.resolution === id ? 'true' : 'false'}
-            data-resolution=${id} class=${s.resolution === id ? 'is-on' : ''} onClick=${() => updateSettings({ resolution: id })}>${t(label)}</button>`)}
-        </div>
+        <${Dropdown} class="set-resolution" value=${s.resolution} label=${t('分辨率')}
+          items=${RESOLUTION.map(([id, label]) => ({ value: id, label: t(label) }))}
+          onChange=${(resolution) => updateSettings({ resolution })} />
       </div>
       <p class="set-hint">${t('分辨率：自动跟随画质。觉得干员偏糊就调高；手机发热或掉帧就调低。')}</p>
       <${HotkeySection} keys=${s.keys} touchUi=${touchUi} />

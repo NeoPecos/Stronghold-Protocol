@@ -71,6 +71,24 @@ describe('in-match UI (mock harness, headless Chrome)', { skip: !ENABLED && 'set
   }
   const mockState = (page) => page.evaluate(() => JSON.parse(JSON.stringify(globalThis.__MOCK__.S().priv)));
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  test('combat units show equipped items above their heads', async (context) => {
+    if (RENDER !== 'engine') { context.skip('SP_RENDER=fallback'); return; }
+    const { page, problems } = await open('phase=COMBAT');
+    try {
+      await page.waitForFunction(() => {
+        const views = globalThis.__SP_VIEW__?.raw?.debug?.views;
+        return views && [...views.values()].some((unit) => unit.info.side === 'ally' && unit.info.items?.length && unit.itemPips.length === unit.info.items.length);
+      }, { timeout: 10000 });
+      const units = await page.evaluate(() => [...globalThis.__SP_VIEW__.raw.debug.views.values()]
+        .filter((unit) => unit.info.side === 'ally' && unit.info.items?.length)
+        .map((unit) => ({ items: unit.info.items.length, icons: unit.itemPips.length, level: !!unit.chip })));
+      assert.ok(units.length > 0);
+      assert.ok(units.every((unit) => unit.icons === unit.items && unit.level));
+      assert.deepEqual(problems, []);
+    } finally {
+      await page.close();
+    }
+  });
   /** Swipe the open direction wheel from its centre towards `dir` and release (research 09 §1.2). */
   const swipeWheel = async (page, dir = 'RIGHT') => {
     await page.waitForSelector('.fwheel__dia', { timeout: 4000 });

@@ -24,6 +24,7 @@ import { DEV_BUILD } from '../../../shared/constants.js';
 import { loadPref, savePref } from '../store.js';
 import { data } from '../data.js';
 import { html } from './components.js';
+import { Dropdown } from './dropdown.js';
 
 /** The switch's own label, in both languages (whoever opens it may not read the current one). */
 const SWITCH_LABEL = 'Language / 语言'; // i18n-ignore
@@ -292,11 +293,10 @@ export function LangToggle({ class: cls }) {
   const menu = langMenuModel(useLangs(), lang);
   const pick = (code) => { if (code && code !== getLang()) switchLang(code); };
   if (menu.kind === 'select') {
-    return html`<label class=${`set-seg lang-toggle lang-select${cls ? ` ${cls}` : ''}`} data-testid="lang-toggle">
-      <select aria-label=${SWITCH_LABEL} value=${lang} onChange=${(e) => pick(e.currentTarget.value)}>
-        ${menu.items.map((it) => html`<option key=${it.code} value=${it.code} lang=${it.htmlLang} title=${it.title || undefined} selected=${it.on}>${it.label}</option>`)}
-      </select>
-    </label>`;
+    return html`<div class=${`lang-toggle lang-select${cls ? ` ${cls}` : ''}`} data-testid="lang-toggle">
+      <${Dropdown} value=${lang} label=${SWITCH_LABEL} onChange=${pick}
+        items=${menu.items.map((it) => ({ value: it.code, label: it.label, lang: it.htmlLang, title: it.title }))} />
+    </div>`;
   }
   return html`<div class=${`set-seg lang-toggle${cls ? ` ${cls}` : ''}`} role="radiogroup" aria-label=${SWITCH_LABEL} data-testid="lang-toggle">
     ${menu.items.map((it) => html`<button key=${it.code} type="button" role="radio" lang=${it.htmlLang} aria-checked=${it.on ? 'true' : 'false'}

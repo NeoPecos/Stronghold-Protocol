@@ -1,103 +1,76 @@
-// Issue #142: the real match HUD in the mock harness, using the DOM field so optional art / WebGL is not required.
-// SP_E2E=1 CHROME_PATH=/path/to/chrome node --test test/ui/bond-collapse.e2e.test.js
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const ENABLED = process.env.SP_E2E === '1' && existsSync(CHROME);
-const OUT = fileURLToPath(new URL('../e2e/out/', import.meta.url));
 
-describe('collapsible bond strip (issue #142)', { skip: !ENABLED && 'set SP_E2E=1 and CHROME_PATH to run' }, () => {
-  let srv, browser;
+describe('fixed-width bond strip', { skip: !ENABLED && 'set SP_E2E=1 and CHROME_PATH to run' }, () => {
+  let server;
+  let browser;
+
   before(async () => {
     const { startServer } = await import('../../server/index.js');
     const puppeteer = (await import('puppeteer-core')).default;
-    srv = await startServer({ port: 0, host: '127.0.0.1', quiet: true });
+    server = await startServer({ port: 0, host: '127.0.0.1', quiet: true });
     browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--no-proxy-server'] });
-    mkdirSync(OUT, { recursive: true });
   });
-  after(async () => { await browser?.close(); await srv?.close(); });
+
+  after(async () => {
+    await browser?.close();
+    await server?.close();
+  });
 
   for (const [width, height, touch] of [[1920, 1080, false], [640, 360, true]]) {
-    test(`collapse releases field input and keeps current bonds at ${width}×${height}`, async () => {
+    test(`all bonds remain reachable at ${width}×${height}`, async () => {
       const page = await browser.newPage();
-      const errors = [];
-      page.on('pageerror', (e) => errors.push(e.message));
-      const activate = (selector) => touch ? page.tap(selector) : page.click(selector);
-      const expanded = () => page.$eval('.bonds-toggle', (el) => el.getAttribute('aria-expanded'));
       try {
         await page.setViewport({ width, height, isMobile: touch, hasTouch: touch });
-        await page.goto(`${srv.url}/dev/game-mock.html?shot=1&render=fallback&phase=PREP`, { waitUntil: 'domcontentloaded' });
-        await page.waitForSelector('.ff-piece');
+        await page.goto(`${server.url}/dev/game-mock.html?shot=1&render=fallback&phase=PREP`, { waitUntil: 'domcontentloaded' });
         await page.waitForSelector('.bslot .bond');
-        assert.equal(await expanded(), 'true');
-        const toggle = await page.$eval('.bonds-toggle', (el) => {
-          const r = el.getBoundingClientRect();
-          return { width: r.width, height: r.height, controls: el.getAttribute('aria-controls') };
-        });
-        assert.ok(toggle.width >= 44 && toggle.height >= 44, 'visible touch target is at least 44×44');
-        assert.equal(toggle.controls, 'match-bond-strip');
-        const covered = await page.$eval('.bslot .bond', (el) => {
-          const r = el.getBoundingClientRect();
-          return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-        });
-        await activate('.bslot .bond');
+
+        assert.equal(await page.$('.bonds-toggle'), null);
+        const initial = await page.$eval('.gm__bond-list', (element) => ({
+          visible: element.clientWidth,
+          full: element.scrollWidth,
+          touchAction: getComputedStyle(element).touchAction,
+        }));
+        assert.ok(initial.full > initial.visible, 'the fixed window clips excess bonds');
+        assert.equal(initial.touchAction, 'pan-x');
+
+        const firstBond = await page.$('.gm__bond-list .bslot:first-of-type .bond');
+        const firstBounds = await firstBond.boundingBox();
+        const startX = firstBounds.x + firstBounds.width / 2;
+        const startY = firstBounds.y + firstBounds.height / 2;
+        if (touch) {
+          const client = await page.target().createCDPSession();
+          await client.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: startX, y: startY }] });
+          for (let step = 1; step <= 6; step++) {
+            await client.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: startX - step * 18, y: startY }] });
+          }
+          await client.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        } else {
+          await page.mouse.move(startX, startY);
+          await page.mouse.wheel({ deltaX: 120, deltaY: 0 });
+        }
+        await page.waitForFunction(() => document.querySelector('.gm__bond-list').scrollLeft > 0);
+
+        await page.$eval('.gm__bond-list', (element) => { element.scrollLeft = element.scrollWidth; });
+        const end = await page.$eval('.gm__bond-list', (element) => ({
+          offset: element.scrollLeft,
+          right: element.getBoundingClientRect().right,
+          last: element.querySelector('.bslot:last-of-type .bond').getBoundingClientRect().right,
+        }));
+        assert.ok(end.offset > 0, 'the strip scrolls horizontally');
+        assert.ok(end.last <= end.right + 1, 'the last bond is visible after scrolling');
+
+        const lastBond = '.gm__bond-list .bslot:last-of-type .bond';
+        if (touch) await page.tap(lastBond);
+        else await page.click(lastBond);
         await page.waitForSelector('.bpop');
-        await activate('.bonds-toggle');
-        await page.waitForSelector('#match-bond-strip', { hidden: true });
-        assert.equal(await expanded(), 'false');
-        assert.equal(await page.$('.bpop'), null, 'collapsing closes the strip popup');
-        assert.equal(await page.$eval('.bonds-toggle', (el) => el.getAttribute('aria-label')), '展开盟约');
-        assert.ok(await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.gm__field'), covered),
-          'the former bond position now hits the field');
-        await page.evaluate(() => {
-          globalThis.__fieldPresses = 0;
-          document.querySelector('.gm__field').addEventListener('pointerdown', () => globalThis.__fieldPresses++);
-        });
-        if (touch) await page.touchscreen.tap(covered.x, covered.y);
-        else await page.mouse.click(covered.x, covered.y);
-        assert.equal(await page.evaluate(() => globalThis.__fieldPresses), 1, 'pointer input reaches the field');
-        await page.screenshot({ path: `${OUT}/bonds-collapsed-${width}.png` });
-
-        // Hidden content must keep following state changes, including the empty-bonds state.
-        await page.evaluate(() => globalThis.__MOCK__.mutate((s) => { s.priv.board = []; s.priv.hand.fill(null); }));
-        await activate('.bonds-toggle');
-        await page.waitForSelector('.bstrip--empty', { visible: true });
-        assert.equal(await expanded(), 'true');
-        await page.focus('.bonds-toggle');
-        await page.keyboard.press('Space');
-        await page.waitForSelector('#match-bond-strip', { hidden: true });
-        assert.equal(await page.evaluate(() => globalThis.__MOCK__.S().priv.ready), false, 'Space on the toggle does not ready the player');
-        assert.equal(await page.$('.modal'), null, 'Space does not open the funds confirmation');
-        await page.keyboard.press('Enter');
-        await page.waitForSelector('.bstrip--empty', { visible: true });
-
-        await activate('.bonds-toggle');
-        await activate('.team__row:not(.is-self) .team__btn');
-        if (await page.$('.team__ob')) await activate('.team__ob');
-        await page.waitForSelector('.gm__watching');
-        // .gm__watching shows at the tap; the mock answers the row's g.watch 40–100 ms later (game-mock.js mockRequest)
-        // with the teammate's read-only board. Wait for that answer: a phase change before it lets the mock apply the
-        // scouting request to the battle (like a server-run server; the default client-side combat refuses it), and the
-        // strip then rightly shows that teammate's bonds — none in the mock — instead of mine.
-        await page.waitForFunction(() => globalThis.__MOCK__.store.get().match.field?.prep === true);
-        assert.equal(await expanded(), 'false', 'watching a teammate preserves the collapse choice');
-        await activate('.bonds-toggle');
-        await page.waitForSelector('.bstrip__owner', { visible: true });
-        assert.ok(await page.$eval('.bstrip', (el) => el.getAttribute('data-owner')), 'expanded bonds belong to the watched teammate');
-        await activate('.bonds-toggle');
-        await page.evaluate(() => globalThis.__MOCK__.setPhase('COMBAT'));
-        await page.waitForSelector('.gm--combat');
-        assert.equal(await expanded(), 'false', 'phase changes preserve the collapse choice');
-        await activate('.bonds-toggle');
-        await page.waitForSelector('.bslot .bond', { visible: true });
-        assert.equal(await expanded(), 'true');
-        assert.equal(await page.$eval('.bstrip', (el) => el.getAttribute('data-owner')), null, 'my own battle shows my own bonds again');
-        await page.screenshot({ path: `${OUT}/bonds-expanded-${width}.png` });
-        assert.deepEqual(errors, []);
-      } finally { await page.close(); }
+      } finally {
+        await page.close();
+      }
     });
   }
 });

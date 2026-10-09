@@ -1305,9 +1305,7 @@ export async function createFieldView(host, options = {}) {
     v = info.kind === 'device' ? new DeviceView(ctx, info)
       : info.kind === 'item' ? new ItemView(ctx, scoutItemInfo(info))
       : new UnitView(ctx, info, { prep: !!battleMeta?.prep && info.side === 'ally' });
-    // a teammate's operator shows its equipped items like the own prep bench does (item pips; user playtest #2:
-    // at the unit, not only in the detail card) — prep surfaces only, the battle HUD stays as it is
-    if (v.setItems && battleMeta?.prep && Array.isArray(info.items) && info.items.length) {
+    if (v.setItems && info.side === 'ally' && Array.isArray(info.items) && info.items.length) {
       v.setItems(info.items.map((it) => { const r = data.item(it); return assets.itemIcon ? assets.itemIcon(r ? { trapId: r.trapId, iconId: r.iconId } : it) : null; }));
     }
     v.setWorld(info.x, info.y, 0);

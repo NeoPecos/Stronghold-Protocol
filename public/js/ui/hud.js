@@ -25,7 +25,7 @@
 
 import { useRef } from '../../vendor/hooks.module.js';
 import { PHASE } from '../../../shared/constants.js';
-import { html, Button, Icon, PingPill, Countdown, Tooltip, MicroLabel, DifficultyTag, useTicker } from './components.js';
+import { html, Button, Icon, PingPill, Countdown, Tooltip, DifficultyTag, useTicker } from './components.js';
 import { Sprite, LpTower, GIcon, LocalSprite } from './gameComponents.js';
 import { localAsset } from '../data.js';
 import { serverNow } from '../store.js';
@@ -343,18 +343,20 @@ export function TopBar({ pub, priv, conn, hud, total, drawer, onExit, onDrawer, 
       </div>
     </div>
 
-    <div class="gtop__center brackets">
+    <div class=${cx('gtop__center brackets', boss && 'gtop__center--boss')}>
       <${Tooltip} text=${btn.left.tip} placement="bottom">
         <${CheckBtn} sprite=${btn.left.sprite} cls=${cx('gtop__iconbtn', btn.left.back && 'is-back')} label=${btn.left.label}
           chev=${btn.left.back ? '◀◀' : null} on=${!!drawer && !pen} onClick=${onLeft} testid="check-player" />
       <//>
-      <div class="roundbox">
-        <span class="roundbox__label">${t('回合')}</span>
-        <b class="roundbox__num num">${roundText}</b>
+      <div class="gtop__meter">
+        <div class="roundbox">
+          <span class="roundbox__label">${t('回合')}</span>
+          <b class="roundbox__num num">${roundText}</b>
+        </div>
+        <${PhaseCapsule} pub=${pub} hud=${hud} miss=${!boss && Number.isFinite(live?.left) ? live.left : null} />
+        <${LpTower} value=${lp} size="lg" tone=${lowLp ? 'danger' : boss ? 'team' : null} pending=${pending}
+          note=${pending > 0 && live?.unite ? t('联防中') : null} tip=${pendingTip(lp, pending, { unite: !!live?.unite, cap, left: live?.left ?? null })} />
       </div>
-      <${PhaseCapsule} pub=${pub} hud=${hud} miss=${!boss && Number.isFinite(live?.left) ? live.left : null} />
-      <${LpTower} value=${lp} size="lg" tone=${lowLp ? 'danger' : boss ? 'team' : null} pending=${pending}
-        note=${pending > 0 && live?.unite ? t('联防中') : null} tip=${pendingTip(lp, pending, { unite: !!live?.unite, cap, left: live?.left ?? null })} />
       <${Tooltip} text=${btn.right.tip} placement="bottom">
         <${CheckBtn} sprite=${btn.right.sprite} cls=${cx('enemybtn', btn.right.grey && 'is-grey')} label=${btn.right.label}
           chev=${btn.right.grey ? null : '▶▶'} disabled=${btn.right.grey && !pen} onClick=${onRight} testid="check-enemy" />
@@ -378,7 +380,8 @@ export function TopBar({ pub, priv, conn, hud, total, drawer, onExit, onDrawer, 
 export function DpCounter({ dp }) {
   if (!Number.isFinite(dp)) return null;
   return html`<div class="dpbox" title=${t('部署费用（再部署消耗）')}>
-    <${GIcon} name="dp" class="dpbox__icon" /><b class="num">${Math.floor(dp)}</b><${MicroLabel}>COST</${MicroLabel}>
+    <img class="dpbox__icon" src="/ui-custom/deploy-cost.svg" alt="" />
+    <b class="num">${Math.floor(dp)}</b>
   </div>`;
 }
 

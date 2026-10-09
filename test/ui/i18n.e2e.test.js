@@ -43,12 +43,19 @@ describe('language switch on the title screen', { skip: !ENABLED && 'set SP_E2E=
 
   const text = (page, sel) => page.$eval(sel, (el) => el.textContent.replace(/\s+/g, ' ').trim());
   /** The menu's languages, [code, label] — its buttons, or the options of its list. */
-  const menu = (page) => page.$$eval('[data-testid="lang-toggle"] button, [data-testid="lang-toggle"] option',
-    (els) => els.map((e) => [e.dataset.lang ?? e.value, e.textContent.trim()]));
+  const menu = async (page) => {
+    const trigger = '[data-testid="lang-toggle"] .ui-dropdown__trigger';
+    if (await page.$(trigger) && await page.$eval(trigger, (el) => el.getAttribute('aria-expanded') === 'false')) await page.click(trigger);
+    return page.$$eval('[data-testid="lang-toggle"] [data-lang], [data-testid="lang-toggle"] [role="option"]',
+      (els) => els.map((e) => [e.dataset.lang ?? e.value, e.textContent.trim()]));
+  };
   /** Pick a language: its button, or its option in the list. */
   const pick = async (page, code) => {
-    if (await page.$('[data-testid="lang-toggle"] select')) await page.select('[data-testid="lang-toggle"] select', code);
-    else await page.click(`[data-testid="lang-toggle"] button[data-lang="${code}"]`);
+    if (await page.$('[data-testid="lang-toggle"] .ui-dropdown')) {
+      const trigger = '[data-testid="lang-toggle"] .ui-dropdown__trigger';
+      if (await page.$eval(trigger, (el) => el.getAttribute('aria-expanded') === 'false')) await page.click(trigger);
+      await page.click(`[data-testid="lang-toggle"] [role="option"][value="${code}"]`);
+    } else await page.click(`[data-testid="lang-toggle"] button[data-lang="${code}"]`);
   };
   const SHIPPED = [['zh', '中文'], ['en', 'English'], ['ja', '日本語'], ['ko', '한국어'], ['zh-TW', '繁體中文']];
   const pack = (code) => JSON.parse(fs.readFileSync(path.join(ROOT, `public/i18n/${code}.json`), 'utf8'));
@@ -85,6 +92,11 @@ describe('language switch on the title screen', { skip: !ENABLED && 'set SP_E2E=
     assert.equal(await page.evaluate(() => document.documentElement.lang), 'zh-CN');
 
     assert.deepEqual(await menu(page), SHIPPED, 'the shipped languages');
+    assert.equal(await page.$eval('.title-lang .ui-dropdown', (el) => {
+      const trigger = el.querySelector('.ui-dropdown__trigger').getBoundingClientRect();
+      const list = el.querySelector('.ui-dropdown__menu').getBoundingClientRect();
+      return Math.round(trigger.width) === Math.round(list.width);
+    }), true, 'the language list matches the trigger width');
     await pick(page, 'en');
     await page.waitForFunction(() => document.querySelector('.title-cn')?.textContent.includes('Stronghold Protocol'), { timeout: 8000 });
     assert.equal(await text(page, '.title-cn'), 'Stronghold Protocol: Alliance');
@@ -109,6 +121,11 @@ describe('language switch on the title screen', { skip: !ENABLED && 'set SP_E2E=
     assert.equal(await text(page, '.title-cn'), '卫戍协议：盟约');
     assert.equal(await page.evaluate(() => location.search), '', '?lang is removed from the address bar');
     assert.equal(await page.evaluate(() => localStorage.getItem('sp.pref.lang')), '"zh"');
+    await page.click('.title-settings');
+    await page.click('[data-testid="resolution-row"] .ui-dropdown__trigger');
+    assert.equal(await page.$$eval('[data-testid="resolution-row"] [role="option"]', (els) => els.length), 5);
+    await page.click('[data-testid="resolution-row"] [role="option"][value="1080p"]');
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('sp.pref.settings')).resolution), '1080p');
     assert.deepEqual(problems, []);
     await page.close();
   });
@@ -126,7 +143,8 @@ describe('language switch on the title screen', { skip: !ENABLED && 'set SP_E2E=
       fs.writeFileSync(path.join(PACK_DIR, 'ui.json'), JSON.stringify({ 开始: 'Qab-Start' }));
       await sleep(1100); // the server's registry looks at the folders again after a second
       await page.goto(`${base}/?lang=zh`, { waitUntil: 'networkidle0' });
-      await page.waitForFunction(() => [...document.querySelectorAll('.title-screen [data-testid="lang-toggle"] :is(button, option)')].some((e) => (e.dataset.lang ?? e.value) === 'qaa'), { timeout: 8000 });
+      await page.click('.title-screen [data-testid="lang-toggle"] .ui-dropdown__trigger');
+      await page.waitForFunction(() => [...document.querySelectorAll('.title-screen [data-testid="lang-toggle"] [data-lang], .title-screen [data-testid="lang-toggle"] [role="option"]')].some((e) => (e.dataset.lang ?? e.value) === 'qaa'), { timeout: 8000 });
       assert.deepEqual(await menu(page), [...SHIPPED.slice(0, 4), ['qaa', 'Testisch'], ['qab', 'Qabisch'], SHIPPED[4]]);
 
       await pick(page, 'qaa');

@@ -12,9 +12,9 @@
 .gm__vignette {
   position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(6, 9, 8, .78) 0%, rgba(6, 9, 8, 0) 18%),
-    linear-gradient(0deg, rgba(6, 9, 8, .6) 0%, rgba(6, 9, 8, 0) 22%),
-    radial-gradient(120% 90% at 45% 50%, transparent 60%, rgba(0, 0, 0, .5) 100%);
+    linear-gradient(180deg, rgba(6, 9, 8, .62) 0%, rgba(6, 9, 8, 0) 15%),
+    linear-gradient(0deg, rgba(6, 9, 8, .42) 0%, rgba(6, 9, 8, 0) 18%),
+    radial-gradient(120% 90% at 45% 50%, transparent 65%, rgba(0, 0, 0, .35) 100%);
 }
 .gm__loading { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; pointer-events: none; }
 .gm__hud { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
@@ -32,13 +32,23 @@
 .gtop__meta { display: flex; flex-direction: column; align-items: flex-start; gap: .06rem; }
 .gtop__exit { box-shadow: 0 .06rem .2rem rgba(0, 0, 0, .5); }
 .gtop__center {
-  --bk-c: var(--mint-700);
-  display: flex; align-items: center; gap: .18rem;
-  height: .78rem; padding: 0 .24rem 0 .14rem; margin-top: .02rem;
-  background: linear-gradient(180deg, rgba(10, 14, 12, .92), rgba(10, 14, 12, .78));
-  border: 1px solid var(--line);
-  box-shadow: 0 .08rem .28rem rgba(0, 0, 0, .45);
+  --bk-c: rgba(170, 180, 172, .5);
+  display: flex; align-items: center; justify-content: space-between; box-sizing: border-box;
+  width: 9.32rem; padding: 0 .1rem 0 .32rem;
+  height: .66rem; margin-top: .02rem;
   position: relative;
+}
+.gtop__center--boss { width: 11.32rem; }
+.gtop__meter {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: .18rem;
+  width: 6.4rem; height: .48rem; padding: 0 .65rem;
+  background: linear-gradient(180deg, rgba(8, 11, 10, .72), rgba(8, 11, 10, .38)),
+    url('/assets/ui/hudPanel/frame_mid_normal.png') center / 100% 100% no-repeat;
+}
+.gtop__center--boss .gtop__meter { width: 8.4rem; }
+.gtop__meter::before {
+  content: ''; position: absolute; left: .1rem; top: -.08rem; width: 1.03rem; height: .06rem;
+  background: url('/assets/ui/hudPanel/frame_deco_txt1.png') center / 100% 100% no-repeat; opacity: .7;
 }
 /* the two official 🔍 buttons (ui/hud.js CheckBtn): btn_check_player (mint, left) and btn_check_enemy (amber, right);
    sprites are 35×29 (plain) / 61×29 (with chevrons) → .555rem / .967rem × .46rem */
@@ -97,18 +107,16 @@
 .roundbox { display: flex; align-items: center; gap: .08rem; }
 .roundbox__label { font-size: .16rem; color: var(--text-lo); letter-spacing: .08em; }
 .roundbox__num {
-  min-width: .54rem; height: .44rem; display: grid; place-items: center; padding: 0 .08rem;
-  background: #eef3f1; color: #0b0f0d; font-size: .32rem; font-weight: 700; line-height: 1;
-  clip-path: polygon(.06rem 0, 100% 0, 100% calc(100% - .06rem), calc(100% - .06rem) 100%, 0 100%, 0 .06rem);
+  min-width: .54rem; height: .3rem; display: grid; place-items: center; padding: 0 .08rem;
+  background: #d3d4d2 url('/assets/ui/hudPanel/bg_round.png') center / 100% 100% no-repeat;
+  color: #0b0f0d; font-size: .27rem; font-weight: 700; line-height: 1;
 }
 
 /* phase capsule */
 .capsule {
-  --cap: var(--mint-500);
-  display: flex; align-items: center; gap: .1rem; height: .5rem; min-width: 2.2rem; padding: 0 .22rem 0 .12rem;
-  border: 2px solid var(--cap); border-radius: .25rem;
-  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, .25)); background: linear-gradient(90deg, color-mix(in srgb, var(--cap) 16%, transparent), rgba(0, 0, 0, .25));
-  box-shadow: inset 0 0 .14rem transparent, 0 0 .16rem transparent; box-shadow: inset 0 0 .14rem color-mix(in srgb, var(--cap) 30%, transparent), 0 0 .16rem color-mix(in srgb, var(--cap) 25%, transparent);
+  --cap: var(--orange-hi);
+  display: flex; align-items: center; justify-content: center; gap: .1rem; height: .5rem; min-width: 2.2rem; padding: 0 .22rem 0 .12rem;
+  background: #29160e url('/assets/ui/hudPanel/bg_battle.png') center / 100% 100% no-repeat;
   white-space: nowrap;
 }
 .capsule__icon { width: .36rem; height: .36rem; object-fit: contain; color: var(--cap); flex: none; }
@@ -132,8 +140,12 @@
 .team__line .misstag.has-art { width: .68rem; }
 .team__line .misstag__n { font-size: .16rem; }
 .team__line .misstag__icon { font-size: .13rem; }
+.capsule--prep {
+  --cap: var(--mint-500);
+  background: #0d2520 url('/assets/ui/hudPanel/bg_rest.png') center / 100% 100% no-repeat;
+}
 .capsule--combat { --cap: var(--orange-hi); }
-.capsule--boss { --cap: var(--orange-hi); min-width: 4.2rem; }
+.capsule--boss { --cap: var(--orange-hi); min-width: 4.2rem; background-image: url('/assets/ui/hudPanel/bg_boss.png'); }
 .bossbar { position: relative; flex: 1; min-width: 2.2rem; height: .2rem; background: rgba(0, 0, 0, .6); border: 1px solid rgba(255, 122, 51, .5); overflow: hidden; }
 .bossbar__fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #b8340d, var(--orange-hi)); box-shadow: 0 0 .1rem rgba(255, 110, 40, .8); transition: width 300ms var(--ease-out); }
 .bossbar__txt { position: absolute; inset: 0; display: grid; place-items: center; font-size: .14rem; font-weight: 700; color: #fff; text-shadow: 0 1px 2px #000; }
@@ -201,9 +213,9 @@
 .readywrap__why b { color: #ff8a78; font-size: .16rem; }
 .readybtn {
   display: flex; align-items: center; gap: .12rem; height: .56rem; padding: 0 .16rem 0 .12rem; min-width: 2.3rem;
-  background: rgba(10, 14, 12, .9); border: 2px solid var(--mint-500); color: var(--text-hi);
+  background: rgba(10, 14, 12, .88); border: 1px solid rgba(78, 216, 175, .75); color: var(--text-hi);
   font-size: .22rem; font-weight: 700; letter-spacing: .14em;
-  box-shadow: 0 0 .18rem rgba(23, 249, 183, .15);
+  box-shadow: 0 .04rem .16rem rgba(0, 0, 0, .4);
   transition: background var(--t-fast), color var(--t-fast), box-shadow var(--t-fast);
 }
 .readybtn:hover:not(:disabled) { background: rgba(78, 216, 175, .14); box-shadow: 0 0 .26rem rgba(23, 249, 183, .3); }
@@ -220,25 +232,17 @@
 .readybtn.is-busy { opacity: .7; }
 
 /* ---- bond strip ---------------------------------------------------------------------------------------- */
-.gm__bonds { position: absolute; left: 1.56rem; top: 1.36rem; right: 5.2rem; pointer-events: none;
-  display: flex; align-items: flex-start; gap: max(.1rem, 8px); }
+.gm__bonds { position: absolute; left: 50%; top: 1.04rem; width: 6.4rem; max-width: calc(100% - 3rem); transform: translateX(-50%); pointer-events: none;
+  display: flex; align-items: flex-start; }
 /* Only the bond discs (and the +N chip) take the pointer: the strip's box spans the width under the top bar, where the
    top board row's units stand (row 12 at 16:9 / 21:9 / 720p / phones, the boss field's row 5 in a boss prep) — it used
    to swallow the taps and drags on them (review of user playtest #2 item 8: every own unit reachable). */
 .gm__bonds > *, .gm__bonds .bstrip { pointer-events: none; }
 .gm__bonds .bslot, .gm__bonds .bstrip__more { pointer-events: auto; }
-.gm__bond-list { min-width: 0; }
-/* The hidden list leaves no hit area over the board; only this compact tab can reopen it (GitHub #142). */
-/* A bare arrow (the owner's request after 0.2.0: the boxed 「收起」 tab looked heavy): transparent, half-visible until
-   hovered or focused; the 44 × 44 touch target stays (an invisible hit area), the name is the aria-label. */
-.gm__bonds .bonds-toggle { pointer-events: auto; flex: none; display: inline-flex; align-items: center; justify-content: center;
-  min-width: 44px; min-height: 44px; padding: 0; color: var(--text-hi); background: transparent; border: 0; cursor: pointer;
-  opacity: .55; transition: opacity var(--t-fast) var(--ease-out), color var(--t-fast) var(--ease-out); line-height: 1; }
-.bonds-toggle .icon { width: max(.22rem, 18px); height: max(.22rem, 18px); filter: drop-shadow(0 0 2px rgba(0, 0, 0, .85)); }
-.bonds-toggle[aria-expanded="false"] { opacity: .8; }
-.bonds-toggle:hover, .bonds-toggle:focus-visible { opacity: 1; color: var(--mint-500); }
-.bonds-toggle:focus-visible { outline: 2px solid var(--mint-500); outline-offset: -4px; }
-.bstrip { display: flex; align-items: flex-start; gap: .1rem; flex-wrap: nowrap; }
+.gm__bond-list { min-width: 0; width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x; }
+.gm__bond-list::-webkit-scrollbar { display: none; }
+.gm__bond-list:focus-visible { outline: 2px solid var(--mint-500); outline-offset: 2px; }
+.bstrip { display: flex; align-items: flex-start; gap: .1rem; flex-wrap: nowrap; width: max-content; }
 .bstrip.is-frozen .bslot { opacity: .5; filter: saturate(.4); }
 .bstrip--empty { display: inline-flex; align-items: center; gap: .12rem; padding: .08rem .16rem; font-size: .15rem; color: var(--text-dim); background: rgba(8, 11, 10, .6); border: 1px dashed var(--line-2); }
 /* a watched teammate's bonds (DESIGN §20.15): an amber "👁 name" pill in front of the discs, amber rings. Horizontal at
@@ -277,8 +281,9 @@
 }
 
 /* ---- team panel ------------------------------------------------------------------------------------------- */
-.team { position: absolute; left: .22rem; top: 2.36rem; display: flex; flex-direction: column; gap: .14rem; pointer-events: none; }
+.team { position: absolute; left: .22rem; top: 2.36rem; display: flex; flex-direction: column; gap: .1rem; pointer-events: none; }
 .team__row { position: relative; display: flex; align-items: center; gap: .1rem; pointer-events: auto; }
+.team__acting { flex: none; color: #e9ede9; font-size: .2rem; letter-spacing: .04em; line-height: 1; text-shadow: 0 1px 3px #000; }
 .team__btn {
   position: relative; padding: 0; background: none; border: 0;
   transition: transform var(--t-fast);
@@ -291,7 +296,7 @@
 .team__ai { position: absolute; right: -.04rem; bottom: -.04rem; font-family: var(--font-num); font-size: .11rem; font-weight: 700; padding: 0 .04rem; background: #a9c3d8; color: #0b1520; }
 .team__you { position: absolute; right: -.08rem; top: -.08rem; width: .22rem; height: .22rem; display: grid; place-items: center; background: var(--mint-500); color: var(--text-on-mint); clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); }
 .team__you .icon { width: .14rem; height: .14rem; }
-.team__info { display: flex; flex-direction: column; gap: .02rem; min-width: 0; padding: .04rem .12rem .04rem .06rem; background: linear-gradient(90deg, rgba(8, 11, 10, .82), rgba(8, 11, 10, 0)); }
+.team__info { display: flex; flex-direction: column; gap: .02rem; min-width: 0; padding: .04rem .12rem .04rem .06rem; background: linear-gradient(90deg, rgba(8, 11, 10, .76), rgba(8, 11, 10, .28) 75%, transparent); }
 .team__name { font-size: .15rem; font-weight: 500; color: var(--text-md); max-width: 1.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px #000; }
 .team__line { display: flex; align-items: center; gap: .1rem; }
 .team__status { width: .26rem; height: .26rem; display: grid; place-items: center; border: 1px solid currentColor; background: rgba(0, 0, 0, .5); }
@@ -306,8 +311,8 @@
 .team__status.is-red, .team__status.is-offline { color: var(--red-premium); }
 .team__eye { color: var(--amber); display: grid; }
 .team__eye .icon { width: .2rem; height: .2rem; }
-.team__row.is-self .pavatar { box-shadow: 0 0 0 2px var(--mint-500), 0 0 .18rem rgba(23, 249, 183, .35); }
-.team__row.is-watched .pavatar { box-shadow: 0 0 0 2px var(--amber), 0 0 .18rem rgba(246, 163, 41, .45); }
+.team__row.is-self .pavatar { box-shadow: 0 0 0 2px var(--mint-500), 0 .04rem .12rem rgba(0, 0, 0, .55); }
+.team__row.is-watched .pavatar { box-shadow: 0 0 0 2px var(--amber), 0 .04rem .12rem rgba(0, 0, 0, .55); }
 .team__row.is-dead .team__name { color: var(--text-dim); text-decoration: line-through; }
 /* 最终攻势 / 隐秘核心: the viewer's pair framed in the official green from the round's start (item 51) — the official
    ui/battle bg_team_border (a white frame with its glow) tinted through a mask; a plain green ring without the local art.
@@ -320,7 +325,7 @@
 .team__row.is-self.is-team .pavatar { box-shadow: none; }
 .team__bubble { position: absolute; left: calc(100% + .06rem); top: 50%; transform: translateY(-50%); width: max-content; max-width: 3.2rem; }
 /* 前往查看 / 返回战场 (research 09 §3.1: tapping a teammate's avatar expands a mint button under it) */
-.team__row.is-open .pavatar { box-shadow: 0 0 0 2px var(--mint-400), 0 0 .2rem rgba(23, 249, 183, .45); }
+.team__row.is-open .pavatar { box-shadow: 0 0 0 2px var(--mint-400), 0 .04rem .12rem rgba(0, 0, 0, .55); }
 .team__row.is-open .team__info { background: linear-gradient(90deg, rgba(13, 44, 36, .92), rgba(8, 11, 10, 0)); }
 .team__ob, .team__back { align-self: flex-start; margin-top: .04rem; min-width: 1.1rem; animation: pop-in var(--t-fast) var(--ease-out); }
 .team__ob .btn__label, .team__back .btn__label { letter-spacing: .12em; }
@@ -331,7 +336,7 @@
   --pa: .8rem;
   position: relative; display: block; width: var(--pa); height: var(--pa); flex: none;
   background: linear-gradient(135deg, hsl(var(--seat-hue) 40% 22%), hsl(var(--seat-hue) 30% 10%));
-  border: 1px solid var(--line-2);
+  border: 1px solid rgba(230, 236, 230, .48);
 }
 .pavatar--sm { --pa: .42rem; }
 .pavatar__img { position: absolute; inset: 0; overflow: hidden; display: grid; place-items: center; }
@@ -455,12 +460,13 @@
 .chud { position: absolute; inset: 0; pointer-events: none; }
 .chud > * { pointer-events: auto; }
 .dpbox {
-  position: absolute; right: .3rem; top: 50%; transform: translateY(-50%);
-  display: flex; flex-direction: column; align-items: center; gap: .02rem; padding: .1rem .12rem;
-  background: rgba(8, 11, 10, .85); border: 1px solid var(--line-2); border-right: 3px solid var(--mint-500);
+  position: absolute; right: .12rem; top: 68%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: flex-end; gap: .1rem;
+  min-width: 1.34rem; height: .55rem; padding: 0 .1rem .08rem;
+  background: rgba(13, 18, 19, .56); border-bottom: .04rem solid #f0f4f2;
 }
-.dpbox__icon { width: .26rem; height: .26rem; color: var(--mint-500); }
-.dpbox b { font-size: .34rem; line-height: 1; color: #fff; }
+.dpbox__icon { width: .3rem; height: .3rem; flex: none; }
+.dpbox b { font-size: .4rem; line-height: 1; font-weight: 400; color: #f0f4f2; }
 .chud__bottom { position: absolute; left: 50%; bottom: .3rem; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: .12rem; pointer-events: none; }
 .chud__bottom > * { pointer-events: auto; }
 .chud__msg {
@@ -523,6 +529,8 @@
 .set-seg button { min-width: .8rem; height: .38rem; background: #0a0d0c; border: 0; border-right: 1px solid var(--line-2); color: var(--text-lo); font-size: .16rem; }
 .set-seg button:last-child { border-right: 0; }
 .set-seg button.is-on { background: var(--mint-500); color: var(--text-on-mint); font-weight: 700; }
+.set-resolution { grid-column: 2 / 4; justify-self: start; }
+.set-resolution .ui-dropdown__menu { top: auto; bottom: calc(100% + 2px); }
 .set-hint { margin-top: .06rem; font-size: .14rem; color: var(--text-dim); line-height: 1.8; }
 .set-hint kbd, .lvcard__key, .toolbtn kbd { font-family: var(--font-num); font-size: .11rem; border: 1px solid var(--line-2); padding: 0 .04rem; color: var(--text-lo); background: rgba(0, 0, 0, .3); }
 /* 快捷键 (ui/settings.js HotkeySection): each shortcut with its key — click the key, press the new one; two columns,
@@ -639,7 +647,7 @@
 
 /* ---- small screens (1280×720 → root ≈ 66px) ------------------------------------------------------------------------ */
 @media (max-aspect-ratio: 16/10) {
-  .gm__bonds { right: 4.6rem; }
+  .gm__bonds { max-width: calc(100% - 2rem); }
 }
 
 /* fallback view: enemy preview pen (setCamera('pen')) */
