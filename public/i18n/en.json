@@ -1083,6 +1083,8 @@
   "模拟中": "In Progress",
   "已满员": "Full",
   "{players} 位博士": "{players} Doctors",
+  "在线 {n} 人": "{n} online",
+  "近5分钟操作 {n} 人": "{n} active in 5 min",
   " · {bots} 位 AI": " · {bots} AI",
   "共 {n} 间同盟房间": "{n} Alliance Rooms",
   " · 刷新失败，显示上次结果": " · Refresh failed; showing the previous results",

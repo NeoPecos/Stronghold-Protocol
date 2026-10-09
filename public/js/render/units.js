@@ -1070,9 +1070,7 @@ export class UnitView {
         if (lvl >= 2 || this._far) interval = Math.max(interval, 2);
       }
       if (this.actor.clipped) {
-        const clip = this.ctx.clipAllowed ? this.ctx.clipAllowed() : true;
-        this.actor.setClipping(clip);
-        if (clip && this.ctx.impostors) interval = Math.max(1, interval);
+        if (this.ctx.impostors) interval = Math.max(1, interval);
       }
       if (interval > 0 && this.ctx.renderer) {
         this._updateImpostor(sc, flip, tint, animDt, interval);
@@ -1422,7 +1420,7 @@ export class UnitView {
     const ox = -box.x0 * sc, oy = -box.y0 * sc * yK;
     if (atlas) {
       let slot = imp.slot;
-      const clip = !!(this.actor.clipped && this.actor.clipOn);
+      const clip = !!this.actor.clipped;
       if (!slot || w > slot.w || h > slot.h || w < slot.w * 0.6 || h < slot.h * 0.6 || slot.clip !== clip) {
         if (slot) atlas.free(slot);
         slot = imp.slot = atlas.alloc(w, h, { clip });

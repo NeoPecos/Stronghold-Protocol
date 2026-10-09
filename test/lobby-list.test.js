@@ -30,6 +30,7 @@ test('room.list shows co-op rooms, occupancy and whether joining is still possib
   };
 
   try {
+    assert.equal(validateC2S({ t: 'user.activity' }), null);
     const host = await player('Host');
     await request(host, { t: 'room.create', mode: 'coop', difficulty: 'NORMAL' });
     const state = await host.waitFor('room.state');
@@ -39,6 +40,7 @@ test('room.list shows co-op rooms, occupancy and whether joining is still possib
 
     assert.deepEqual(await list(viewer), [{
       code: state.code, hostName: 'Host', difficulty: 'NORMAL', players: 1, bots: 0,
+      connectedPlayers: 1, activePlayers: 1,
       capacity: 4, spectators: 0, inMatch: false, createdAt: server.lobby.getRoom(state.code).createdAt,
     }]);
 
@@ -49,8 +51,16 @@ test('room.list shows co-op rooms, occupancy and whether joining is still possib
     await request(host, { t: 'room.addBot' });
     const full = (await list(viewer))[0];
     assert.equal(full.players, 2);
+    assert.equal(full.connectedPlayers, 2);
+    assert.equal(full.activePlayers, 2);
     assert.equal(full.bots, 2);
     assert.equal(full.players + full.bots, full.capacity);
+    const guestSession = server.registry.byId(guest.id);
+    guestSession.lastInputAt = Date.now() - 6 * 60_000;
+    assert.equal((await guest.request({ t: 'ping', c: Date.now() })).t, 'pong');
+    assert.equal((await list(viewer))[0].activePlayers, 1);
+    await request(guest, { t: 'user.activity' });
+    assert.equal((await list(viewer))[0].activePlayers, 2);
     assert.equal((await viewer.request({ t: 'room.join', code: state.code })).code, ERR.ROOM_FULL);
 
     await request(host, { t: 'room.kick', seat: 2, playerId: guest.id });

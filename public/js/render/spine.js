@@ -89,18 +89,7 @@ export class SpineActor {
     this.spine = new P.spine.Spine(spineData);
     this.spine.autoUpdate = false;
     this.names = new Set((spineData.animations || []).map((a) => a.name));
-    /**
-     * Clipping attachments render as stencil masks (≈1.5 ms of GPU each per frame on tiled GPUs): such skeletons
-     * are drawn through the impostor atlas while clipping is on, and clipping is switched off (unclipped slots,
-     * visually negligible on battle chibis) when too many of them share a field (app.js budget).
-     */
     this.clipped = hasClipping(spineData);
-    this.clipOn = true;
-    if (this.clipped) {
-      const sp = this.spine;
-      const orig = typeof sp.createGraphics === 'function' ? sp.createGraphics.bind(sp) : null;
-      if (orig) sp.createGraphics = (slot, att) => { const g = orig(slot, att); if (!this.clipOn && slot.clippingContainer) { slot.clippingContainer.mask = null; g.renderable = false; } return g; };
-    }
     try { this.spine.stateData.defaultMix = 0.12; } catch { /* ignore */ }
     this.base = 'idle';
     this.mode = 'base';           // base | attack | skillBegin | deploy | die | stun | change
@@ -127,19 +116,6 @@ export class SpineActor {
     this.clipPerAttack = false;
     this.wound = false;           // clipPerAttack: wound up for the coming attack (windUp → attack)
     this._play(this._idleName(), true);
-  }
-
-  /** Enable / disable the skeleton's clipping masks. */
-  setClipping(on) {
-    on = !!on;
-    if (!this.clipped || on === this.clipOn) return;
-    this.clipOn = on;
-    for (const slot of this.spine?.skeleton?.slots || []) {
-      if (!slot.clippingContainer) continue;
-      slot.clippingContainer.mask = on ? slot.currentGraphics || null : null;
-      // PIXI makes a released mask renderable again: the clip polygon must never draw as a white shape
-      if (slot.currentGraphics) slot.currentGraphics.renderable = false;
-    }
   }
 
   /**

@@ -386,15 +386,20 @@ export class Lobby {
   // ---------------------------------------------------------------------------------------------------
 
   listRooms(session) {
+    const now = this.now();
     const rooms = [...this.rooms.values()]
       .filter((room) => !room.disposed && room.mode === 'coop')
       .map((room) => {
         const host = room.seatOf(room.hostId);
+        const humans = room.activeHumans();
+        const connected = humans.map((seat) => this.registry.byId(seat.playerId)).filter((member) => member?.connected);
         return {
           code: room.code,
           hostName: host?.name || '',
           difficulty: room.difficulty,
-          players: room.activeHumans().length,
+          players: humans.length,
+          connectedPlayers: connected.length,
+          activePlayers: connected.filter((member) => member.lastInputAt != null && now - member.lastInputAt < 5 * 60_000).length,
           bots: room.seats.filter((seat) => seat?.isBot).length,
           capacity: MAX_SEATS,
           spectators: room.spectators.length,

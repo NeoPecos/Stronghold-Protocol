@@ -67,6 +67,7 @@ export const NET_DEFAULTS = Object.freeze({
  * (taking a spectator seat in a running match resends its state like a watcher's g.watch — server/lobby.js spectate).
  */
 export const HEAVY_TYPES = new Set(['g.watch', 'room.list', 'room.loadout', 'room.skins', 'room.ownership', 'room.diy', 'room.spectate']);
+const ACTIVITY_TYPES = new Set(['room.create', 'room.join', 'room.leave', 'room.ready', 'room.setDifficulty', 'room.addBot', 'room.removeBot', 'room.kick', 'room.start', 'room.spectate', 'room.removeSpectator']);
 
 /** Close codes (see header). */
 export const CLOSE = Object.freeze({ REPLACED: 4001, HELLO_TIMEOUT: 4002, POLICY: 1008, SHUTDOWN: 1001 });
@@ -97,6 +98,7 @@ export class Session {
     this.connected = false;
     /** @type {number} ms epoch of the last inbound frame / pong */
     this.lastSeen = now;
+    this.lastInputAt = null;
     /** @type {number | null} ms epoch when the socket was lost (null while connected) */
     this.disconnectedAt = now;
     /** @type {string | null} room code — owned and maintained by server/lobby.js */
@@ -610,6 +612,14 @@ export class Network {
     if (msg.t === 'hello') { this.onHelloMsg(conn, msg, now); return; }
     if (!conn.session) { this.reply(conn, errorMsg(ERR.BAD_MSG, rid, 'hello required')); return; }
     if (HEAVY_TYPES.has(msg.t) && !conn.heavy.take(now)) { this.reply(conn, errorMsg(ERR.RATE, rid, `${msg.t} too often`)); return; }
+    if (msg.t === 'user.activity') {
+      conn.session.lastInputAt = now;
+      if (validRid(rid)) this.reply(conn, { t: 'ok', rid });
+      return;
+    }
+    if (ACTIVITY_TYPES.has(msg.t) || (msg.t.startsWith('g.') && msg.t !== 'g.watch' && msg.t !== 'g.unitStats')) {
+      conn.session.lastInputAt = now;
+    }
 
     let res;
     try {

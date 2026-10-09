@@ -47,6 +47,19 @@ describe('room directory in the browser', { skip: !enabled && 'set SP_E2E=1 and 
       const listing = await guest.$eval('.room-directory__room', (element) => element.textContent);
       assert.match(listing, /Host/);
       assert.match(listing, /1\/4/);
+      assert.match(listing, /在线 1 人/);
+      assert.match(listing, /近5分钟操作 1 人/);
+      const hostSession = server.registry.byId(server.lobby.getRoom(code).hostId);
+      hostSession.lastInputAt = 0;
+      await guest.evaluate(() => window.__SP__.net.request('room.list'));
+      await guest.waitForFunction(() => document.querySelector('.room-directory__room')?.textContent.includes('近5分钟操作 0 人'));
+      await host.evaluate(() => window.dispatchEvent(new PointerEvent('pointerdown')));
+      for (let attempts = 0; attempts < 50 && hostSession.lastInputAt === 0; attempts++) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      assert.ok(hostSession.lastInputAt > 0);
+      await guest.evaluate(() => window.__SP__.net.request('room.list'));
+      await guest.waitForFunction(() => document.querySelector('.room-directory__room')?.textContent.includes('近5分钟操作 1 人'));
       await guest.click('.room-directory__room .btn--primary');
       await guest.waitForSelector('.room-screen');
       await host.waitForFunction(() => [...document.querySelectorAll('.seat__name')]

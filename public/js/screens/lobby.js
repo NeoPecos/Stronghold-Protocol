@@ -261,6 +261,7 @@ function RoomDirectory({ rooms, online, loading, error, busy, onRefresh, onJoin,
               <span class="room-directory__count"><${Icon} name="users" /><b class="num">${occupied}/${room.capacity}</b>
                 <span>${t('{players} 位博士', { players: room.players })}${room.bots ? t(' · {bots} 位 AI', { bots: room.bots }) : ''}</span>
               </span>
+              <span class="room-directory__activity">${t('在线 {n} 人', { n: room.connectedPlayers })} · ${t('近5分钟操作 {n} 人', { n: room.activePlayers })}</span>
               <span class=${`room-directory__status${joinable ? ' is-open' : ''}`}>${status}</span>
             </div>
             <div class="room-directory__actions">

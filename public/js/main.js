@@ -321,6 +321,18 @@ function installGlobalErrorHandlers() {
   });
 }
 
+function installActivityTracking() {
+  let lastSentAt = 0;
+  const record = () => {
+    if (document.visibilityState === 'hidden' || !store.get().room) return;
+    const now = Date.now();
+    if (now - lastSentAt < 15_000) return;
+    if (net.send('user.activity')) lastSentAt = now;
+  };
+  window.addEventListener('pointerdown', record, { capture: true, passive: true });
+  window.addEventListener('keydown', record, true);
+}
+
 async function boot() {
   installGlobalErrorHandlers();
   // touch / hover / fullscreen classes, zoom-gesture blocking, rotation re-layout (ui/device.js, css/devices.css)
@@ -345,6 +357,7 @@ async function boot() {
   installDiySync({ net });
   installSkinsSync({ net });
   net.attachBrowserHooks();
+  installActivityTracking();
   // Audio: unlock on first gesture, BGM follows the route / match phase (js/audio.js).
   installAudio({ getManifest: () => data.get('assets'), subscribe: store.subscribe, getState: store.get, selectRoute, settings: settingsStore.get() });
   data.load('assets').catch(() => {});
