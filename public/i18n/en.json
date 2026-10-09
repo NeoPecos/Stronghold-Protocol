@@ -1072,5 +1072,19 @@
   "，等待其他博士": ", waiting for other Doctors",
   "：在场 {count}": ": {count} on the field",
   "：在场 {count}/{cap}": ": {count}/{cap} on the field",
-  "；2 件相同装备自动合成进阶装备": "; 2 identical pieces merge into Elite Equipment"
+  "；2 件相同装备自动合成进阶装备": "; 2 identical pieces merge into Elite Equipment",
+  "服务器房间": "Server Rooms",
+  "连接服务器后即可查看房间": "Connect to the server to see available rooms",
+  "房间列表暂时无法加载，请刷新重试": "Could not load rooms. Please refresh and try again",
+  "正在查找服务器房间…": "Looking for rooms…",
+  "暂无同盟房间，创建一个邀请其他博士吧": "No Alliance rooms yet. Create one and invite other Doctors",
+  "房主": "Host",
+  "招募中": "Open",
+  "模拟中": "In Progress",
+  "已满员": "Full",
+  "{players} 位博士": "{players} Doctors",
+  " · {bots} 位 AI": " · {bots} AI",
+  "共 {n} 间同盟房间": "{n} Alliance Rooms",
+  " · 刷新失败，显示上次结果": " · Refresh failed; showing the previous results",
+  "查找同盟": "Find an Alliance"
 }

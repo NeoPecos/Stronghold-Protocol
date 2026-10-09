@@ -235,6 +235,46 @@ function DifficultyCard({ roomMode, difficulty, selected, onSelect }) {
   </button>`;
 }
 
+function RoomDirectory({ rooms, online, loading, error, busy, onRefresh, onJoin, onSpectate }) {
+  return html`<${Panel} class="room-directory" tone="mint" title=${t('服务器房间')} micro="ALLIANCE DIRECTORY"
+    actions=${html`<${Button} variant="ghost" size="sm" icon="refresh" disabled=${!online} loading=${loading}
+      onClick=${onRefresh}>${t('刷新')}<//>`}>
+    ${!online ? html`<p class="room-directory__empty">${t('连接服务器后即可查看房间')}</p>`
+      : error && !rooms ? html`<p class="room-directory__empty">${t('房间列表暂时无法加载，请刷新重试')}</p>`
+      : !rooms ? html`<p class="room-directory__empty">${t('正在查找服务器房间…')}</p>`
+      : rooms.length === 0 ? html`<p class="room-directory__empty">${t('暂无同盟房间，创建一个邀请其他博士吧')}</p>`
+      : html`<div class="room-directory__list" role="list" aria-label=${t('服务器房间')}>
+        ${rooms.map((room) => {
+          const occupied = room.players + room.bots;
+          const joinable = !room.inMatch && occupied < room.capacity;
+          const watchable = room.spectators < MAX_SPECTATORS;
+          const status = room.inMatch ? t('模拟中') : joinable ? t('招募中') : t('已满员');
+          return html`<article key=${room.code} class=${`room-directory__room${joinable ? ' is-open' : ''}`} role="listitem">
+            <div class="room-directory__identity">
+              <span class="room-directory__code num">${room.code}</span>
+              <span class="room-directory__host" title=${room.hostName}>${t('房主')} · ${room.hostName || t('博士')}</span>
+            </div>
+            <div class="room-directory__details">
+              <span class="room-directory__difficulty" style=${`--d-color:${DIFFICULTY_COLORS[room.difficulty] || 'var(--mint-400)'}`}>
+                <${DifficultyIcon} difficulty=${room.difficulty} />${DIFFICULTY_NAMES[room.difficulty] ? t(DIFFICULTY_NAMES[room.difficulty]) : room.difficulty}
+              </span>
+              <span class="room-directory__count"><${Icon} name="users" /><b class="num">${occupied}/${room.capacity}</b>
+                <span>${t('{players} 位博士', { players: room.players })}${room.bots ? t(' · {bots} 位 AI', { bots: room.bots }) : ''}</span>
+              </span>
+              <span class=${`room-directory__status${joinable ? ' is-open' : ''}`}>${status}</span>
+            </div>
+            <div class="room-directory__actions">
+              <${Button} variant="primary" size="sm" disabled=${!joinable || !!busy} onClick=${() => onJoin(room.code)}>${t('加入同盟')}<//>
+              ${watchable ? html`<${Button} variant="ghost" size="sm" icon="eye" disabled=${!!busy}
+                onClick=${() => onSpectate(room.code)}>${t('观战')}<//>` : null}
+            </div>
+          </article>`;
+        })}
+      </div>`}
+    ${rooms?.length ? html`<div class="room-directory__foot">${t('共 {n} 间同盟房间', { n: rooms.length })}${error ? t(' · 刷新失败，显示上次结果') : ''}</div>` : null}
+  <//>`;
+}
+
 /** Lobby screen component. */
 export function LobbyScreen() {
   const me = useStore((s) => s.me, shallowEqual);
@@ -247,6 +287,9 @@ export function LobbyScreen() {
   });
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(null);
+  const [roomList, setRoomList] = useState(null);
+  const [listError, setListError] = useState(false);
+  const [listBusy, setListBusy] = useState(false);
   const [recent] = useState(recentRooms);
   const alive = useRef(true);
   const inFlight = useRef(false); // synchronous guard against double clicks (state updates are async)
@@ -254,6 +297,31 @@ export function LobbyScreen() {
 
   const online = conn.status === 'online';
   const codeOk = CODE_RE.test(code);
+
+  useEffect(() => {
+    let active = true;
+    const unsubscribe = net.on('room.list', (msg) => {
+      if (!active) return;
+      setRoomList(Array.isArray(msg.rooms) ? msg.rooms : []);
+      setListError(false);
+    });
+    if (!online) {
+      setRoomList(null);
+      setListError(false);
+      return () => { active = false; unsubscribe(); };
+    }
+    const load = () => net.request('room.list').catch(() => { if (active) setListError(true); });
+    load();
+    const timer = setInterval(load, 10_000);
+    return () => { active = false; clearInterval(timer); unsubscribe(); };
+  }, [online]);
+
+  const refreshRooms = async () => {
+    if (!online || listBusy) return;
+    setListBusy(true);
+    try { await net.request('room.list'); } catch (err) { setListError(true); toastError(err); }
+    finally { if (alive.current) setListBusy(false); }
+  };
 
   const pickMode = (m) => { setRoomMode(m); savePref('lobby.mode', m); };
   const pickDifficulty = (d) => { setDifficulty(d); savePref('lobby.difficulty', d); };
@@ -330,7 +398,11 @@ export function LobbyScreen() {
           ${MODE_CARDS.map((c) => html`<${ModeCard} key=${c.id} card=${c} selected=${roomMode === c.id} onSelect=${pickMode} />`)}
         </div>
 
-        <div class="section-label"><span class="section-label__idx num">03</span>${t('加入同盟')}<${MicroLabel}>JOIN WITH ALLIANCE KEY<//></div>
+        <div class="section-label"><span class="section-label__idx num">03</span>${t('查找同盟')}<${MicroLabel}>SERVER ROOMS<//></div>
+        <${RoomDirectory} rooms=${roomList} online=${online} loading=${listBusy} error=${listError} busy=${busy}
+          onRefresh=${refreshRooms} onJoin=${join} onSpectate=${spectate} />
+
+        <div class="section-label"><span class="section-label__idx num">04</span>${t('加入同盟')}<${MicroLabel}>JOIN WITH ALLIANCE KEY<//></div>
         <${Panel} class="join-panel" tone="amber">
           <div class="join-row">
             <${TextField} size="code" icon="key" value=${code} placeholder=${t('输入同盟密钥 / 粘贴邀请链接')}

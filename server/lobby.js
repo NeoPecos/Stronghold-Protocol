@@ -322,6 +322,7 @@ export class Lobby {
   onMessage(session, msg) {
     switch (msg.t) {
       case 'room.create': return this.create(session, msg);
+      case 'room.list': return this.listRooms(session);
       case 'room.join': return this.join(session, msg);
       case 'room.leave': return this.leave(session);
       case 'room.ready': return this.ready(session, msg);
@@ -383,6 +384,32 @@ export class Lobby {
   // ---------------------------------------------------------------------------------------------------
   // room.* handlers
   // ---------------------------------------------------------------------------------------------------
+
+  listRooms(session) {
+    const rooms = [...this.rooms.values()]
+      .filter((room) => !room.disposed && room.mode === 'coop')
+      .map((room) => {
+        const host = room.seatOf(room.hostId);
+        return {
+          code: room.code,
+          hostName: host?.name || '',
+          difficulty: room.difficulty,
+          players: room.activeHumans().length,
+          bots: room.seats.filter((seat) => seat?.isBot).length,
+          capacity: MAX_SEATS,
+          spectators: room.spectators.length,
+          inMatch: !!room.match,
+          createdAt: room.createdAt,
+        };
+      })
+      .sort((left, right) => {
+        const leftRank = left.inMatch ? 2 : left.players + left.bots >= left.capacity ? 1 : 0;
+        const rightRank = right.inMatch ? 2 : right.players + right.bots >= right.capacity ? 1 : 0;
+        return leftRank - rightRank || right.createdAt - left.createdAt;
+      });
+    sendSession(session, { t: 'room.list', rooms });
+    return OK;
+  }
 
   create(session, { mode, difficulty }) {
     const cur = this.roomOf(session);

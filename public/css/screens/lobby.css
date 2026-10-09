@@ -131,6 +131,38 @@
 }
 .code-chip:hover { border-color: var(--amber); background: rgba(246, 163, 41, .08); }
 
+.room-directory { margin-bottom: .24rem; background: linear-gradient(145deg, rgba(20, 31, 27, .94), rgba(9, 14, 13, .96)); }
+.room-directory .panel__body { padding: .1rem .14rem .12rem; }
+.room-directory__empty { margin: 0; padding: .3rem .16rem; color: var(--text-lo); font-size: .16rem; text-align: center; }
+.room-directory__list { display: flex; flex-direction: column; gap: .08rem; max-height: 2.5rem; overflow-y: auto; overscroll-behavior: contain; }
+.room-directory__room {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .08rem .16rem;
+  padding: .13rem .16rem;
+  border: 1px solid var(--line);
+  border-left: .04rem solid var(--line-3);
+  background: linear-gradient(90deg, rgba(28, 39, 35, .8), rgba(14, 19, 17, .85));
+}
+.room-directory__room.is-open { border-left-color: var(--mint-500); }
+.room-directory__identity { display: flex; align-items: baseline; gap: .14rem; min-width: 0; }
+.room-directory__code { color: var(--mint-400); font-size: .21rem; font-weight: 800; letter-spacing: .14em; }
+.room-directory__host { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-hi); font-size: .16rem; }
+.room-directory__details { display: flex; align-items: center; flex-wrap: wrap; gap: .06rem .15rem; color: var(--text-md); font-size: .14rem; }
+.room-directory__difficulty, .room-directory__count { display: inline-flex; align-items: center; gap: .04rem; white-space: nowrap; }
+.room-directory__difficulty { color: var(--d-color); }
+.room-directory__difficulty .icon, .room-directory__count .icon { width: .16rem; height: .16rem; }
+.room-directory__count b { color: var(--text-hi); font-size: .16rem; }
+.room-directory__status { color: var(--text-dim); white-space: nowrap; }
+.room-directory__status.is-open { color: var(--mint-400); }
+.room-directory__actions { grid-column: 2; grid-row: 1 / span 2; display: flex; align-items: center; gap: .06rem; }
+.room-directory__actions .btn { min-height: .4rem; }
+.room-directory__foot { padding: .1rem .04rem 0; border-top: 1px solid var(--line); color: var(--text-dim); font-size: .13rem; text-align: right; }
+@media (max-width: 1050px) {
+  .room-directory__room { grid-template-columns: minmax(0, 1fr); }
+  .room-directory__actions { grid-column: 1; grid-row: auto; justify-content: flex-end; }
+}
+
 /* ---- tips -------------------------------------------------------------------------------------------- */
 .tips {
   --bk-c: var(--line-3);
