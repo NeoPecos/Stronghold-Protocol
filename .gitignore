@@ -28,6 +28,7 @@ packs/index.json
 # --- tests & logs ----------------------------------------------------------------------------------
 test/e2e/out/
 logs/
+var/
 *.log
 
 # --- per-machine config (scripts/install-service-windows.ps1) ------------------------------------

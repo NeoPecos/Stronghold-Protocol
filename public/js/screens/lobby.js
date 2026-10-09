@@ -17,6 +17,7 @@ import { html, Button, Icon, MicroLabel, Panel, TextField, PingPill, AvatarFrame
 import { toast, toastError } from '../ui/toasts.js';
 import { GuideButton } from '../ui/guide.js';
 import { LoadoutButton } from './loadout.js';
+import { MatchRecordsButton } from './records.js';
 import { net, identity } from '../net.js';
 import { store, useStore, shallowEqual, loadPref, savePref } from '../store.js';
 import { getConfig, getMode, getStage, useData } from '../data.js';
@@ -380,6 +381,7 @@ export function LobbyScreen() {
         <h1 class="topbar__title">${t('选择模拟协议')}</h1>
       </div>
       <div class="topbar__right">
+        <${MatchRecordsButton} />
         <${GuideButton} class="lobby-guide" variant="secondary" label=${t('玩法说明')} />
         <${LoadoutButton} from="lobby" size="sm" class="lobby-loadout" label=${t('干员调配')} />
         <div class="me-chip">
@@ -399,11 +401,7 @@ export function LobbyScreen() {
           ${MODE_CARDS.map((c) => html`<${ModeCard} key=${c.id} card=${c} selected=${roomMode === c.id} onSelect=${pickMode} />`)}
         </div>
 
-        <div class="section-label"><span class="section-label__idx num">03</span>${t('查找同盟')}<${MicroLabel}>SERVER ROOMS<//></div>
-        <${RoomDirectory} rooms=${roomList} online=${online} loading=${listBusy} error=${listError} busy=${busy}
-          onRefresh=${refreshRooms} onJoin=${join} onSpectate=${spectate} />
-
-        <div class="section-label"><span class="section-label__idx num">04</span>${t('加入同盟')}<${MicroLabel}>JOIN WITH ALLIANCE KEY<//></div>
+        <div class="section-label"><span class="section-label__idx num">03</span>${t('加入同盟')}<${MicroLabel}>JOIN WITH ALLIANCE KEY<//></div>
         <${Panel} class="join-panel" tone="amber">
           <div class="join-row">
             <${TextField} size="code" icon="key" value=${code} placeholder=${t('输入同盟密钥 / 粘贴邀请链接')}
@@ -420,7 +418,10 @@ export function LobbyScreen() {
               : html`<span class="t-dim">${t('向同伴索取 {ROOM_CODE_LEN} 位同盟密钥，或直接打开邀请链接', { ROOM_CODE_LEN })}</span>`}
           </div>
         <//>
-        <${TipsPanel} />
+
+        <div class="section-label"><span class="section-label__idx num">04</span>${t('查找同盟')}<${MicroLabel}>SERVER ROOMS<//></div>
+        <${RoomDirectory} rooms=${roomList} online=${online} loading=${listBusy} error=${listError} busy=${busy}
+          onRefresh=${refreshRooms} onJoin=${join} onSpectate=${spectate} />
       </section>
 
       <section class="lobby-right">
@@ -440,6 +441,7 @@ export function LobbyScreen() {
               : html`<${Spinner} size="sm" label="CONNECTING" />`}
           </div>
         </div>
+        <${TipsPanel} />
       </section>
     </div>
   </div>`;

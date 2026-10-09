@@ -50,18 +50,21 @@ describe('tier chips', () => {
     assert.ok(!v.chip || !v.chip.visible, 'no chip on a token');
   });
 
-  test('operators show level and equipment above their head in both phases', () => {
+  test('operators show level and equipment only during preparation', () => {
     const p = view({ kind: 'chess', tier: 4 }, { prep: true });
     p.setItems(['/item/one.png']);
     p.update(1 / 60, cam(), 0);
     assert.ok(p.chip && p.chip.visible);
+    assert.equal(p.hud.parent, p.ctx.layers.bars);
     assert.equal(p.equipTrack.visible, true);
     assert.equal(p.equipSlots[0].tint, 0xffcf45);
     assert.equal(p.equipSlots[1].tint, 0xe4e8e6);
     const b = view({ kind: 'chess', tier: 2 });
     b.update(1 / 60, cam(), 0);
-    assert.ok(b.chip && b.chip.visible);
-    assert.equal(b.equipTrack.visible, true);
+    assert.ok(b.chip && !b.chip.visible);
+    assert.equal(b.hud.parent, b.root);
+    assert.equal(b.equipTrack.visible, false);
+    assert.equal(b.equipSlots[0].visible, false);
     const e = view({ side: 'enemy', kind: 'enemy', defId: 'enemy_1007_slime' });
     e.update(1 / 60, cam(), 0);
     assert.equal(e.chip, null);
@@ -84,7 +87,9 @@ describe('tier chips', () => {
     assert.equal(unit.hpFill.visible, true);
     assert.equal(unit.spFill.visible, true);
     assert.ok(unit.hpFill.position.y < unit.spFill.position.y);
-    assert.ok(unit.spFill.position.y > unit.screen.y - unit.screen.s * 0.3);
+    assert.ok(unit.hpFill.position.y >= unit.screen.y, 'HP should begin at the operator feet');
+    assert.ok(unit.spFill.position.y > unit.screen.y, 'SP should be below the operator feet');
+    assert.ok(unit.hpFill.height <= 4, 'HP should not obscure the model');
     assert.equal(unit.hpFill.tint, 0x64c7e9);
     assert.equal(unit.spFill.tint, 0x62c77f);
     unit.destroy();

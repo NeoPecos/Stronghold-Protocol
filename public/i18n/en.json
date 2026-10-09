@@ -1088,5 +1088,13 @@
   " · {bots} 位 AI": " · {bots} AI",
   "共 {n} 间同盟房间": "{n} Alliance Rooms",
   " · 刷新失败，显示上次结果": " · Refresh failed; showing the previous results",
-  "查找同盟": "Find an Alliance"
+  "查找同盟": "Find an Alliance",
+  "上局战绩": "Previous Match",
+  "输出占比": "Damage Share",
+  "买卡次数": "Cards Bought",
+  "购入卡牌": "Purchased Cards",
+  "资金": "Funds",
+  "层": "Stacks",
+  "读取中…": "Loading…",
+  "暂无完整对局战绩": "No completed match records yet"
 }

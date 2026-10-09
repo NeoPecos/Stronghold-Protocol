@@ -41,6 +41,7 @@ import { store, useStore, emptyMatch, selectRoute, sessionResetNotice, isSpectat
 import { data } from './data.js';
 import { GAME_FILES } from './ui/gameComponents.js';
 import { TitleScreen, sanitizeName } from './screens/title.js';
+import { rememberResult } from './screens/records.js';
 import { LobbyScreen, rememberRoom, parseRoomParam } from './screens/lobby.js';
 import { RoomScreen } from './screens/room.js';
 import { GameScreen } from './screens/game.js';
@@ -220,7 +221,10 @@ function wireNet() {
   net.on('m.public', (msg) => { matchAt = Date.now(); store.patch('match', { public: payload(msg) }); maybeFinishRestore(); });
   net.on('m.private', (msg) => { matchAt = Date.now(); store.patch('match', { private: payload(msg) }); });
   net.on('m.field', (msg) => store.patch('match', { field: payload(msg) }));
-  net.on('m.result', (msg) => store.patch('match', { result: payload(msg) }));
+  net.on('m.result', (msg) => {
+    rememberResult(msg, store.get().room?.code, store.get().me.playerId);
+    store.patch('match', { result: payload(msg) });
+  });
   net.on('m.toast', (msg) => {
     const kind = ['info', 'success', 'warn', 'error'].includes(msg.kind) ? msg.kind : 'info';
     // msgid + params (server ≥ 0.2.0) or the text itself as a msgid, in the current language

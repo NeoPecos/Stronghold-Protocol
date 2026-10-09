@@ -465,7 +465,8 @@ export class UnitView {
     this.baseTint = 0xffffff;            // the drawn model's own tint (ALIAS_TINT), under the status tints
 
     this.hud = new P.Container();
-    ctx.layers.bars.addChild(this.hud);
+    if (this.prep) ctx.layers.bars.addChild(this.hud);
+    else this.root.addChild(this.hud);
     this._buildHud();
 
     this.facingArrow = null;
@@ -1031,6 +1032,7 @@ export class UnitView {
     let bx = p.x, by = p.y;
     if (lungeK) { const q = cam.project(this.x + lx, this.y + ly, this.z + this.hover + this.lift, LG_P); bx = q.x; by = q.y; }
     this.root.position.set(bx, by);
+    if (!this.prep) this.hud.position.set(-bx, -by);
     this.root.alpha = alpha;
     this.root.zIndex = unitDepthKey(cam, this.x, this.y, this.lift);
     // off-screen: nothing to animate or draw (bounds / hit-testing still follow `screen`)
@@ -1167,13 +1169,13 @@ export class UnitView {
     const damaged = this.hp < this.maxHp - 0.5;
     const showHp = showBars && (!this.isEnemy || damaged || this.isBoss);
     const bw = clamp(s * (this.isBoss ? UNIT.bossBarWidth : UNIT.barWidth), 24, this.isBoss ? 260 : 96);
-    const bh = clamp(s * (this.isBoss ? 0.12 : 0.075), 3, this.isBoss ? 12 : 7);
+    const bh = clamp(s * (this.isBoss ? 0.1 : 0.045), 2, this.isBoss ? 10 : 4);
     // a knocked-down operator's HUD is its redeploy ring alone, drawn at full strength over the greyed model
-    this.hud.alpha = this.down ? this.fadeIn : this.dying > 0 ? 0 : alpha;
+    this.hud.alpha = this.down ? this.fadeIn : this.dying > 0 ? 0 : prep ? alpha : 1;
     let sx = this.shake > 0 ? Math.sin(t * 90) * this.shake * 10 : 0;
     this.shake = Math.max(0, this.shake - dt);
     const x0 = x - bw / 2 + sx;
-    let cy = prep ? y - 4 : this.screen.y - bh - Math.max(2, bh * 0.6) - 7;
+    let cy = prep ? y - 4 : this.screen.y + bh / 2;
     // HP
     this.hpBg.visible = this.hpFill.visible = this.hpGhost.visible = showHp;
     if (showHp) {
@@ -1192,13 +1194,13 @@ export class UnitView {
     // SP
     const showSp = showBars && !this.isEnemy && this.spMax > 0;
     this.spBg.visible = this.spFill.visible = showSp;
-    const spH = Math.max(2, bh * 0.6);
+    const spH = Math.max(1.5, bh * 0.55);
     let ready = false;
     if (showSp) {
       const active = !!(this.flags & UF.SKILL);
       const k = clamp(this.sp / this.spMax, 0, 1);
       ready = !active && k >= 0.999;
-      const sy = cy + bh / 2 + spH / 2 + 1.5;
+      const sy = cy + bh / 2 + spH / 2 + 1;
       this.spBg.position.set(x0 - 1, sy); this.spBg.width = bw + 2; this.spBg.height = spH + 2;
       this.spFill.position.set(x0, sy); this.spFill.width = bw * k; this.spFill.height = spH;
       this.spFill.tint = active ? COLORS.spActive : ready ? COLORS.spReady : COLORS.sp;
@@ -1212,27 +1214,27 @@ export class UnitView {
       this.spGlow.alpha = pulse;
     }
     if (this.chip) {
-      const cs = clamp(s * (prep ? 0.24 : 0.19), 11, 28) / (this.chip.texture.height || 44);
+      const cs = clamp(s * 0.2, 10, 22) / (this.chip.texture.height || 44);
       this.chip.scale.set(cs);
-      this.chip.visible = this.alive;
+      this.chip.visible = prep && this.alive;
       if (this.chip.visible) this.chip.position.set(x - bw / 2 - this.chip.width / 2, y - 4);
     }
-    const showEquip = this.alive && !!this.chip;
+    const showEquip = prep && this.alive && !!this.chip;
     this.equipTrack.visible = showEquip;
     if (showEquip) {
       const trackX = x - bw / 2 + 1;
       this.equipTrack.position.set(trackX, y - 4);
       this.equipTrack.width = bw;
-      this.equipTrack.height = 13;
+      this.equipTrack.height = 8;
     }
     for (let i = 0; i < this.equipSlots.length; i++) {
       const slot = this.equipSlots[i];
       slot.visible = showEquip;
       if (!showEquip) continue;
       slot.tint = i < (this.equipCount || 0) ? 0xffcf45 : 0xe4e8e6;
-      slot.position.set(this.equipTrack.position.x + 4 + i * (bw - 10) / 2, y - 4);
-      slot.width = (bw - 14) / 2;
-      slot.height = 5;
+      slot.position.set(this.equipTrack.position.x + 3 + i * (bw - 7) / 2, y - 4);
+      slot.width = (bw - 10) / 2;
+      slot.height = 3;
     }
     // status icons row above the bars
     const icons = this._iconKeys();

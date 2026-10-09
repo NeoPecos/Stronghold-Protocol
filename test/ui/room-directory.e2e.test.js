@@ -44,6 +44,32 @@ describe('room directory in the browser', { skip: !enabled && 'set SP_E2E=1 and 
       const guest = await enter(guestContext, 'Guest');
       await guest.waitForFunction((expected) => [...document.querySelectorAll('.room-directory__room')]
         .some((element) => element.textContent.includes(expected)), {}, code);
+      await guest.setViewport({ width: 1423, height: 764 });
+      await guest.evaluate(() => {
+        const list = document.querySelector('.room-directory__list');
+        for (let count = 0; count < 2; count++) list.appendChild(list.firstElementChild.cloneNode(true));
+      });
+      const lobbyLayout = await guest.evaluate(() => {
+        const body = document.querySelector('.lobby-body');
+        const join = document.querySelector('.join-panel');
+        const directory = document.querySelector('.room-directory');
+        const create = document.querySelector('.create-box');
+        return {
+          joinBeforeDirectory: join.getBoundingClientRect().top < directory.getBoundingClientRect().top,
+          overflow: body.scrollHeight - body.clientHeight,
+          directoryBottom: directory.getBoundingClientRect().bottom,
+          createBottom: create.getBoundingClientRect().bottom,
+          viewportBottom: window.innerHeight,
+        };
+      });
+      assert.equal(lobbyLayout.joinBeforeDirectory, true);
+      assert.ok(lobbyLayout.overflow <= 1, JSON.stringify(lobbyLayout));
+      assert.ok(lobbyLayout.directoryBottom <= lobbyLayout.viewportBottom, JSON.stringify(lobbyLayout));
+      assert.ok(lobbyLayout.createBottom <= lobbyLayout.viewportBottom, JSON.stringify(lobbyLayout));
+      await guest.evaluate(() => {
+        const list = document.querySelector('.room-directory__list');
+        while (list.children.length > 1) list.lastElementChild.remove();
+      });
       const listing = await guest.$eval('.room-directory__room', (element) => element.textContent);
       assert.match(listing, /Host/);
       assert.match(listing, /1\/4/);
@@ -58,6 +84,7 @@ describe('room directory in the browser', { skip: !enabled && 'set SP_E2E=1 and 
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
       assert.ok(hostSession.lastInputAt > 0);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       await guest.evaluate(() => window.__SP__.net.request('room.list'));
       await guest.waitForFunction(() => document.querySelector('.room-directory__room')?.textContent.includes('近5分钟操作 1 人'));
       await guest.click('.room-directory__room .btn--primary');

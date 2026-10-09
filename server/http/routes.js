@@ -36,7 +36,7 @@ export function healthReport({ startedAt, network, registry, lobby }) {
  *           health: Parameters<typeof healthReport>[0], log: object }} deps
  * @returns {(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void}
  */
-export function createRequestHandler({ serveStatic, health, log }) {
+export function createRequestHandler({ serveStatic, health, records, log }) {
   async function handleRequest(req, res) {
     const url = req.url || '/';
     if (url.length > MAX_URL_LENGTH) { sendError(req, res, 414, '请求地址过长 · URI too long'); return; }
@@ -49,6 +49,13 @@ export function createRequestHandler({ serveStatic, health, log }) {
     }
     if (parts.rawPath === '/healthz') {
       sendJson(req, res, 200, healthReport(health));
+      return;
+    }
+    const recordPath = /^\/api\/records\/([A-HJ-NP-Z]{4})$/.exec(parts.rawPath);
+    if (recordPath) {
+      res.setHeader('Cache-Control', 'no-store');
+      const record = records?.latestRoom(recordPath[1]);
+      sendJson(req, res, record ? 200 : 404, record || { error: 'RECORD_NOT_FOUND' });
       return;
     }
     await serveStatic(req, res, parts.rawPath, parts.query);

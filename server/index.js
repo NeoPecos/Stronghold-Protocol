@@ -23,6 +23,7 @@
 // The server only auto-listens when this file is the process entry point.
 
 import http from 'node:http';
+import path from 'node:path';
 import { getData, loadData } from './data.js';
 import { ROOT, listenAddress, serveDirs, makeLogger, parseTrustProxy } from './http/config.js';
 import { WS_MAX_PAYLOAD, createSessionStack, attachWebSocket } from './http/websocket.js';
@@ -33,6 +34,7 @@ import { BUILD_INPUTS, computeBuildTag, buildTag, resetBuildTag } from './http/b
 import { createRequestHandler } from './http/routes.js';
 import { answerClientError } from './http/common.js';
 import { lanUrls, isProcessEntry, runMain } from './http/boot.js';
+import { MatchRecords } from './matchRecords.js';
 
 // The public API of this module (tests and tools import it from here); the code lives in ./http/.
 export {
@@ -63,7 +65,8 @@ export async function startServer(opts = {}) {
 
   // The process-wide singleton serves the default data dir; a custom dir (tests) gets its own copy.
   const data = opts.dataDir ? loadData(dataDir, { log }) : getData({ dir: dataDir, log });
-  const { registry, lobby, network } = createSessionStack(opts, { data, log });
+  const records = new MatchRecords(opts.recordsFile || process.env.SP_RECORDS_FILE || path.join(ROOT, 'var', 'match-records.jsonl'), log);
+  const { registry, lobby, network } = createSessionStack({ ...opts, records }, { data, log });
   // content packs (docs/PACKS.md): scanned now — the start log names them — and again whenever their folders change
   const packs = createPackRegistry({ publicDir, dataDir, packsDir }, { log });
   packs.refresh(true);
@@ -73,7 +76,7 @@ export async function startServer(opts = {}) {
   resetBuildTag();
   buildTag();
 
-  const server = http.createServer(createRequestHandler({ serveStatic, health: { startedAt, network, registry, lobby }, log }));
+  const server = http.createServer(createRequestHandler({ serveStatic, health: { startedAt, network, registry, lobby }, records, log }));
   server.on('clientError', answerClientError);
   const wss = attachWebSocket(server, { network, log });
 
@@ -111,7 +114,7 @@ export async function startServer(opts = {}) {
     return closing;
   }
 
-  return { port: actualPort, host, url, server, wss, lobby, network, registry, packs, close };
+  return { port: actualPort, host, url, server, wss, lobby, network, registry, packs, records, close };
 }
 
 // `node server/index.js` / npm start: listen, print the banner, stop on SIGINT / SIGTERM (http/boot.js).

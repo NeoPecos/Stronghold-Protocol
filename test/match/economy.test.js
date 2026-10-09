@@ -98,6 +98,7 @@ test('shop slots per level (+ the item slot), buy prices by tier, SOLD_OUT, NO_F
   const slot0 = ps.shop.slots[0];
   const left0 = m.pool.left(slot0.id);
   assert.deepEqual(m.handle('p_0', { t: 'g.buy', slot: 0 }), { ok: true });
+  assert.deepEqual(ps.purchases.get(`chess:${slot0.id}`), { kind: 'chess', id: slot0.id, count: 1, spent: 2, byRound: { 1: 1 } });
   assert.equal(ps.funds, 48);
   assert.equal(m.pool.left(slot0.id), left0 - 1);
   assert.equal(ps.hand[9].id, slot0.id, 'hand fills right→left');

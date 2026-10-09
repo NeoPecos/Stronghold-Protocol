@@ -37,7 +37,7 @@ describe('the scouted prep board renders the hand like the own bench', () => {
   test('battleView builds an ItemView for a hand item and item pips for a teammate operator (source)', () => {
     const app = read('public/js/render/app.js');
     assert.match(app, /info\.kind === 'item' \? new ItemView\(ctx, scoutItemInfo\(info\)\)/);
-    assert.match(app, /battleMeta\?\.prep && Array\.isArray\(info\.items\) && info\.items\.length/);
+    assert.match(app, /v\.setItems && info\.side === 'ally' && Array\.isArray\(info\.items\) && info\.items\.length/);
     assert.match(app, /function scoutItemInfo\(info\)/);
   });
 

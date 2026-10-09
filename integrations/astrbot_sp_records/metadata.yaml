@@ -1,0 +1,6 @@
+name: astrbot_plugin_sp_records
+desc: 群聊中 @黍 战绩 房间号，发送卫戍协议最近一局战绩卡片
+help: "@黍 战绩 ABCD"
+version: 1.0.0
+author: Leiothrix/Codex
+repo: https://github.com/NeoPecos/Stronghold-Protocol

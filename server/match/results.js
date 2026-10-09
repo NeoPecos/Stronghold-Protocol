@@ -121,7 +121,11 @@ export function buildResult(m, outcome) {
       lp: Math.max(0, ps.lp),
       bandId: ps.bandId,
       lineup,
-      bonds: bondList(gd, ps.bonds).filter((b) => b.active || b.layers > 0),
+      bonds: bondList(gd, ps.bonds).filter((b) => b.active || b.layers > 0)
+        .map((bond) => ({ ...bond, name: gd.bond(bond.bondId)?.name || bond.bondId })),
+      purchases: [...(ps.purchases?.values() || [])].map((purchase) => ({
+        ...purchase, name: (purchase.kind === 'chess' ? gd.chess(purchase.id) : gd.item(purchase.id))?.name || purchase.id,
+      })),
       stats: {
         dmgDealt: Math.round(ps.stats.dmgDealt), kills: ps.stats.kills, leaks: ps.stats.leaks, gold: ps.stats.gold,
         refreshes: ps.stats.refreshes, merges: ps.stats.merges, itemsEquipped: ps.stats.itemsEquipped,

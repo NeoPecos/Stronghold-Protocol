@@ -1971,6 +1971,8 @@ describe('platform units', () => {
     assert.equal(sanitizeName(''), null);
     assert.equal(sanitizeName(42), null);
     assert.equal([...sanitizeName('😀'.repeat(20))].length, 12);
+    for (const name of ['1', '123', 'test', 'TEST', 'admin', 'AAA', 'aaa']) assert.equal(sanitizeName(name), null);
+    assert.equal(sanitizeName('Amiya123'), 'Amiya123');
   });
 
   test('TokenBucket refills continuously up to burst', () => {

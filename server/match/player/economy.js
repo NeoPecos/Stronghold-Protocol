@@ -155,6 +155,12 @@ export class PlayerEconomy {
       piece = this.acquireItem(slot.id, { source: 'buy' });
     }
     this.stats.buys++;
+    const purchaseKey = `${slot.kind}:${slot.id}`;
+    const bought = this.purchases.get(purchaseKey) || { kind: slot.kind, id: slot.id, count: 0, spent: 0, byRound: {} };
+    bought.count++;
+    bought.spent += price;
+    bought.byRound[this.m.round] = (bought.byRound[this.m.round] || 0) + 1;
+    this.purchases.set(purchaseKey, bought);
     this.round.buys++;
     this.m.dispatch(this, 'onBuy', { piece, slot, price, kind: slot.kind });
     this._afterSpend(price, 'buy');

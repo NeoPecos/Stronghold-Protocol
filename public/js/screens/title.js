@@ -66,7 +66,10 @@ export function sanitizeName(raw) {
 }
 
 /** @param {any} raw @returns {boolean} */
-export const isValidName = (raw) => sanitizeName(raw).length > 0;
+export const isValidName = (raw) => {
+  const name = sanitizeName(raw);
+  return name.length > 0 && !/^(?:\d+|test|admin|a{3,})$/i.test(name);
+};
 
 /**
  * Enter the game shell with a nickname (title → lobby).
@@ -75,7 +78,7 @@ export const isValidName = (raw) => sanitizeName(raw).length > 0;
  */
 export function enterSession(rawName) {
   const name = sanitizeName(rawName);
-  if (!name) return false;
+  if (!isValidName(name)) return false;
   identity.saveName(name);
   identity.setEntered(true);
   store.set((s) => ({ me: { ...s.me, name }, session: { ...s.session, entered: true } }));

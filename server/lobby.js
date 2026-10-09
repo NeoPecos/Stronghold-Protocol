@@ -239,11 +239,12 @@ export class Lobby {
    *   options?: Partial<typeof LOBBY_DEFAULTS>,
    * }} opts
    */
-  constructor({ registry, log = noopLog, MatchClass = DefaultMatch, getData = defaultGetData, now = Date.now, seedFn, options = {} }) {
+  constructor({ registry, log = noopLog, MatchClass = DefaultMatch, getData = defaultGetData, now = Date.now, seedFn, records = null, options = {} }) {
     this.registry = registry;
     this.log = log;
     this.MatchClass = MatchClass;
     this.getData = getData;
+    this.records = records;
     this.now = now;
     this.seedFn = seedFn || (() => randomInt(2 ** 32));
     this.opts = { ...LOBBY_DEFAULTS, ...options };
@@ -323,6 +324,9 @@ export class Lobby {
     switch (msg.t) {
       case 'room.create': return this.create(session, msg);
       case 'room.list': return this.listRooms(session);
+      case 'records.mine':
+        sendSession(session, { t: 'records.latest', record: this.records?.latestPlayer(session.playerId) || null });
+        return OK;
       case 'room.join': return this.join(session, msg);
       case 'room.leave': return this.leave(session);
       case 'room.ready': return this.ready(session, msg);
@@ -785,6 +789,7 @@ export class Lobby {
     if (ctx.ended || !ctx.live || room.matchCtx !== ctx || room.disposed) return;
     ctx.ended = true;
     room.lastSummary = summary ?? null;
+    try { this.records?.save(room, summary, this.now()); } catch (error) { this.log.error(`[records] failed to save ${room.code}`, error); }
     room.match = null;
     room.matchCtx = null;
     room.matchKey = null;

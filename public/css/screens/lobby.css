@@ -15,7 +15,7 @@
 .lobby-left, .lobby-right { display: flex; flex-direction: column; min-width: 0; }
 
 /* ---- mode cards ------------------------------------------------------------------------------------ */
-.mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: .24rem; margin-bottom: .34rem; }
+.mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: .24rem; margin-bottom: .22rem; }
 .mode-card {
   --bk-c: transparent;
   --bk-l: .2rem;
@@ -23,9 +23,9 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: .22rem;
-  min-height: 4.3rem;
-  padding: .34rem .32rem .3rem;
+  gap: .16rem;
+  min-height: 3.55rem;
+  padding: .24rem .3rem .22rem;
   overflow: hidden;
   text-align: left;
   background: linear-gradient(180deg, rgba(28, 34, 31, .92), rgba(13, 16, 15, .94));
@@ -114,6 +114,7 @@
 @keyframes card-in { from { opacity: 0; transform: translateY(.14rem); } }
 
 /* ---- join panel ------------------------------------------------------------------------------------ */
+.join-panel { margin-bottom: .22rem; }
 .join-panel .panel__body { display: flex; flex-direction: column; gap: .14rem; padding: .22rem .26rem .18rem; }
 .join-row { display: flex; gap: .16rem; align-items: stretch; }
 .join-row .field { flex: 1; }
@@ -131,10 +132,10 @@
 }
 .code-chip:hover { border-color: var(--amber); background: rgba(246, 163, 41, .08); }
 
-.room-directory { margin-bottom: .24rem; background: linear-gradient(145deg, rgba(20, 31, 27, .94), rgba(9, 14, 13, .96)); }
+.room-directory { background: linear-gradient(145deg, rgba(20, 31, 27, .94), rgba(9, 14, 13, .96)); }
 .room-directory .panel__body { padding: .1rem .14rem .12rem; }
 .room-directory__empty { margin: 0; padding: .3rem .16rem; color: var(--text-lo); font-size: .16rem; text-align: center; }
-.room-directory__list { display: flex; flex-direction: column; gap: .08rem; max-height: 2.5rem; overflow-y: auto; overscroll-behavior: contain; }
+.room-directory__list { display: flex; flex-direction: column; gap: .08rem; max-height: 2.1rem; overflow-y: auto; overscroll-behavior: contain; }
 .room-directory__room {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -167,7 +168,7 @@
 /* ---- tips -------------------------------------------------------------------------------------------- */
 .tips {
   --bk-c: var(--line-3);
-  margin-top: .3rem;
+  margin-top: .18rem;
   padding: .16rem .22rem .2rem;
   background: rgba(8, 10, 9, .55);
   border: 1px solid var(--line);
