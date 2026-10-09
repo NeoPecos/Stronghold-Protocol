@@ -387,6 +387,28 @@ describe('render engine in headless Chrome', { skip }, () => {
     assert.deepEqual(r.battle, [['UP', true, 1], ['LEFT', true, -1], ['RIGHT', false, 1]]);
   });
 
+  test('the first newly placed board unit deploys, but a round rebuild does not', async () => {
+    const { page, problems } = await open('scene=prep&panel=0', 1600, 900);
+    const result = await page.evaluate(() => {
+      const view = window.__demo.view;
+      const state = JSON.parse(JSON.stringify(window.__demo.scene.state));
+      const piece = state.hand.find((entry) => entry?.kind === 'chess');
+      const uid = Math.max(...[...state.hand, ...state.temp, ...state.board].filter(Boolean).map((entry) => entry.uid)) + 1;
+      const empty = { ...state, board: [] };
+      view.setPrep(empty, { editable: true });
+      const next = { ...empty, board: [{ ...piece, uid, row: 10, col: 5, dir: 'RIGHT' }] };
+      view.setPrep(next, { editable: true });
+      const deployed = view.debug.views.get('p:' + uid)?.fadeIn;
+      view.enterBattle({ fieldId: 'rebuild', kind: 'normal', units: [] });
+      view.setPrep(next, { editable: true });
+      return { deployed, restored: view.debug.views.get('p:' + uid)?.fadeIn };
+    });
+    await page.close();
+    assert.deepEqual(problems, []);
+    assert.equal(result.deployed, 0, 'the first placed board view plays the deployment cue');
+    assert.equal(result.restored, 1, 'rehydrating the next prep does not replay it');
+  });
+
   test('a merge completed between two preps (band grant at ROUND_START, after a battle) still plays the promotion cue (QA 6b)', async () => {
     const { page, problems } = await open('scene=prep&panel=0', 1600, 900);
     await wait(1500);

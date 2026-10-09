@@ -114,6 +114,10 @@ describe('spectator seats (community report #26, real server)', { skip: !ENABLED
       assert.deepEqual([sp1.spectating, sp1.priv], [true, false]);
       assert.equal(sp1.field?.prep, true);
       await sleep(1200);
+      const prepBars = await spec.page.evaluate(() => [...(globalThis.__SP_VIEW__?.raw?.debug?.views?.values() || [])]
+        .filter((unit) => unit.info.side === 'ally' && unit.chip)
+        .map((unit) => ({ level: unit.chip.visible, equip: unit.equipTrack.visible, hp: unit.hpFill.visible })));
+      assert.ok(prepBars.length > 0 && prepBars.every((unit) => unit.level && unit.equip && !unit.hp));
       await spec.shot('prep');
 
       // battle: the first field, a display replica (watch), never the authority
@@ -133,6 +137,10 @@ describe('spectator seats (community report #26, real server)', { skip: !ENABLED
       assert.doesNotMatch(hud.text, /淘汰/);
       assert.deepEqual([hud.back, hud.emote], [false, false]);
       await sleep(1500);
+      const battleBars = await spec.page.evaluate(() => [...(globalThis.__SP_VIEW__?.raw?.debug?.views?.values() || [])]
+        .filter((unit) => unit.info.side === 'ally' && unit.chip)
+        .map((unit) => ({ level: unit.chip.visible, equip: unit.equipTrack.visible, hp: unit.hpFill.visible })));
+      assert.ok(battleBars.length > 0 && battleBars.every((unit) => !unit.level && !unit.equip && unit.hp));
       await spec.shot('battle');
 
       // a reload: the seat comes back with the match

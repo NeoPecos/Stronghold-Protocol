@@ -60,9 +60,12 @@ export const COLORS = Object.freeze({
   hpBoss: 0xff2d55,
   hpGhost: 0xfff0c8,
   hpBack: 0x0c0f0e,
+  hpNeg: 0xff4b3e,
   sp: 0x62c77f,
   spReady: 0x96f2ab,
   spActive: 0x45aa68,
+  ammo: 0xffd04a,
+  wolf: 0xe8f0ff,
   shield: 0xdfe8ff,
 });
 

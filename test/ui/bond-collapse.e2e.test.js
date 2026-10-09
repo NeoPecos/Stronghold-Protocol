@@ -73,4 +73,31 @@ describe('fixed-width bond strip', { skip: !ENABLED && 'set SP_E2E=1 and CHROME_
       }
     });
   }
+
+  test('a short bond row is centered and its discs are not clipped', async () => {
+    const page = await browser.newPage();
+    try {
+      await page.setViewport({ width: 1920, height: 1080 });
+      await page.goto(`${server.url}/dev/game-mock.html?shot=1&render=fallback&phase=PREP`, { waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('.bslot .bond');
+      await page.evaluate(() => {
+        const { store } = globalThis.__MOCK__;
+        const current = store.get().match.private;
+        store.patch('match', { private: { ...current, bonds: current.bonds.slice(0, 2) } });
+      });
+      await page.waitForFunction(() => document.querySelectorAll('.gm__bond-list .bslot').length === 2);
+      const placement = await page.$eval('.gm__bond-list', (element) => {
+        const viewport = element.getBoundingClientRect();
+        const row = element.querySelector('.bstrip').getBoundingClientRect();
+        const rings = [...element.querySelectorAll('.bond__ring')].map((ring) => ring.getBoundingClientRect());
+        return { viewport: { left: viewport.left, right: viewport.right, top: viewport.top },
+          row: { left: row.left, right: row.right }, minRingTop: Math.min(...rings.map((ring) => ring.top)) };
+      });
+      assert.ok(Math.abs((placement.row.left + placement.row.right - placement.viewport.left - placement.viewport.right) / 2) < 2,
+        `a short row sits under the centre of the top bar: ${JSON.stringify(placement)}`);
+      assert.ok(placement.minRingTop >= placement.viewport.top, `the scroll window does not crop the top of each icon ring: ${JSON.stringify(placement)}`);
+    } finally {
+      await page.close();
+    }
+  });
 });

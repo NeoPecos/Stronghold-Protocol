@@ -18,6 +18,8 @@
 // Idempotent: existing files with the right size are skipped, so re-running is
 // cheap. Downloads use ~16 parallel connections, 3 retries per direct source,
 // a jsDelivr fallback and an opt-in GitHub proxy (one short attempt per URL).
+// HTTP(S)_PROXY is picked up by restarting once with NODE_USE_ENV_PROXY=1
+// (Node >=22.21 or >=24). An older Node warns and fetches directly, as before.
 // Spine atlases get `size:` (and `pma: true` for enemies); every skeleton is
 // parsed to resolve animation roles.
 //
@@ -49,6 +51,7 @@ import { existsSync, realpathSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Downloader } from './assets/downloader.mjs';
+import { restartForEnvProxy } from './assets/env-proxy.mjs';
 import { MirrorPolicy, selectDownloadSource, validateSource } from './assets/network.mjs';
 import { normalizeProxyPrefix } from './assets/sources.mjs';
 import { loadIndexes } from './assets/cache.mjs';
@@ -92,11 +95,8 @@ const HELP = `Usage: node tools/fetch-assets.mjs [options]
   --offline         no network: post-process what is on disk and rebuild data/assets.json
   --dry-run         print the plan and exit
   --refresh-index   re-download the audio_data.json / charword_table.json / models_data.json indexes
-  --voice-lang=cn   operator battle voice language: cn (default) | jp | en | kr — the PRIMARY language, written to
-                    audio.voice (what an old client plays)
-  --voice-langs=cn,jp  plan several voice languages in ONE pass (中日语音): the first is the primary, every language is
-                    written to audio.voiceLanguages[<lang>]. Each language lives in its own dump folder, so a language
-                    never overwrites another; a slot the dump lacks is simply absent and the client falls back.
+  --voice-lang=cn   the dub of audio.voice (the 中文 voice setting): cn (default) | jp | en | kr
+                    (audio.voiceJp, the 日本語 setting, is always the JP dub: both trees are planned)
   --voice-all       plan every official voice slot, including the prep-only lines no battle plays
                     (干员报到 / 编入队伍 / 任命队长; 360 files / 19.3 MB more per run — off by default)
   --prune           delete files under public/assets that the manifest no longer references
@@ -265,10 +265,7 @@ function countStats(m, bytes, files) {
     ui: Object.keys(m.ui || {}).length,
     sfxUnits: Object.keys(m.audio?.sfx?.units || {}).length,
     voiceChars: Object.keys(m.audio?.voice || {}).length,
-    // 中日语音: how many operators each planned language actually has on disk (a partial language is reported as it is)
-    voiceLangs: m.audio?.voiceLanguages
-      ? Object.fromEntries(Object.entries(m.audio.voiceLanguages).map(([l, byChar]) => [l, Object.keys(byChar || {}).length]))
-      : undefined,
+    voiceJpChars: Object.keys(m.audio?.voiceJp || {}).length,
   };
 }
 
@@ -361,7 +358,8 @@ async function main() {
     `(${Object.keys(plan.template.chars).length} chars, ${Object.keys(plan.template.enemies).length} enemies, ` +
     `${Object.keys(plan.template.tokens).length} tokens, ${Object.keys(plan.template.ui).length} UI sprites, ` +
     `${Object.keys(plan.template.audio.sfx.units).length} units with SFX, ` +
-    `${Object.keys(plan.template.audio.voice).length} operators with ${opts.voiceLang.toUpperCase()} voice)`);
+    `${Object.keys(plan.template.audio.voice).length} operators with ${opts.voiceLang.toUpperCase()} voice, ` +
+    `${Object.keys(plan.template.audio.voiceJp || {}).length} with JP voice)`);
   if (opts.dryRun) {
     for (const n of plan.notes) log(`  note: ${n}`);
     return 0;
@@ -451,7 +449,7 @@ async function main() {
   log(`bonds ${s.bonds} · items ${s.items} · bands ${s.bands} · skill icons ${s.skills} · UI ${s.ui} · units with SFX ${s.sfxUnits}`);
   const overlays = (o) => Object.values(o || {}).filter((e) => e?.spineLocal).length;
   log(`local-client models (spineLocal, drawn when extracted): enemies ${overlays(manifest.enemies)} · tokens ${overlays(manifest.tokens)}`);
-  log(`operator battle voice: ${s.voiceChars} charIds (--voice-lang=${opts.voiceLang})`);
+  log(`operator battle voice: ${s.voiceChars} charIds (--voice-lang=${opts.voiceLang}) · JP dub (audio.voiceJp): ${s.voiceJpChars} charIds`);
   log(`fonts: ${Object.values(fonts.files).map((f) => f.woff2 || f.original).join(', ') || 'none'}`);
   if (resolved.fallbacks.length) { log(`fallbacks used (${resolved.fallbacks.length}):`); for (const f of resolved.fallbacks.slice(0, 20)) log(`  ${f}`); }
   if (downloadErrors.length) log(`download errors (${downloadErrors.length}, re-run to retry): ${downloadErrors.slice(0, 10).join(', ')}`);
@@ -480,7 +478,7 @@ async function main() {
 
 // run only as a script (tests import parseArgs / shrinkGuard)
 const invoked = (() => { try { return pathToFileURL(realpathSync(process.argv[1] || '')).href; } catch { return null; } })();
-if (invoked === import.meta.url) {
+if (invoked === import.meta.url && !restartForEnvProxy()) {
   main().then((code) => { process.exitCode = code; }, (e) => {
     console.error(`[assets] FAILED: ${process.env.DEBUG ? e?.stack || e : e?.message || e}`);
     process.exitCode = 1;

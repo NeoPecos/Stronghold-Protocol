@@ -77,6 +77,23 @@ describe('the manifest (data/assets.json)', () => {
   });
 });
 
+test('a prep deployment waits for a late Spine model and plays Start once', async () => {
+  const assets = store();
+  const acquire = assets.spine.acquire;
+  let release;
+  const pending = new Promise((resolve) => { release = resolve; });
+  assets.spine.acquire = async (entry) => { await pending; return acquire(entry); };
+  const unit = new UnitView(fakeViewCtx(fake.P, { assets, cam }), {
+    id: 5, side: 'ally', kind: 'chess', defId: CAPER, spine: CAPER, tier: 1, x: 5, y: 10, maxHp: 1000, dir: 'RIGHT',
+  }, { prep: true });
+  unit.onDeploy();
+  assert.equal(unit.actor, null, 'the placement arrives while the model is loading');
+  release();
+  await settle();
+  assert.equal(unit.actor?.current, 'Start', 'the loaded model plays its deployment action');
+  unit.destroy();
+});
+
 describe('an operator facing UP knocked out (Back model without a Die clip)', () => {
   test('mid-attack: the Back model stops at once, then the Front model falls and holds its Die pose under the ring', async () => {
     const s = store();

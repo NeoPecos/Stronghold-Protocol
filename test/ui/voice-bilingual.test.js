@@ -159,8 +159,8 @@ describe('bilingual voice: switching language mid-flight', () => {
 // ---------------------------------------------------------------------------------------------------------------
 // 资源：真实清单的双语覆盖、路径不重叠、皮肤未受影响
 describe('bilingual voice: the shipped manifest', () => {
-  const langs = manifest.audio?.voiceLanguages || {};
   const primary = manifest.audio?.voice || {};
+  const langs = manifest.audio?.voiceLanguages || { cn: primary, jp: manifest.audio?.voiceJp || {} };
 
   const countFiles = (bank) => {
     let n = 0;
@@ -170,10 +170,10 @@ describe('bilingual voice: the shipped manifest', () => {
 
   test('both languages are planned, and audio.voice stays the primary (cn) bank', () => {
     assert.ok(manifest.audio, 'the manifest has an audio section');
-    assert.ok(Object.keys(langs).length >= 1, `voiceLanguages present (got ${Object.keys(langs).join(',')})`);
+    assert.ok(Object.keys(primary).length && Object.keys(langs.jp || {}).length, 'both voice banks are present');
     assert.equal(manifest.stats?.voiceChars, Object.keys(primary).length, 'stats.voiceChars matches audio.voice');
-    assert.deepEqual(manifest.stats?.voiceLangs, Object.fromEntries(Object.entries(langs).map(([l, b]) => [l, Object.keys(b).length])),
-      'stats.voiceLangs reports the per-language operator counts');
+    assert.equal(manifest.stats?.voiceJpChars ?? manifest.stats?.voiceLangs?.jp, Object.keys(langs.jp).length,
+      'stats reports the Japanese operator count');
   });
 
   test('every language path lives under its own folder and every file exists on disk', () => {

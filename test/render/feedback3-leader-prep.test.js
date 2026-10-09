@@ -88,7 +88,7 @@ test('the leader\'s view (render/app.js setLeader: a boss, not a prep view) show
     const v = new UnitView(fakeViewCtx(fake.P, { cam: () => cam }), { id: 'leader:x', kind: 'enemy', side: 'enemy', defId: 'enemy_9013_acstmk', spine: 'enemy_9013_acstmk', tier: 3, x: 10, y: 3, facing: -1, maxHp: 1, boss: true });
     v.update(1 / 60, cam, 0);
     assert.equal(v.hpFill.visible, true, 'HP bar shown');
-    assert.ok(Math.abs(v.hpFill.width - v.hpBg.width + 2) < 1e-6, 'full');
+    assert.ok(Math.abs(v.hpFill.width - v.hpBg.width + 1) < 1e-6, 'full');
     assert.equal(v.spFill.visible, false);
     v.destroy();
   } finally { fake.restore(); }

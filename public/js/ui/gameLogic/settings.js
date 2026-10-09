@@ -7,13 +7,7 @@ import { DEFAULT_HOTKEYS, sanitizeHotkeys } from './shortcuts.js';
 // ---- settings ------------------------------------------------------------------------------------------------------
 
 /**
- * keys: the in-match shortcuts' key map (ui/gameLogic/shortcuts.js; settings → 快捷键).
- * voiceLang: 干员语音 language (中日语音) — `cn` (default) or `jp`; only these two are offered, and a missing or
- * illegal value falls back to `cn`, so a player who never opened 设置 keeps the exact experience they had.
- *
- * (No `board` key: a 棋盘视角 switch was added and then REMOVED on 2026-10-08 — the renderer kept drawing the 3D board
- * whatever it said, so the control did nothing on a real machine. Dropping the key also guarantees a stale
- * `board: '2d'` left in a player's save can never silently disable the 3D board.)
+ * voiceLang defaults to Chinese; resolution remains an independent client display option.
  */
 export const DEFAULT_SETTINGS = Object.freeze({ bgm: 0.6, sfx: 0.8, voice: 0.8, voiceLang: 'cn', resolution: 'auto', muted: false, damageNumbers: true, quality: 'high', keys: DEFAULT_HOTKEYS });
 const QUALITIES = ['high', 'medium', 'low'];

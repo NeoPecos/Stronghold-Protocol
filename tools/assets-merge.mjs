@@ -16,10 +16,11 @@
 //   * 可重复执行：第二次运行不重复下载、不重复追加、不破坏 174 套皮肤目录。
 //
 // 用法：
-//   node tools/assets-merge.mjs [--langs=cn,jp] [--dry] [--skip-fetch] [--only-validate]
+//   node tools/assets-merge.mjs [--langs=cn,jp] [--offline] [--dry] [--skip-fetch] [--only-validate]
 //   --langs        语音语言（默认 cn,jp；逗号分隔，第一个是主语言）
 //   --dry          只打印将要做什么，不下载不写清单
 //   --skip-fetch   跳过第 1 步（只重新注入 + 校验；素材已就绪时用）
+//   --offline      只使用已有素材和索引，不访问网络
 //   --only-validate 只做第 3、4 步的校验与统计
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,6 +38,7 @@ const LANGS = opt('--langs', 'cn,jp').split(',').map((s) => s.trim()).filter(Boo
 const DRY = has('--dry');
 const SKIP_FETCH = has('--skip-fetch');
 const ONLY_VALIDATE = has('--only-validate');
+const OFFLINE = has('--offline');
 
 const node = process.execPath;
 /**
@@ -82,7 +84,7 @@ if (!ONLY_VALIDATE) {
   // 皮肤紧接着由第 2 步注入回来，所以这里显式放行；丢掉的条目数照实打印（不隐藏），最终以第 3 步的校验为准。
   // 注意：仍然**不传** `--prune` / `--force`，不删除任何素材。
   run('第 1 步：基础素材 + 双语语音（--allow-shrink；不 prune / 不 force）', [
-    'tools/fetch-assets.mjs', `--voice-langs=${LANGS.join(',')}`, '--allow-shrink',
+    'tools/fetch-assets.mjs', `--voice-langs=${LANGS.join(',')}`, '--allow-shrink', ...(OFFLINE ? ['--offline'] : []),
   ], [1]);
 }
 
@@ -121,7 +123,7 @@ console.log(`  引用文件: ${refs.size}（去重后），合计 ${(bytes / 104
 console.log(`  磁盘缺失: ${problems.length}`);
 
 // 语言目录互相覆盖检查（中日路径必须不同，且都不得指向对方）
-const voiceLangs = m.audio?.voiceLanguages || {};
+const voiceLangs = m.audio?.voiceLanguages || { cn: m.audio?.voice || {}, jp: m.audio?.voiceJp || {} };
 const langDir = {};
 for (const [lang, byChar] of Object.entries(voiceLangs)) {
   let files = 0, chars = 0;
