@@ -23,6 +23,7 @@ import { pngSize } from './assets/formats.mjs';
 import { parseSkel, skelParserAvailable } from './assets/skel.mjs';
 import { resolveRoles } from './assets/anim-roles.mjs';
 import { skillIndicesByChar } from './assets/plan.mjs';
+import { contentHash } from './assets/manifest.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const RESEARCH_PATH = path.join(ROOT, 'docs', 'research', '08-skins.json');
@@ -186,6 +187,20 @@ assets.stats = assets.stats || {};
 assets.stats.skins = injected;
 assets.stats.charsWithSkins = charsTouched;
 assets.stats.skinsWithSpine = injected - usedFallback.length;
+const referenced = new Set();
+const visit = (value) => {
+  if (typeof value === 'string') {
+    if (value.startsWith('/assets/')) referenced.add(value);
+  } else if (Array.isArray(value)) value.forEach(visit);
+  else if (value && typeof value === 'object') Object.values(value).forEach(visit);
+};
+for (const [key, value] of Object.entries(assets)) {
+  if (!['version', 'hash', 'generator', 'stats'].includes(key)) visit(value);
+}
+assets.stats.files = referenced.size;
+assets.stats.bytes = [...referenced].reduce((sum, url) => sum + fs.statSync(path.join(ROOT, 'public', url.slice(1))).size, 0);
+const { version: _version, hash: _hash, generator: _generator, stats: _stats, ...body } = assets;
+assets.hash = contentHash(body);
 
 console.log(`✔ 注入 ${charsTouched} 名干员的 ${injected} 套皮肤（头像 ${avatars} 个）`);
 console.log(`  含骨骼: ${assets.stats.skinsWithSpine} 套；仅头像（骨骼缺失，客户端回落原皮）: ${usedFallback.length} 套`);

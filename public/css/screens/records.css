@@ -28,20 +28,20 @@
   border-bottom: 1px solid var(--line-2);
 }
 
-.match-record__dialog h2 { margin: .04rem 0 0; font-size: .26rem; }
+.match-record__dialog h2 { margin: .04rem 0 0; font-size: calc(.26 * var(--t)); }
 .match-record__body { display: grid; gap: .12rem; padding-top: .1rem; }
-.match-record__body > p { margin: 0; color: var(--text-lo); font-size: .14rem; }
+.match-record__body > p { margin: 0; color: var(--text-lo); font-size: calc(.14 * var(--t)); }
 .match-record__player { padding: .16rem; border: 1px solid var(--line-2); background: #172326; }
 .match-record__player.is-own { border-color: var(--mint-700); }
-.match-record__player h3 { margin: 0 0 .12rem; font-size: .2rem; color: var(--text-hi); }
+.match-record__player h3 { margin: 0 0 .12rem; font-size: calc(.2 * var(--t)); color: var(--text-hi); }
 .match-record__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .08rem .16rem; }
-.match-record__stats > div { display: flex; justify-content: space-between; gap: .06rem; border-bottom: 1px solid var(--line); font-size: .14rem; }
+.match-record__stats > div { display: flex; justify-content: space-between; gap: .06rem; border-bottom: 1px solid var(--line); font-size: calc(.14 * var(--t)); }
 .match-record__stats span { color: var(--text-lo); }
 .match-record__stats b { color: var(--mint-500); }
-.match-record__bonds { margin: .12rem 0 0; color: var(--text-md); font-size: .13rem; }
+.match-record__bonds { margin: .12rem 0 0; color: var(--text-md); font-size: calc(.13 * var(--t)); }
 .match-record__details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .2rem; margin-top: .14rem; }
-.match-record__details h4 { margin: 0 0 .05rem; color: var(--mint-500); font-size: .16rem; }
-.match-record__entry { display: flex; justify-content: space-between; gap: .1rem; padding: .035rem 0; border-bottom: 1px solid var(--line); color: var(--text-md); font-size: .14rem; }
+.match-record__details h4 { margin: 0 0 .05rem; color: var(--mint-500); font-size: calc(.16 * var(--t)); }
+.match-record__entry { display: flex; justify-content: space-between; gap: .1rem; padding: .035rem 0; border-bottom: 1px solid var(--line); color: var(--text-md); font-size: calc(.14 * var(--t)); }
 .match-record__entry small { margin-left: .08rem; color: var(--text-dim); }
 .match-record__entry b { white-space: nowrap; color: var(--gold); }
 

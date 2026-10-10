@@ -771,3 +771,7 @@
 .lo-grid .lo-card__sk { display: inline-flex; align-items: center; gap: .04rem; font-size: max(.13rem, 9px); color: var(--text-lo); }
 .lo-grid .lo-card__mod { display: inline-grid; place-items: center; min-width: max(.24rem, 15px); height: max(.2rem, 13px); padding: 0 .03rem; font-size: max(.13rem, 9px); border: 1px solid var(--line-2); }
 .lo-grid .lo-card__mod.is-alt, .lo-grid .lo-card__sk.is-alt { color: var(--mint-400); }
+/* Per-operator voice, a browser-local preference in roster and DIY details. */
+.lo-voice { display: flex; flex-wrap: wrap; align-items: center; gap: .12rem; padding: .14rem 0; font-size: calc(.18 * var(--t)); }
+.lo-voice > small { flex-basis: 100%; color: var(--text-dim); font-size: calc(.15 * var(--t)); }
+.lo-voice .lo-select { min-width: 1.6rem; max-width: 100%; }

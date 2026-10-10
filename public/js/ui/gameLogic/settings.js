@@ -1,5 +1,8 @@
 // ui/gameLogic/settings.js — settings defaults and sanitising. Re-exported from ../gameLogic.js.
 
+import { VOICE_LANGS, sanitizeVoiceOverrides } from '../../voicePrefs.js';
+export { VOICE_LANGS } from '../../voicePrefs.js';
+
 import { clamp, isObj } from './shared.js';
 import { DEFAULT_HOTKEYS, sanitizeHotkeys } from './shortcuts.js';
 
@@ -9,10 +12,6 @@ import { DEFAULT_HOTKEYS, sanitizeHotkeys } from './shortcuts.js';
 /**
  * voiceLang defaults to Chinese; resolution remains an independent client display option.
  */
-export const DEFAULT_SETTINGS = Object.freeze({ bgm: 0.6, sfx: 0.8, voice: 0.8, voiceLang: 'cn', resolution: 'auto', muted: false, damageNumbers: true, quality: 'high', keys: DEFAULT_HOTKEYS });
-const QUALITIES = ['high', 'medium', 'low'];
-/** Operator voice languages the manifest can carry (tools/assets/audio.mjs VOICE_DIRS is the superset: en/kr are not offered). */
-export const VOICE_LANGS = Object.freeze(['cn', 'jp']);
 
 /**
  * 分辨率 / RESOLUTION — how many device pixels the field canvas is allowed to use.
@@ -39,12 +38,24 @@ export function boardResolutionCap(res) {
   return cap >= 2 ? 2 : cap <= 1 ? 1 : 1.25;
 }
 
+
+/**
+ * The steps of 设置 →「文字大小」 (textSize): the interface text root `--t` of css/theme.css — 'sm' is the design's own
+ * sizes (`--t: 1rem`), the others lift the phone's 40 px root by a floor and grow the desktop gently. Text only: the
+ * layout root `1rem` (and with it the field camera, the detail card's side and the DOM fallback board) never moves.
+ */
+export const TEXT_SIZES = Object.freeze(['sm', 'md', 'lg', 'xl']);
+
+/** keys: the in-match shortcuts' key map (ui/gameLogic/shortcuts.js; settings → 快捷键). voiceLang: VOICE_LANGS.
+ *  textSize: TEXT_SIZES (css/theme.css `--t`, applied by ui/settings.js applyTextSize). */
+export const DEFAULT_SETTINGS = Object.freeze({ bgm: 0.6, sfx: 0.8, voice: 0.8, voiceLang: 'cn', voiceOverrides: Object.freeze({}), resolution: 'auto', muted: false, damageNumbers: true, quality: 'high', textSize: 'sm', keys: DEFAULT_HOTKEYS });
+const QUALITIES = ['high', 'medium', 'low'];
+
 /**
  * Sanitize persisted settings.
  * @param {any} raw
- * @returns {{ bgm: number, sfx: number, voice: number, voiceLang: 'cn'|'jp', muted: boolean, damageNumbers: boolean,
- *   quality: 'high'|'medium'|'low',
- *   keys: Record<'refresh'|'freeze'|'levelUp'|'retreat'|'sell'|'ready', string> }}
+ * @returns {{ bgm: number, sfx: number, voice: number, voiceLang: 'cn'|'jp', voiceOverrides: Record<string, string>, muted: boolean, damageNumbers: boolean, quality: 'high'|'medium'|'low',
+ *   resolution: string, textSize: 'sm'|'md'|'lg'|'xl', keys: Record<'refresh'|'freeze'|'levelUp'|'retreat'|'sell'|'ready', string> }}
  */
 export function sanitizeSettings(raw) {
   const r = isObj(raw) ? raw : {};
@@ -57,9 +68,11 @@ export function sanitizeSettings(raw) {
     voiceLang: VOICE_LANGS.includes(r.voiceLang) ? r.voiceLang : DEFAULT_SETTINGS.voiceLang,
     // 分辨率: only the listed modes; an absent field (a save from before it existed) ⇒ auto, i.e. nothing changes
     resolution: RESOLUTION_MODES.includes(r.resolution) ? r.resolution : DEFAULT_SETTINGS.resolution,
+    voiceOverrides: sanitizeVoiceOverrides(r.voiceOverrides),
     muted: typeof r.muted === 'boolean' ? r.muted : DEFAULT_SETTINGS.muted,
     damageNumbers: typeof r.damageNumbers === 'boolean' ? r.damageNumbers : DEFAULT_SETTINGS.damageNumbers,
     quality: QUALITIES.includes(r.quality) ? r.quality : DEFAULT_SETTINGS.quality,
+    textSize: TEXT_SIZES.includes(r.textSize) ? r.textSize : DEFAULT_SETTINGS.textSize,
     keys: sanitizeHotkeys(r.keys),
   };
 }

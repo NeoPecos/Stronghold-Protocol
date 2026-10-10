@@ -10,7 +10,9 @@
 
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const ENABLED = process.env.SP_E2E === '1' && existsSync(CHROME);
@@ -20,16 +22,20 @@ describe('the settings entry of the lobby and the room', { skip: !ENABLED && 'se
   let srv;
   let browser;
   let base;
+  let dataDir;
   before(async () => {
     const { startServer } = await import('../../server/index.js');
     const puppeteer = (await import('puppeteer-core')).default;
-    srv = await startServer({ port: 0, host: '127.0.0.1', quiet: true });
+    dataDir = mkdtempSync(path.join(os.tmpdir(), 'sp-settings-e2e-'));
+    srv = await startServer({ port: 0, host: '127.0.0.1', quiet: true,
+      accountsFile: path.join(dataDir, 'accounts.json'), recordsFile: path.join(dataDir, 'records.jsonl') });
     base = `http://127.0.0.1:${srv.port}`;
     browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--no-sandbox', '--force-device-scale-factor=1'] });
   });
   after(async () => {
     await browser?.close();
     await srv?.close();
+    if (dataDir) rmSync(dataDir, { recursive: true, force: true });
   });
 
   /** Is the 设置 button the sibling right before the 玩法说明 button of `screen`'s top bar? */
@@ -49,6 +55,7 @@ describe('the settings entry of the lobby and the room', { skip: !ENABLED && 'se
     await page.goto(`${base}/`, { waitUntil: 'networkidle0', timeout: 60000 });
     await page.waitForSelector('input', { timeout: 15000 });
     await page.type('input', '测试博士');
+    await page.type('.title-login input[type="password"]', 'browser test password');
     await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => /开始/.test(b.textContent))?.click());
     await page.waitForSelector('.lobby-screen', { timeout: 15000 });
     await sleep(500);
@@ -61,8 +68,10 @@ describe('the settings entry of the lobby and the room', { skip: !ENABLED && 'se
     assert.match(text, /设置/);
     assert.match(text, /背景音乐/);
     assert.match(text, /快捷键/);
-    assert.doesNotMatch(text, /棋盘/, 'no board-style option (declined)');
-    assert.doesNotMatch(text, /后台/, 'no background-music option (declined)');
+    // The text-size hint mentions the unchanged board scale; the declined options concern controls, not help copy.
+    const optionLabels = await page.$$eval('.modal .set-row__label', (nodes) => nodes.map((n) => n.textContent).join(' '));
+    assert.doesNotMatch(optionLabels, /棋盘/, 'no board-style option (declined)');
+    assert.doesNotMatch(optionLabels, /后台/, 'no background-music option (declined)');
     await page.keyboard.press('Escape');
     await sleep(300);
     assert.equal(await modalText(page), null, 'Esc closes it');

@@ -1,6 +1,8 @@
 import { describe, test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const enabled = process.env.SP_E2E === '1' && existsSync(chrome);
@@ -9,11 +11,14 @@ describe('room directory in the browser', { skip: !enabled && 'set SP_E2E=1 and 
   let server;
   let browser;
   let base;
+  let dataDir;
 
   before(async () => {
     const { startServer } = await import('../../server/index.js');
     const puppeteer = (await import('puppeteer-core')).default;
-    server = await startServer({ port: 0, host: '127.0.0.1', quiet: true });
+    dataDir = mkdtempSync(path.join(os.tmpdir(), 'sp-room-e2e-'));
+    server = await startServer({ port: 0, host: '127.0.0.1', quiet: true,
+      accountsFile: path.join(dataDir, 'accounts.json'), recordsFile: path.join(dataDir, 'records.jsonl') });
     browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox'] });
     base = `http://127.0.0.1:${server.port}`;
   });
@@ -21,6 +26,7 @@ describe('room directory in the browser', { skip: !enabled && 'set SP_E2E=1 and 
   after(async () => {
     await browser?.close();
     await server?.close();
+    if (dataDir) rmSync(dataDir, { recursive: true, force: true });
   });
 
   test('a guest joins from the list and the host removes them from the waiting room', async () => {
@@ -30,7 +36,8 @@ describe('room directory in the browser', { skip: !enabled && 'set SP_E2E=1 and 
       const enter = async (context, name) => {
         const page = await context.newPage();
         await page.goto(base);
-        await page.type('.title-login input', name);
+        await page.type('.title-login input:first-of-type', name);
+        await page.type('.title-login input[type="password"]', 'browser test password');
         await page.click('.title-login .btn--primary');
         await page.waitForSelector('.lobby-screen');
         return page;
