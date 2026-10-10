@@ -156,10 +156,15 @@ export class SessionRegistry {
    * @param {string} name
    * @returns {Session | null}
    */
-  create(name) {
+  create(name, stablePlayerId = null) {
     if (this.byPlayerId.size >= this.maxSessions && !this.evictOne()) return null;
     let playerId;
-    do playerId = 'p_' + randomBytes(5).toString('hex'); while (this.byPlayerId.has(playerId));
+    if (stablePlayerId) {
+      if (this.byPlayerId.has(stablePlayerId)) return null;
+      playerId = stablePlayerId;
+    } else {
+      do playerId = 'p_' + randomBytes(5).toString('hex'); while (this.byPlayerId.has(playerId));
+    }
     let token;
     do token = newToken(); while (this.byTokenMap.has(token));
     const s = new Session({ playerId, token, name, now: this.now() });
@@ -517,9 +522,10 @@ export class Network {
    *   options?: Partial<typeof NET_DEFAULTS>,
    * }} opts
    */
-  constructor({ registry, handler, log = noopLog, now = Date.now, options = {} }) {
+  constructor({ registry, handler, accounts = null, log = noopLog, now = Date.now, options = {} }) {
     this.registry = registry;
     this.handler = handler;
+    this.accounts = accounts;
     this.log = log;
     this.now = now;
     this.opts = { ...NET_DEFAULTS, ...options };
@@ -527,6 +533,7 @@ export class Network {
     this.conns = new Map();
     /** @type {Map<string, number>} open sockets per client network key */
     this.connsPerKey = new Map();
+    this.authBuckets = new Map();
     this.closed = false;
     this.heartbeatTimer = setInterval(() => this.heartbeat(), this.opts.heartbeatMs);
     this.heartbeatTimer.unref?.();
@@ -612,7 +619,13 @@ export class Network {
       this.reply(conn, pong);
       return;
     }
-    if (msg.t === 'hello') { this.onHelloMsg(conn, msg, now); return; }
+    if (msg.t === 'hello') {
+      this.onHelloMsg(conn, msg, now).catch((error) => {
+        this.log.error('[net] authentication failed', error);
+        this.reply(conn, errorMsg(ERR.INTERNAL, rid));
+      });
+      return;
+    }
     if (!conn.session) { this.reply(conn, errorMsg(ERR.BAD_MSG, rid, 'hello required')); return; }
     if (HEAVY_TYPES.has(msg.t) && !conn.heavy.take(now)) { this.reply(conn, errorMsg(ERR.RATE, rid, `${msg.t} too often`)); return; }
     if (msg.t === 'user.activity') {
@@ -644,7 +657,7 @@ export class Network {
   }
 
   /** @param {Connection} conn @param {any} msg @param {number} now */
-  onHelloMsg(conn, msg, now) {
+  async onHelloMsg(conn, msg, now) {
     const rid = msg.rid;
     if (msg.version != null && msg.version !== PROTOCOL_VERSION) {
       this.reply(conn, errorMsg(ERR.BAD_MSG, rid, `version mismatch: server ${PROTOCOL_VERSION}`));
@@ -653,16 +666,49 @@ export class Network {
     const name = sanitizeName(msg.name);
     if (!name) { this.reply(conn, errorMsg(ERR.BAD_MSG, rid, 'bad field name')); return; }
 
+    if (conn.authenticating) { this.reply(conn, errorMsg(ERR.RATE, rid)); return; }
+    let account = null;
+    if (this.accounts) {
+      const tokenSession = msg.token ? this.registry.byToken(msg.token) : null;
+      const active = conn.session || (tokenSession && tokenSession.name === name ? tokenSession : null);
+      if (active) {
+        account = this.accounts.get(active.name);
+        if (!account || account.playerId !== active.playerId || account.name !== name) {
+          this.reply(conn, errorMsg(ERR.BAD_CREDENTIALS, rid));
+          return;
+        }
+      } else {
+        if (msg.auth !== 'login' && msg.auth !== 'register') {
+          this.reply(conn, errorMsg(ERR.AUTH_REQUIRED, rid));
+          return;
+        }
+        const authKey = conn.key || conn.ip;
+        let authBucket = this.authBuckets.get(authKey);
+        if (!authBucket) {
+          authBucket = new TokenBucket(0.1, 8, now);
+          this.authBuckets.set(authKey, authBucket);
+        }
+        if (!authBucket.take(now)) { this.reply(conn, errorMsg(ERR.RATE, rid)); return; }
+        conn.authenticating = true;
+        let result;
+        try { result = await this.accounts.authenticate(name, msg.password, msg.auth); }
+        finally { conn.authenticating = false; }
+        if (conn.closing || this.closed || !this.conns.has(conn.ws)) return;
+        if (result.error) { this.reply(conn, errorMsg(ERR[result.error], rid)); return; }
+        account = result.account;
+      }
+    }
+
     let session = conn.session;
     let resumed = false;
     const repeat = !!session;
     if (!session) {
-      session = msg.token ? this.registry.byToken(msg.token) : null;
+      session = this.accounts ? this.registry.byId(account.playerId) : msg.token ? this.registry.byToken(msg.token) : null;
       if (session) {
         resumed = true;
         if (session.ws && session.ws !== conn.ws) this.detachReplaced(session.ws);
       } else {
-        session = this.registry.create(name);
+        session = this.registry.create(account?.name || name, account?.playerId);
         if (!session) { this.reply(conn, errorMsg(ERR.INTERNAL, rid, 'server full')); return; }
       }
       conn.session = session;
@@ -670,7 +716,7 @@ export class Network {
       session.connected = true;
       session.disconnectedAt = null;
     }
-    session.name = name;
+    session.name = account?.name || name;
     session.lastSeen = now;
     session.addr = conn.ip;
     session.limitKey = conn.key;
@@ -741,8 +787,10 @@ export class Network {
 
   /** Purge expired sessions and tell the handler. */
   sweep() {
+    const now = this.now();
+    for (const [key, bucket] of this.authBuckets) if (now - bucket.at > 10 * 60_000) this.authBuckets.delete(key);
     let expired;
-    try { expired = this.registry.sweep(this.now()); } catch (e) { this.log.error('[net] sweep crashed', e); return; }
+    try { expired = this.registry.sweep(now); } catch (e) { this.log.error('[net] sweep crashed', e); return; }
     for (const s of expired) {
       try { this.handler.onExpire?.(s); } catch (e) { this.log.error('[net] onExpire crashed', e); }
     }

@@ -35,6 +35,7 @@ import { createRequestHandler } from './http/routes.js';
 import { answerClientError } from './http/common.js';
 import { lanUrls, displayHost, isProcessEntry, runMain } from './http/boot.js';
 import { MatchRecords } from './matchRecords.js';
+import { AccountStore } from './accounts.js';
 
 // The public API of this module (tests and tools import it from here); the code lives in ./http/.
 export {
@@ -66,7 +67,9 @@ export async function startServer(opts = {}) {
   // The process-wide singleton serves the default data dir; a custom dir (tests) gets its own copy.
   const data = opts.dataDir ? loadData(dataDir, { log }) : getData({ dir: dataDir, log });
   const records = new MatchRecords(opts.recordsFile || process.env.SP_RECORDS_FILE || path.join(ROOT, 'var', 'match-records.jsonl'), log);
-  const { registry, lobby, network } = createSessionStack({ ...opts, records }, { data, log });
+  const accounts = opts.accountsFile === false ? null
+    : new AccountStore(opts.accountsFile || process.env.SP_ACCOUNTS_FILE || path.join(ROOT, 'var', 'accounts.json'));
+  const { registry, lobby, network } = createSessionStack({ ...opts, records, accounts }, { data, log });
   // content packs (docs/PACKS.md): scanned now — the start log names them — and again whenever their folders change
   const packs = createPackRegistry({ publicDir, dataDir, packsDir }, { log });
   packs.refresh(true);

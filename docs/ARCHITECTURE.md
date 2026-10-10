@@ -49,7 +49,7 @@ Every frame is JSON text, `{ t, rid?, …fields }`.
 
 | direction | messages | handled in |
 |---|---|---|
-| client → server | `hello` (name, reconnect token) → `welcome`; `ping` → `pong` | `server/net.js` |
+| client → server | `hello` (name, reconnect token or login/register password) → `welcome`; `ping` → `pong` | `server/net.js`, `server/accounts.js` |
 | | `room.*`: create, join, ready, difficulty, AI seats, kick, start, the 干员调配 loadout, 干员持有 ownership, 自选编队 picks, spectating | `server/lobby.js` |
 | | `g.*`: match intents — buy, refresh, freeze, level up, sell, move, equip, Arts, rewards, 机变 choices, ready, emotes, watching, pause … | `server/match/match/intents.js` → `server/match/player/` |
 | | `b.progress`, `b.result`: the battle reports of the authoritative browser | `server/match/match/reports.js` |
@@ -59,6 +59,10 @@ Every frame is JSON text, `{ t, rid?, …fields }`.
 
 - A request that carries `rid` is answered with `ok` or `error` echoing it. `server/net.js` rate-limits each socket,
   validates every message against `C2S` and refuses anything unknown; the handlers never trust the client.
+- Callsigns are unique without regard to letter case. Registration creates a stable `playerId`; login verifies a salted
+  scrypt hash in `var/accounts.json` (or `SP_ACCOUNTS_FILE`). `records.mine` uses that stable identity, not a nickname.
+  A reconnect token resumes only its own account. A server restart requires the password again; old nickname-only
+  sessions and their historical records cannot be securely claimed by a newly registered account.
 - Messages meant for people (`m.toast`, `m.ticker`) carry a message id and its parameters, so each client shows them in
   its own language (`shared/i18n.js` `wireMessage`).
 - The exact view shapes: DESIGN §8.3 and META §5.

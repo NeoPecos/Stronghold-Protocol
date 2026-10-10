@@ -77,14 +77,16 @@ export const isValidName = (raw) => {
  * @param {string} rawName
  * @returns {boolean} false when the name is invalid
  */
-export function enterSession(rawName) {
+export function enterSession(rawName, password, auth) {
   const name = sanitizeName(rawName);
-  if (!isValidName(name)) return false;
-  identity.saveName(name);
-  identity.setEntered(true);
-  store.set((s) => ({ me: { ...s.me, name }, session: { ...s.session, entered: true } }));
-  net.setName(name);
+  if (!isValidName(name) || typeof password !== 'string' || password.length < 8 || password.length > 128) return false;
+  net.setCredentials(name, password, auth);
   return true;
+}
+
+export function isNativeClient() {
+  const agent = globalThis.navigator?.userAgent || '';
+  return /SPClient\/(?:Windows|Android)|; wv[);]/i.test(agent) || !!globalThis.chrome?.webview;
 }
 
 // data/assets.json `ui` keys are 'group/key' (docs/ASSETS.md).
@@ -195,6 +197,8 @@ export function TitleScreen() {
   const pendingJoin = useStore((s) => s.ui.pendingJoin);
   useLang(); // re-render on a language switch
   const [name, setName] = useState(() => store.get().me.name || identity.loadName() || '');
+  const [password, setPassword] = useState('');
+  const [authMode, setAuthMode] = useState('register');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const assetsSettled = useData('assets');
   const assets = data.get('assets');
@@ -210,10 +214,11 @@ export function TitleScreen() {
   // CSS ridgelines only when there is no ridge art (avoids a swap flash when the art arrives).
   const cssRidges = assetsSettled && (!ridges || ridgesFailed);
 
-  const valid = isValidName(name);
+  const valid = isValidName(name) && password.length >= 8 && password.length <= 128;
   const start = () => {
-    if (!valid) { toast(t('请输入博士代号'), 'warn'); return; }
-    enterSession(name);
+    if (!isValidName(name)) { toast(t('请输入博士代号'), 'warn'); return; }
+    if (!valid) { toast(t('密码至少 8 位'), 'warn'); return; }
+    enterSession(name, password, authMode);
   };
 
   const online = conn.status === 'online' || conn.status === 'connected';
@@ -274,11 +279,22 @@ export function TitleScreen() {
         <${TextField} label=${t('博士代号')} micro="CALLSIGN" size="lg" icon="user" value=${name} maxLength=${NAME_MAX_LEN}
           placeholder=${t('输入你的代号（最多 {NAME_MAX_LEN} 字）', { NAME_MAX_LEN })} autoFocus=${!touchUi}
           onInput=${setName} onEnter=${start} />
-        <${Button} variant="primary" size="xl" block=${true} iconRight="chevrons" disabled=${!valid} onClick=${start}>${t('开始')}<//>
-        <div class="title-downloads">
+        <div class="title-auth-mode" role="radiogroup" aria-label=${t('账号操作')}>
+          <button type="button" role="radio" aria-checked=${authMode === 'register'} class=${authMode === 'register' ? 'is-on' : ''}
+            onClick=${() => setAuthMode('register')}>${t('注册账号')}</button>
+          <button type="button" role="radio" aria-checked=${authMode === 'login'} class=${authMode === 'login' ? 'is-on' : ''}
+            onClick=${() => setAuthMode('login')}>${t('登录账号')}</button>
+        </div>
+        <${TextField} label=${t('密码')} micro="PASSWORD" size="lg" icon="key" value=${password} maxLength=${128}
+          type="password" autoComplete=${authMode === 'register' ? 'new-password' : 'current-password'}
+          placeholder=${t('至少 8 位密码')} onInput=${setPassword} onEnter=${start} />
+        ${conn.lastError && ['AUTH_REQUIRED', 'BAD_CREDENTIALS', 'NAME_TAKEN', 'WEAK_PASSWORD'].includes(conn.lastError.code)
+          ? html`<div class="title-auth-error" role="alert">${t(conn.lastError.text)}</div>` : null}
+        <${Button} variant="primary" size="xl" block=${true} iconRight="chevrons" disabled=${!valid || conn.status === 'handshaking'} onClick=${start}>${t(authMode === 'register' ? '注册并开始' : '登录并开始')}<//>
+        ${isNativeClient() ? null : html`<div class="title-downloads">
           <a href="/client/#windows" target="_blank" rel="noopener noreferrer">${t('下载 Windows 客户端')}</a>
           <a href="/client/#android" target="_blank" rel="noopener noreferrer">${t('下载 Android 客户端')}</a>
-        </div>
+        </div>`}
         <div class="title-conn">
           <span class=${`status-dot ${dotClass}`}></span>
           <span>${STATUS_TEXT[conn.status] ? t(STATUS_TEXT[conn.status]) : conn.status}</span>

@@ -31,7 +31,7 @@
 // one (test/ui/watch-bonds.e2e.test.js, "after the own battle": a window for watching and a reload).
 // Not a test file (node --test runs it as a no-op module when NODE_TEST_CONTEXT is set).
 
-import { startServer } from '../../server/index.js';
+import { startServer } from '../helpers/legacyServer.js';
 import { Match } from '../../server/match/Match.js';
 import { legalTiles, placeClass, tileKey } from '../../server/match/board.js';
 import { planLayout } from '../../server/match/bot.js';

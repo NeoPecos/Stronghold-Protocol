@@ -147,6 +147,7 @@ export const ERR = Object.freeze({
   TEMP_NOT_EMPTY: 'TEMP_NOT_EMPTY',
   ELIMINATED: 'ELIMINATED',
   SPECTATOR: 'SPECTATOR',         // a spectator seat only watches (MAX_SPECTATORS)
+  AUTH_REQUIRED: 'AUTH_REQUIRED', NAME_TAKEN: 'NAME_TAKEN', BAD_CREDENTIALS: 'BAD_CREDENTIALS', WEAK_PASSWORD: 'WEAK_PASSWORD',
   INTERNAL: 'INTERNAL',
 });
 
@@ -157,6 +158,8 @@ export const ERR_TEXT = {
   BAD_TILE: N_('无法部署在该位置'), BAD_TARGET: N_('无效的目标'), SOLD_OUT: N_('已售出'), MAX_LEVEL: N_('调度中心已达最高等级'),
   NOT_YOUR_TURN: N_('尚未轮到你'), ALREADY: N_('已完成该操作'), TEMP_NOT_EMPTY: N_('临时整备区不为空'), ELIMINATED: N_('你已被淘汰'),
   SPECTATOR: N_('观战中无法进行该操作'), INTERNAL: N_('服务器内部错误'),
+  AUTH_REQUIRED: N_('请登录或注册账号'), NAME_TAKEN: N_('该代号已被注册'),
+  BAD_CREDENTIALS: N_('账号或密码错误'), WEAK_PASSWORD: N_('密码至少 8 位，且不能包含控制字符'),
 };
 
 // ---- Emotes (交流, research 09 §4) -----------------------------------------------------------------------------

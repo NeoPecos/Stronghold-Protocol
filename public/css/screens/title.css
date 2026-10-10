@@ -230,6 +230,10 @@
   background: linear-gradient(90deg, var(--mint-500), transparent 60%);
 }
 .title-login .btn--xl { letter-spacing: .6em; padding-left: calc(.48rem + .3em); }
+.title-auth-mode { display: flex; border: 1px solid var(--line-2); }
+.title-auth-mode button { flex: 1; border: 0; background: transparent; color: var(--text-lo); padding: .07rem; font: inherit; font-size: .16rem; cursor: pointer; }
+.title-auth-mode button.is-on { background: var(--mint-800); color: var(--mint-400); }
+.title-auth-error { color: #ff9f80; font-size: .14rem; }
 .title-invite {
   display: flex;
   align-items: center;
@@ -252,10 +256,12 @@
 /* language menu (中文 | English | …, ui/lang.js) in the top-right corner; more than four languages make it a list */
 .title-lang { display: inline-flex; margin-bottom: .1rem; }
 .title-lang button { min-width: .74rem; height: .3rem; font-size: .14rem; cursor: pointer; }
-.title-lang.lang-select .ui-dropdown { font-size: .14rem; }
-.title-lang.lang-select .ui-dropdown__trigger { height: .3rem; }
+.title-lang.lang-select .ui-dropdown { width: 1.1rem; font-size: .14rem; }
+.title-lang.lang-select .ui-dropdown__trigger { height: .3rem; min-width: 0; padding: 0 .1rem; }
+.title-lang.lang-select .ui-dropdown__menu { min-width: 1.65rem; right: 0; left: auto; }
 html[data-script="alphabetic"] .title-login .btn--xl { letter-spacing: .3em; }
 .title-conn .ping { height: .26rem; font-size: .15rem; }
+@media (max-height: 480px) { .title-main { transform: scale(.9); } }
 
 .title-foot {
   position: absolute;

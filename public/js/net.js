@@ -135,6 +135,8 @@ export class Net {
     this.status = 'idle';
     this.ws = null;
     this.name = null;          // desired player name (hello is sent when set)
+    this.auth = null;
+    this.password = null;
     this.helloName = null;     // name we sent in the hello that got the last welcome
     this.serverName = null;    // name as normalised by the server
     this.playerId = null;
@@ -285,6 +287,13 @@ export class Net {
     this._sendHello();
   }
 
+  setCredentials(name, password, auth) {
+    this.auth = auth;
+    this.password = password;
+    this.helloName = null;
+    this.setName(name);
+  }
+
   _onOpen() {
     this._openedAt = this.now();
     this._lastRx = this._openedAt;
@@ -366,6 +375,7 @@ export class Net {
     let token = null;
     try { token = this.getToken(); } catch { token = null; }
     if (typeof token === 'string' && token.length > 0 && token.length <= 64) msg.token = token;
+    if (this.auth && this.password) { msg.auth = this.auth; msg.password = this.password; }
     this._helloRid = rid;
     this._helloSentName = this.name;
     if (this.status !== 'handshaking') this._setStatus('handshaking');
@@ -386,6 +396,8 @@ export class Net {
   _onWelcome(msg) {
     this._clearTimer('_helloTimer', 'clearTimeout');
     this._helloRid = null;
+    this.auth = null;
+    this.password = null;
     // Compare future setName() calls against what we sent (the server may normalise the name).
     this.helloName = this._helloSentName;
     this.serverName = typeof msg.name === 'string' && msg.name ? msg.name : this._helloSentName;
@@ -402,6 +414,11 @@ export class Net {
     this._clearTimer('_helloTimer', 'clearTimeout');
     this._helloRid = null;
     this.lastError = new NetError(msg.code, msg.msg, msg.detail);
+    if (['AUTH_REQUIRED', 'NAME_TAKEN', 'BAD_CREDENTIALS', 'WEAK_PASSWORD'].includes(msg.code)) {
+      this.name = null;
+      this.auth = null;
+      this.password = null;
+    }
     this._setStatus('connected');
     // Queued requests can't be sent without a session.
     this._failPending('OFFLINE', true);

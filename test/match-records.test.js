@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { MatchRecords } from '../server/matchRecords.js';
-import { startServer } from '../server/index.js';
+import { startServer } from './helpers/legacyServer.js';
 
 const player = (playerId, name, damage, buys) => ({
   playerId, name, seat: 0, stats: { dmgDealt: damage, refreshes: 2, activatedLayers: 8 },

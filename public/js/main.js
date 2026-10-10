@@ -147,13 +147,16 @@ function backToLobby() {
 
 function onWelcome(msg) {
   identity.saveToken(msg.token);
+  identity.saveName(msg.name);
+  identity.setEntered(true);
+  store.patch('session', { entered: true });
   const prev = store.get();
   const prevId = prev.me.playerId;
   const name = typeof msg.name === 'string' && msg.name ? msg.name : prev.me.name;
   store.set({ me: { playerId: msg.playerId ?? null, name, token: typeof msg.token === 'string' ? msg.token : null } });
   welcomeAt = Date.now();
 
-  if (prevId != null && prevId !== msg.playerId) {
+  if (prevId != null && (prevId !== msg.playerId || (!msg.resumed && (prev.room || prev.match.public)))) {
     // A brand-new server session (the server restarted — crashed / killed, so no room.closed arrived — or this session
     // expired on it): whatever we showed before is gone — back to the lobby cleanly and say why.
     const notice = sessionResetNotice(prev, msg.playerId);
@@ -212,7 +215,14 @@ function wireNet() {
   });
   net.on('clock', (c) => store.set({ clock: { offset: c.offset, rtt: c.rtt, synced: c.synced } }));
   net.on('welcome', onWelcome);
-  net.on('helloError', (err) => toastError(err));
+  net.on('helloError', (err) => {
+    if (['AUTH_REQUIRED', 'BAD_CREDENTIALS', 'NAME_TAKEN', 'WEAK_PASSWORD'].includes(err.code)) {
+      identity.clearToken();
+      identity.setEntered(false);
+      store.patch('session', { entered: false });
+    }
+    toastError(err);
+  });
   net.on('replaced', () => toast(t('该身份已在其他页面登录，本页已断开'), 'warn', { ttl: 6000 }));
   net.on('unhandledError', (err) => toastError(err));
   net.on('room.state', onRoomState);
