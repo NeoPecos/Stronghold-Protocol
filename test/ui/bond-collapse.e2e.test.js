@@ -74,6 +74,34 @@ describe('fixed-width bond strip', { skip: !ENABLED && 'set SP_E2E=1 and CHROME_
     });
   }
 
+  for (const [width, height] of [[1920, 1080], [640, 360]]) {
+    test(`boss HUD and bond row stay fully visible at ${width}×${height}`, async () => {
+      const page = await browser.newPage();
+      try {
+        await page.setViewport({ width, height });
+        await page.goto(`${server.url}/dev/game-mock.html?shot=1&render=fallback&phase=FINAL_ASSAULT`, { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('.bossbar__txt');
+        const placement = await page.evaluate(() => {
+          const rect = (selector) => {
+            const bounds = document.querySelector(selector).getBoundingClientRect();
+            return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom };
+          };
+          return {
+            center: rect('.gtop__center'), bar: rect('.bossbar'), text: rect('.bossbar__txt'),
+            bondWindow: rect('.gm__bond-list'), firstBond: rect('.bslot:first-child .bond__ring'),
+            transition: getComputedStyle(document.querySelector('.bossbar__fill')).transitionDuration,
+          };
+        });
+        assert.ok(placement.center.left >= 0 && placement.center.right <= width, JSON.stringify(placement));
+        assert.ok(placement.text.top >= placement.bar.top && placement.text.bottom <= placement.bar.bottom, JSON.stringify(placement));
+        assert.ok(placement.firstBond.top >= placement.bondWindow.top, JSON.stringify(placement));
+        assert.ok(parseFloat(placement.transition) <= 0.2, 'boss fill animation completes before the next HUD update');
+      } finally {
+        await page.close();
+      }
+    });
+  }
+
   test('a short bond row is centered and its discs are not clipped', async () => {
     const page = await browser.newPage();
     try {
