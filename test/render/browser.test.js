@@ -578,6 +578,31 @@ describe('render engine in headless Chrome', { skip }, () => {
     assert.ok(c[0] < b[0] && Math.abs(c[0] / c[1] - 900 / 700) < 0.05, `resized to 900×700 aspect (${c})`);
   });
 
+  test('fullscreen-sized viewport returns to the window size and bounds pixel work', async () => {
+    const { page, problems } = await open('scene=prep&panel=0', 1280, 720);
+    const measure = () => page.evaluate(() => {
+      const v = window.__demo.view.debug;
+      const host = v.app.view.parentElement;
+      return { css: [host.clientWidth, host.clientHeight], pixels: [v.app.view.width, v.app.view.height],
+        board: v.board3d?.size ? { ...v.board3d.size } : null };
+    });
+    await page.setViewport({ width: 2560, height: 1440, deviceScaleFactor: 2 });
+    await page.evaluate(() => document.dispatchEvent(new Event('fullscreenchange')));
+    await wait(500);
+    const full = await measure();
+    await page.setViewport({ width: 1705, height: 649, deviceScaleFactor: 1 });
+    await page.evaluate(() => document.dispatchEvent(new Event('fullscreenchange')));
+    await wait(500);
+    const restored = await measure();
+    await page.close();
+    assert.deepEqual(problems, []);
+    assert.ok(full.pixels[0] * full.pixels[1] <= 3_710_000, `fullscreen sprite pixels bounded: ${JSON.stringify(full)}`);
+    assert.ok(full.board && full.board.w === full.css[0] && full.board.h === full.css[1], `3D board fits fullscreen: ${JSON.stringify(full)}`);
+    assert.ok(restored.board && restored.board.w === restored.css[0] && restored.board.h === restored.css[1], `3D board follows exit: ${JSON.stringify(restored)}`);
+    assert.ok(Math.abs(restored.pixels[0] / restored.pixels[1] - restored.css[0] / restored.css[1]) < 0.01,
+      `sprites follow exit aspect: ${JSON.stringify(restored)}`);
+  });
+
   test('camera flies prep → boss → unite without errors', async () => {
     const { page, problems } = await open('scene=prep&panel=0', 1280, 720);
     await wait(1500);

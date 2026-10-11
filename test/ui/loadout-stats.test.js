@@ -247,14 +247,13 @@ test('the 普通 / 精锐 toggle: 精锐 is the shown variant, the tabs say so, 
   assert.match(cap(lone), /^不含技能发动、装备、盟约等局内加成$/, 'nothing to point at without an elite');
 });
 
-test('place in the detail: after the skills, before the modules; the first .lo-seg stays the skill level toggle (e2e selector)', () => {
+test('place in the detail: the custom tabbed UI exposes skills, modules and stats without flattening their sections', () => {
   const src = read('public/js/screens/loadout.js');
   const detail = src.slice(src.indexOf('function Detail('), src.indexOf('// ---- filters'));
-  const toggle = detail.indexOf("aria-label=${t('技能等级')}");
-  const skills = detail.indexOf("aria-label=${t('选择技能')}");
-  const stats = detail.indexOf('<${LoadoutStats} base=${chess}');
-  const mods = detail.indexOf('<section class="lo-sec lo-sec--mod">');
-  assert.ok(toggle > 0 && skills > toggle && stats > skills && mods > stats, 'skills (and their level toggle) → 局内数值 → modules');
+  assert.match(detail, /\['skill', t\('技能'\), 'SKILL'\].*\['mod', t\('模组'\), 'MODULE'\].*\['stats', t\('数值'\), 'STATS'\]/s);
+  assert.match(detail, /activeTab === 'skill'.*aria-label=\$\{t\('技能等级'\)\}.*aria-label=\$\{t\('选择技能'\)\}/s);
+  assert.match(detail, /activeTab === 'stats'.*<\$\{LoadoutStats\} base=\$\{chess\}/s);
+  assert.match(detail, /activeTab === 'mod'.*<section class="lo-sec lo-sec--mod">/s);
   // one record resolution, shared with the card: chessLoadout, the card's block, trait and talent helpers — no stat arithmetic of its own
   const shared = read('public/js/ui/loadoutStats.js');
   assert.match(src, /import \{ LoadoutStats \} from '\.\.\/ui\/loadoutStats\.js';/);

@@ -79,7 +79,10 @@ export async function startServer(opts = {}) {
   resetBuildTag();
   buildTag();
 
-  const server = http.createServer(createRequestHandler({ serveStatic, health: { startedAt, network, registry, lobby }, records, log }));
+  // The admin token arms the account routes (POST /api/account/password). Unset ⇒ they answer 404, so a server that
+  // never sets SP_ADMIN_TOKEN exposes nothing new; routes.js refuses anything shorter than 16 characters.
+  const adminToken = opts.adminToken ?? process.env.SP_ADMIN_TOKEN ?? null;
+  const server = http.createServer(createRequestHandler({ serveStatic, health: { startedAt, network, registry, lobby }, records, accounts, adminToken, log }));
   server.on('clientError', answerClientError);
   const wss = attachWebSocket(server, { network, log });
 

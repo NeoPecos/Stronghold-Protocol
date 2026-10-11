@@ -194,6 +194,10 @@ export class Room {
      * put every human seat before every AI seat (Match opts.aiPicksLast). Kept across the room's matches.
      */
     this.aiPicksLast = false;
+    // Access/recruitment are lobby metadata. An invite-only room remains reachable by its code,
+    // but is omitted from room.list; recruitment is a prominent public directory marker.
+    this.inviteOnly = false;
+    this.recruitWanted = false;
     /** @type {string | null} */
     this.hostId = null;
     /** @type {(Seat | null)[]} */
@@ -244,6 +248,8 @@ export class Room {
       mode: this.mode,
       difficulty: this.difficulty,
       aiPicksLast: this.aiPicksLast,
+      inviteOnly: this.inviteOnly,
+      recruitWanted: this.recruitWanted,
       inMatch: !!this.match,
       seats: this.seats.map((s) => (s
         ? { seat: s.seat, playerId: s.playerId, name: s.name, isBot: s.isBot, ready: s.ready, connected: s.connected && !s.left }
@@ -359,6 +365,8 @@ export class Lobby {
       case 'room.ready': return this.ready(session, msg);
       case 'room.setDifficulty': return this.setDifficulty(session, msg);
       case 'room.setAiPicksLast': return this.setAiPicksLast(session, msg);
+      case 'room.setInviteOnly': return this.setInviteOnly(session, msg);
+      case 'room.setRecruitWanted': return this.setRecruitWanted(session, msg);
       case 'room.addBot': return this.addBot(session);
       case 'room.removeBot': return this.removeBot(session, msg);
       case 'room.kick': return this.kick(session, msg);
@@ -422,7 +430,7 @@ export class Lobby {
   listRooms(session) {
     const now = this.now();
     const rooms = [...this.rooms.values()]
-      .filter((room) => !room.disposed && room.mode === 'coop')
+      .filter((room) => !room.disposed && room.mode === 'coop' && !room.inviteOnly)
       .map((room) => {
         const host = room.seatOf(room.hostId);
         const humans = room.activeHumans();
@@ -438,13 +446,17 @@ export class Lobby {
           capacity: MAX_SEATS,
           spectators: room.spectators.length,
           inMatch: !!room.match,
+          recruitWanted: room.recruitWanted,
           createdAt: room.createdAt,
         };
       })
       .sort((left, right) => {
+        // A host explicitly asking for strangers gets the strongest directory priority. Keep the existing
+        // availability/recency ordering inside each recruitment group so the list remains predictable.
+        const recruitRank = Number(right.recruitWanted) - Number(left.recruitWanted);
         const leftRank = left.inMatch ? 2 : left.players + left.bots >= left.capacity ? 1 : 0;
         const rightRank = right.inMatch ? 2 : right.players + right.bots >= right.capacity ? 1 : 0;
-        return leftRank - rightRank || right.createdAt - left.createdAt;
+        return recruitRank || leftRank - rightRank || right.createdAt - left.createdAt;
       });
     sendSession(session, { t: 'room.list', rooms });
     return OK;
@@ -592,6 +604,32 @@ export class Lobby {
     if (room.aiPicksLast !== on) {
       room.aiPicksLast = on;
       for (const s of room.seats) if (s && !s.isBot && s.playerId !== room.hostId) s.ready = false;
+      this.broadcastState(room);
+    }
+    return OK;
+  }
+
+  setInviteOnly(session, { on }) {
+    const room = this.roomOf(session);
+    if (!room) return fail(ERR.NOT_IN_ROOM);
+    if (room.hostId !== session.playerId) return fail(ERR.NOT_HOST);
+    if (room.match) return fail(ERR.ROOM_STARTED);
+    if (room.mode === 'solo') return fail(ERR.BAD_TARGET, 'solo rooms are never listed');
+    if (room.inviteOnly !== on) {
+      room.inviteOnly = on;
+      this.broadcastState(room);
+    }
+    return OK;
+  }
+
+  setRecruitWanted(session, { on }) {
+    const room = this.roomOf(session);
+    if (!room) return fail(ERR.NOT_IN_ROOM);
+    if (room.hostId !== session.playerId) return fail(ERR.NOT_HOST);
+    if (room.match) return fail(ERR.ROOM_STARTED);
+    if (room.mode === 'solo') return fail(ERR.BAD_TARGET, 'solo rooms are never listed');
+    if (room.recruitWanted !== on) {
+      room.recruitWanted = on;
       this.broadcastState(room);
     }
     return OK;

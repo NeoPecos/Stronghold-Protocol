@@ -61,6 +61,35 @@
   <link rel="prefetch" href="/vendor/pixi-spine.js" as="script" />
 </head>
 <body>
+  <style>
+    #distribution-notice[hidden]{display:none}#distribution-notice{position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
+    #distribution-notice .notice-panel{width:min(560px,100%);max-height:calc(100dvh - 32px);overflow:auto;box-sizing:border-box;background:#141b20;color:#eef2f5;border:1px solid #61747d;border-radius:14px;padding:24px;font:15px/1.7 system-ui,sans-serif;box-shadow:0 20px 80px #0008}
+    #distribution-notice h2{font-size:21px;margin:0 0 14px}#distribution-notice p{margin:12px 0}#distribution-notice strong{color:#ffd08a}#distribution-notice button{display:block;width:100%;padding:12px;border:0;border-radius:8px;background:#f0bb6c;color:#17212a;font:600 16px system-ui;cursor:pointer;margin-top:12px}#distribution-reopen{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:calc(max(12px,env(safe-area-inset-bottom)) + 42px);z-index:2147483646;padding:8px 16px;border:1px solid #f0bb6c;border-radius:8px;background:#141b20;color:#ffd08a;font:14px system-ui;cursor:pointer}
+  </style>
+  <section id="distribution-notice" hidden role="dialog" aria-modal="true" aria-labelledby="distribution-notice-title">
+    <div class="notice-panel">
+      <h2 id="distribution-notice-title">公告</h2>
+      <p>客户端更新请使用客户端右上角的“检查更新”，更新器会自动下载并安装适用的小补丁。</p>
+      <p>需要获取完整客户端时，请加入 QQ 群 <strong id="distribution-group-number">1124360673</strong>，从群文件获取。</p>
+      <button type="button" onclick="copyDistributionGroup()">复制 QQ 群号 1124360673</button>
+      <p id="distribution-copy-status" role="status" aria-live="polite"></p>
+      <button type="button" onclick="document.getElementById('distribution-notice').hidden=true">关闭</button>
+    </div>
+  </section>
+  <!-- 「公告」按钮只在标题页渲染（js/main.js 按路由输出），否则它会跟着进对局 -->
+  <script>
+    async function copyDistributionGroup() {
+      const group = '1124360673', status = document.getElementById('distribution-copy-status');
+      try {
+        if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(group);
+        else {
+          const field = document.createElement('textarea'); field.value = group; document.body.appendChild(field);
+          field.select(); if (!document.execCommand('copy')) throw new Error('copy failed'); field.remove();
+        }
+        status.textContent = '群号已复制。';
+      } catch (_) { status.textContent = '复制失败，请长按群号选择复制。'; }
+    }
+  </script>
   <div id="app"></div>
 
   <div id="boot" class="boot" aria-hidden="true">

@@ -679,7 +679,14 @@ export class UnitView {
       } else {
         if (this.flags & UF.SKILL) this.actor.setSkill(true);
         this.actor.setBase(this._baseFromAnim());
-        if (deployed != null) { this.actor.deploy(); if (deployed > 0) this.actor.update(deployed); }
+        if (deployed != null) {
+          this.actor.deploy();
+          // In prep, a slow model must still show its placement entrance when it first appears.
+          // Combat redeploys keep their real elapsed time so old events never replay.
+          const duration = this.actor.dur(this.actor.roles.deploy);
+          const elapsed = this.prep && !swap && duration > 0 && deployed >= duration ? 0 : deployed;
+          if (elapsed > 0) this.actor.update(elapsed);
+        }
         // a stealth-driven form (STEALTH_FORMS): the pose of the clip set in force now, even under a frozen stun
         if (STEALTH_FORMS[id]) this.actor.syncFormPose();
       }
@@ -774,6 +781,15 @@ export class UnitView {
     this.itemPips = [];
   }
 
+  // Bound both dimensions to the projected tile; small mobile boards must not inherit a desktop minimum.
+  _sizeTierChip(s) {
+    this._chipTileSize = s;
+    const w = this.chip.texture.width || 64;
+    const h = this.chip.texture.height || 44;
+    const cs = Math.min(Math.min(s * 0.38, 28) / w, Math.min(s * 0.26, 20) / h);
+    this.chip.scale.set(cs);
+  }
+
   _loadTierChip() {
     const assets = this.ctx.assets;
     if (!this.chip || !assets?.image) return;
@@ -784,9 +800,9 @@ export class UnitView {
     this._chipUrl = url;
     assets.image(url).then((image) => {
       if (this.destroyed || this._chipUrl !== url) return;
-      if (image) this.chip.texture = this.P.Texture.from(image);
+      if (image) { this.chip.texture = this.P.Texture.from(image); this._sizeTierChip(this._chipTileSize || 0); }
       else if (local && fallback) assets.image(fallback).then((fallbackImage) => {
-        if (!this.destroyed && this._chipUrl === url && fallbackImage) this.chip.texture = this.P.Texture.from(fallbackImage);
+        if (!this.destroyed && this._chipUrl === url && fallbackImage) { this.chip.texture = this.P.Texture.from(fallbackImage); this._sizeTierChip(this._chipTileSize || 0); }
       });
     });
   }
@@ -811,8 +827,19 @@ export class UnitView {
 
   // ---- state input ---------------------------------------------------------------------------------------
 
+  /**
+   * The resting state for this sample.
+   *
+   * 冻结 and 沉睡 are NOT 晕眩: the sim's `flags.stun` is its "cannot act" aggregate and deliberately covers all
+   * three (server/sim/content/enemies/special.js:117 says so), and the interpolator relies on `ANIM.STUN` to stop
+   * extrapolating a position (test/render/attack-recovery-interp.test.js asserts that for freeze/sleep/levitate).
+   * The visual layer is therefore where they must be told apart, by their own UF bits: 晕眩 plays the stun clip,
+   * 冻结 holds the pose (the model still gets the 冻结 tint below), 沉睡 holds it too. Routing all three through
+   * 'stun' is what made a frozen boss loop its stun animation (reported 2026-10-11).
+   */
   _baseFromAnim() {
-    if (this.anim === ANIM.STUN || (this.flags & (UF.STUNNED | UF.FROZEN | UF.SLEEP))) return 'stun';
+    if (this.flags & (UF.FROZEN | UF.SLEEP)) return 'frozen';
+    if (this.anim === ANIM.STUN || (this.flags & UF.STUNNED)) return 'stun';
     if (this.anim === ANIM.MOVE) return 'move';
     return 'idle';
   }
@@ -1407,8 +1434,7 @@ export class UnitView {
       this.spGlow.alpha = pulse;
     }
     if (this.chip) {
-      const cs = clamp(s * 0.34, 27, 32) / (this.chip.texture.height || 44);
-      this.chip.scale.set(cs);
+      this._sizeTierChip(s);
       this.chip.visible = prep && this.alive;
       if (this.chip.visible) this.chip.position.set(x - bw / 2 - this.chip.width / 2, y - 4);
     }

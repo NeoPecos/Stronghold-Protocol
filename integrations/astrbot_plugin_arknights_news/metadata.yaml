@@ -1,0 +1,5 @@
+name: astrbot_plugin_arknights_news
+desc: 自动监控明日方舟官网情报中心新公告，并以卡片形式推送到指定群聊
+author: Leiothrix/Codex
+version: 2.0.0
+repo: ""

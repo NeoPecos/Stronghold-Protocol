@@ -36,6 +36,9 @@ test('accounts reserve case-insensitive names, verify passwords and preserve pri
 
     const second = await connect();
     const other = await second.hello('博士乙', null, { auth: 'register', password: 'another password' });
+    const numeric = await connect();
+    const numericAccount = await numeric.hello('123456', null, { auth: 'register', password: 'numeric account password' });
+    assert.match(numericAccount.playerId, /^p_[0-9a-f]{20}$/, '纯数字账号名可以完成注册');
     server.records.save({ code: 'ABCD', mode: 'coop', difficulty: 'NORMAL', matchCount: 1 }, {
       players: [
         { playerId: welcome.playerId, name: '博士甲', seat: 0, stats: { dmgDealt: 90 } },

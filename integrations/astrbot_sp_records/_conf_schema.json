@@ -1,0 +1,69 @@
+{
+  "enabled": {
+    "description": "启用插件",
+    "hint": "总开关。关掉后本插件的所有命令都不响应。",
+    "type": "bool",
+    "default": true
+  },
+  "enabled_groups": {
+    "description": "启用战绩的群号",
+    "hint": "一行一个（或用逗号分隔）。留空 = 所有群都启用。只有这里的群才能用「@机器人 战绩 账号名」。",
+    "type": "text",
+    "default": ""
+  },
+  "group_mode": {
+    "description": "群号名单模式",
+    "hint": "白名单：只有名单里的群能用。黑名单：名单里的群不能用，其它群都能用。",
+    "type": "string",
+    "options": ["白名单", "黑名单"],
+    "default": "白名单"
+  },
+  "require_at": {
+    "description": "必须 @机器人",
+    "hint": "开启后只有 @了机器人的消息才会触发战绩，避免群里闲聊被误触发。",
+    "type": "bool",
+    "default": true
+  },
+  "cooldown_seconds": {
+    "description": "单群冷却（秒）",
+    "hint": "同一个群里两次战绩查询之间的最短间隔，防止刷屏。",
+    "type": "int",
+    "default": 5
+  },
+  "record_base_url": {
+    "description": "游戏服地址",
+    "hint": "读取战绩的接口地址，一般不用改。",
+    "type": "string",
+    "default": "https://sp.bs.leio.fun"
+  },
+  "allow_code_lookup": {
+    "description": "同时支持按房间号查",
+    "hint": "开启后「战绩 ABCD」（4 个字母）会被当作房间号查询；关闭则只按账号名查。",
+    "type": "bool",
+    "default": true
+  },
+  "password_change_enabled": {
+    "description": "启用私聊改密码",
+    "hint": "开启后可以私聊机器人「改密码 账号名 旧密码 新密码」。改密码必须提供正确的旧密码，且在私聊里进行，避免群聊泄露密码。",
+    "type": "bool",
+    "default": true
+  },
+  "admin_token": {
+    "description": "改密码接口令牌",
+    "hint": "必须与游戏服 SP_ADMIN_TOKEN 完全一致。留空则改密码功能不可用（游戏服那边没配令牌时，接口本身也不存在）。注意：此值等同于管理员权限，不要截图或外发。",
+    "type": "string",
+    "default": ""
+  },
+  "password_cooldown_seconds": {
+    "description": "改密码冷却（秒）",
+    "hint": "同一个用户两次改密码之间的最短间隔。",
+    "type": "int",
+    "default": 30
+  },
+  "verbose": {
+    "description": "详细日志",
+    "hint": "排查问题时打开，会在 AstrBot 日志里打印每次查询的群号与结果。",
+    "type": "bool",
+    "default": false
+  }
+}

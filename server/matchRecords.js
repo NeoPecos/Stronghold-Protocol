@@ -87,4 +87,17 @@ export class MatchRecords {
     if (!record) return null;
     return { ...publicRecord(record), ownSeat: record.players.find((player) => player.playerId === playerId)?.seat ?? null };
   }
+
+  /**
+   * 某账号最近一局：账号名 → playerId → 记录。账号不存在、或该账号还没打完过一局 ⇒ null。
+   * 账号名到 playerId 的解析属于 `AccountStore` 的职责，这里只接一个最小的 `get(name)` 接口，便于测试替换。
+   * @param {{ get: (name: string) => ({ playerId: string }|null) }|null} accounts
+   * @param {string} name
+   */
+  latestByAccount(accounts, name) {
+    if (!accounts || typeof accounts.get !== 'function' || typeof name !== 'string' || !name.trim()) return null;
+    const account = accounts.get(name.trim());
+    if (!account || typeof account.playerId !== 'string') return null;
+    return this.latestPlayer(account.playerId);
+  }
 }

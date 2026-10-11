@@ -535,6 +535,7 @@ export class TileField {
   }
 
   _drawHighlights() {
+    if (!this.hlGfx) return;   // 已销毁（dispose）：迟到的 showRange / 收尾帧不该再画
     this.hlGfx.clear();
     for (const s of this.rowSurfaces.values()) if (s._hl) s._hl.clear();
     const cam = this.cam;
@@ -632,6 +633,7 @@ export class TileField {
   // ---- animated terrain ------------------------------------------------------------------------------------
 
   _buildAnim() {
+    if (!this.animLayer) return;   // 已销毁（dispose）之后重建地形动画没有意义
     for (const a of this.animSprites) a.sprite.destroy();
     this.animSprites = [];
     const P = this.P;
@@ -752,6 +754,7 @@ export class TileField {
   /** Airflow streaks along the blowers' rangeTiles (the machines themselves are textured boxes). */
   _drawFlow() {
     const g = this.flowGfx;
+    if (!g) return;   // 已销毁（dispose）：迟到的帧不该再画
     g.clear();
     const cam = this.cam;
     if (!cam || !this.blowers.length) return;
@@ -788,6 +791,10 @@ export class TileField {
     for (const b of this.boxes) b.g.destroy();
     this.boxes = [];
     this.hlGfx.destroy(); this.flowGfx.destroy(); this.animLayer.destroy();
+    // 销毁之后仍可能有高亮请求到达（悬停显示射程 showRange、离开对局的收尾帧），
+    // 而 _drawHighlights 的第一行就会 clear() —— 对已销毁的 Graphics 调 clear 会抛
+    // "Cannot read properties of null (reading 'clear')" 并打断那一帧的渲染。置空 + 下方守卫即可。
+    this.hlGfx = null; this.flowGfx = null; this.animLayer = null;
   }
 }
 
@@ -1164,9 +1171,18 @@ function drawWireBox(g, cam, cx, cy, z0, size, height, color, pulse, gate) {
     const p1 = lerp2(a, b, tick), p2 = lerp2(a, c2, tick);
     g.moveTo(p1[0], p1[1]); g.lineTo(a[0], a[1]); g.lineTo(p2[0], p2[1]);
   }
-  // warning triangle glyph on the front face
-  const f = cam.project(cx, cy - size / 2, z0 + height * 0.5);
-  const tri = s * 0.2;
+  // Anchor the warning glyph to the *projected* front face. Projecting the
+  // world-space midpoint independently puts the mark visibly below the face
+  // centre once perspective becomes strong (notably in wide browser views).
+  const f = {
+    x: (k.b0[0] + k.b1[0] + k.t0[0] + k.t1[0]) / 4,
+    y: (k.b0[1] + k.b1[1] + k.t0[1] + k.t1[1]) / 4,
+  };
+  const faceWidth = (Math.hypot(k.b1[0] - k.b0[0], k.b1[1] - k.b0[1])
+    + Math.hypot(k.t1[0] - k.t0[0], k.t1[1] - k.t0[1])) / 2;
+  const faceHeight = (Math.hypot(k.t0[0] - k.b0[0], k.t0[1] - k.b0[1])
+    + Math.hypot(k.t1[0] - k.b1[0], k.t1[1] - k.b1[1])) / 2;
+  const tri = Math.min(faceWidth * 0.2, faceHeight * 0.25);
   g.lineStyle(lw * 1.4, gate ? 0xffd0c8 : 0xd8f0ff, 0.95 * pulse);
   g.drawPolygon([f.x, f.y - tri, f.x + tri * 1.1, f.y + tri * 0.8, f.x - tri * 1.1, f.y + tri * 0.8]);
   g.lineStyle(0);

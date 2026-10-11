@@ -339,6 +339,7 @@ const standInName = (chess) => data.get('backups')?.units?.[chess?.backup?.charI
 
 
 function Detail({ m, chess, golden, entries, ops = {}, onChange, onOps, onReset, locked, level = 'normal', onLevel, notOwned = false }) {
+  const [tab, setTab] = useState('skill');
   const [statLevel, setStatLevel] = useState('elite'); // 局内数值: the 精锐 shows the chosen module's effect
   const setLevel = onLevel;
   const bodyRef = useRef(null);
@@ -347,13 +348,14 @@ function Detail({ m, chess, golden, entries, ops = {}, onChange, onOps, onReset,
   // left the previous skin's picture on screen while the choice itself had already been saved.
   useStore((s) => s.entries, shallowEqual, skinsStore);
   const voiceOverrides = useStore((state) => state.entries, Object.is, operatorVoiceStore);
-  useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [chess?.chessId]);
+  useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [chess?.chessId, tab]);
   if (!chess) return html`<aside class="lo-detail lo-detail--empty"><p class="t-dim">${t('没有符合条件的干员')}</p></aside>`;
   const opt = chessOptions(chess, golden);
   const choice = effectiveChoice(entries, chess, golden);
   const changed = choice.changed || opsOf(ops, chess.charId).changed;
   const modOpt = opt.moduleOptions.find((x) => x.id === choice.module) || null;
   const voiceChoice = voiceOverrides[chess.charId] || 'default';
+  const activeTab = tab === 'mod' && !golden ? 'skill' : tab;
   const lv = (c) => c?.status?.skillLevel ?? '—';
   return html`<aside class="lo-detail" aria-label=${t('{name} 调配', { name: chess.name })}>
     <div class="lo-dhead">
@@ -374,19 +376,24 @@ function Detail({ m, chess, golden, entries, ops = {}, onChange, onOps, onReset,
       </div>
       <${Button} variant="ghost" size="sm" icon="refresh" class="lo-dhead__reset" disabled=${!changed} onClick=${onReset}>${t('恢复默认')}<//>
     </div>
+    <div class="lo-dtabs" role="tablist" aria-label=${t('调配项目')}>
+      ${[['skill', t('技能'), 'SKILL'], ['mod', t('模组'), 'MODULE'], ['stats', t('数值'), 'STATS'], ['voice', t('语音'), 'VOICE'], ['skin', t('换装'), 'SKIN'], ['growth', t('培养'), 'GROWTH']]
+        .filter(([key]) => key !== 'mod' || !!golden).map(([key, label, en]) => html`<button type="button" role="tab" aria-selected=${activeTab === key ? 'true' : 'false'}
+          class=${cx('lo-dtab', activeTab === key && 'is-on')} onClick=${() => setTab(key)}>${label} <span class="lo-dtab__en num">${en}</span></button>`)}
+    </div>
     <div class="lo-detail__body" ref=${bodyRef}>
-      <${OperatorVoice} charId=${chess.charId} />
-      <${CultivationSection} charId=${chess.charId} ops=${ops} onSet=${onOps} standIn=${notOwned} />
-      <section class="lo-sec lo-sec--voice" data-char=${chess.charId}>
+      ${activeTab === 'voice' ? html`<${OperatorVoice} charId=${chess.charId} /><section class="lo-sec lo-sec--voice" data-char=${chess.charId}>
         <header class="lo-sec__head"><h3>${t('干员语音')}<${MicroLabel}>VOICE<//></h3></header>
         <div class="lo-seg" role="radiogroup" aria-label=${t('干员语音')}>
           ${[['default', N_('跟随全局')], ['cn', N_('中文')], ['jp', N_('日语')]].map(([lang, label]) => html`<button key=${lang} type="button" role="radio"
             aria-checked=${voiceChoice === lang ? 'true' : 'false'} data-operator-voice=${lang}
             class=${cx(voiceChoice === lang && 'is-on')} onClick=${() => setOperatorVoice(chess.charId, lang)}>${t(label)}</button>`)}
         </div>
-      </section>
-      <${LoadoutGarrisons} chess=${level === 'elite' && golden ? golden : chess} m=${m} />
-      <section class="lo-sec">
+      </section>` : null}
+      ${activeTab === 'growth' ? html`<${CultivationSection} charId=${chess.charId} ops=${ops} onSet=${onOps} standIn=${notOwned} />` : null}
+      ${activeTab === 'stats' ? html`<${LoadoutGarrisons} chess=${level === 'elite' && golden ? golden : chess} m=${m} />
+        <${LoadoutStats} base=${chess} golden=${golden} entries=${entries} ops=${ops} level=${statLevel} onLevel=${setStatLevel} />` : null}
+      ${activeTab === 'skill' ? html`<section class="lo-sec">
         <header class="lo-sec__head">
           <h3>${t('技能')}<${MicroLabel}>SKILL<//></h3>
           <div class="lo-seg" role="tablist" aria-label=${t('技能等级')}>
@@ -398,9 +405,8 @@ function Detail({ m, chess, golden, entries, ops = {}, onChange, onOps, onReset,
           ${opt.skillOptions.map((s) => html`<${SkillOption} key=${s.index} m=${m} opt=${s} level=${level} on=${s.index === choice.skill}
             onPick=${(i) => onChange({ skill: i })} />`)}
         </div>
-      </section>
-      <${LoadoutStats} base=${chess} golden=${golden} entries=${entries} ops=${ops} level=${statLevel} onLevel=${setStatLevel} />
-      ${golden ? html`<section class="lo-sec lo-sec--mod">
+      </section>` : null}
+      ${activeTab === 'mod' && golden ? html`<section class="lo-sec lo-sec--mod">
         <header class="lo-sec__head">
           <h3>${t('模组')}<${MicroLabel}>MODULE<//></h3>
           <span class="lo-sec__note">${t('仅精锐干员装备 · 模组等级')} <b class="num">${golden.status?.equipLevel ?? 1}</b></span>
@@ -419,7 +425,7 @@ function Detail({ m, chess, golden, entries, ops = {}, onChange, onOps, onReset,
         </div>
         ${modOpt ? html`<${ModuleInfo} m=${m} golden=${golden} opt=${modOpt} potential=${opsOf(ops, chess.charId).potential} />` : null}
       </section>` : null}
-      ${html`<${SkinSection} chess=${chess} locked=${locked} />`}
+      ${activeTab === 'skin' ? html`<${SkinSection} chess=${chess} locked=${locked} />` : null}
       ${notOwned ? html`<p class="lo-locknote lo-locknote--standin" data-testid="loadout-standin-note"><${Icon} name="info" />${standInName(chess) ? t('干员持有中标记为未持有：此棋子由替补干员 {name} 上场，技能与模组固定（补位干员技能不可更改）；这里的调配在改回「持有」后生效', { name: standInName(chess) })
         : t('干员持有中标记为未持有：此棋子由替补干员上场，技能与模组固定（补位干员技能不可更改）；这里的调配在改回「持有」后生效')}</p>` : null}
       ${locked ? html`<p class="lo-locknote"><${Icon} name="info" />${t('本局的调配已锁定，修改将在下一局生效')}</p>` : null}

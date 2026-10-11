@@ -41,7 +41,7 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 3.8rem));
+  grid-template-columns: repeat(4, minmax(0, 3.55rem)) minmax(2.35rem, 2.75rem);
   grid-template-rows: minmax(0, 6rem);
   justify-content: center;
   align-content: center;
@@ -49,6 +49,55 @@
   padding: .3rem .6rem .24rem;
 }
 .seats--solo { grid-template-columns: 3.8rem minmax(0, 6.4rem); }
+
+.room-access-options {
+  --bk-c: var(--mint-600);
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: .14rem;
+  padding: .22rem .18rem;
+  background: linear-gradient(180deg, rgba(19, 28, 25, .92), rgba(8, 12, 11, .94));
+  border: 1px solid var(--line);
+}
+.room-access__toggle {
+  display: grid;
+  grid-template-columns: .34rem minmax(0, 1fr) .38rem;
+  align-items: center;
+  gap: .1rem;
+  min-height: .72rem;
+  padding: .1rem .12rem;
+  text-align: left;
+  background: rgba(0, 0, 0, .28);
+  border: 1px solid var(--line-2);
+  color: var(--text-lo);
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast);
+}
+.room-access__toggle:not(:disabled):hover { border-color: var(--mint-700); color: var(--text-hi); }
+.room-access__toggle.is-active { border-color: var(--mint-600); color: var(--mint-400); background: rgba(23, 249, 183, .07); }
+.room-access__icon { display: grid; place-items: center; }
+.room-access__icon .icon { width: .25rem; height: .25rem; }
+/* The plan's drawn art (public/assets/ui/room/{invite-only,recruit-wanted}.png, 256² transparent): the picture
+   carries the meaning, so it is sized like the glyph it replaces and nothing is stacked on top of it. State is
+   styling only — dim while off, full brightness while on — and a read-only switch is dimmed a further step so a
+   guest can tell at a glance that it is not theirs to press. */
+.room-access__icon img { width: .32rem; height: .32rem; object-fit: contain; display: block;
+  opacity: .55; filter: saturate(.6); transition: opacity var(--t-fast), filter var(--t-fast); }
+.room-access__toggle.is-active .room-access__icon img { opacity: 1; filter: none; }
+.room-access__toggle:disabled .room-access__icon img { opacity: .38; filter: saturate(.35) brightness(.85); }
+.room-access__toggle strong, .room-access__toggle small { display: block; }
+.room-access__toggle strong { font-size: calc(.16 * var(--t)); white-space: nowrap; }
+.room-access__toggle small { margin-top: .03rem; color: var(--text-dim); font-size: calc(.12 * var(--t)); }
+.room-access__switch { position: relative; width: .38rem; height: .2rem; border: 1px solid var(--line-3); background: #0a0d0c; border-radius: .2rem; }
+.room-access__switch::after { content: ''; position: absolute; top: .025rem; left: .025rem; width: .13rem; height: .13rem; border-radius: 50%; background: var(--text-dim); transition: transform var(--t-fast), background var(--t-fast); }
+.room-access__toggle.is-active .room-access__switch::after { transform: translateX(.18rem); background: var(--mint-400); box-shadow: 0 0 .08rem var(--mint-glow); }
+.room-access__readonly { color: var(--text-dim); font-size: calc(.12 * var(--t)); text-align: center; }
+
+@media (max-width: 1250px) {
+  .seats:not(.seats--solo) { grid-template-columns: repeat(4, minmax(0, 1fr)) 2.25rem; gap: .16rem; padding-inline: .3rem; }
+  .room-access__toggle { grid-template-columns: .36rem minmax(0, 1fr); }
+  .room-access__switch { display: none; }
+}
 
 .seat {
   --bk-c: var(--line-3);

@@ -1,0 +1,113 @@
+{
+  "check_interval_minutes": {
+    "description": "公告检查间隔（分钟）",
+    "type": "int",
+    "hint": "建议 5-30 分钟",
+    "default": 10
+  },
+  "send_existing_on_first_run": {
+    "description": "首次启动是否推送当前已有最新公告",
+    "type": "bool",
+    "hint": "关闭时只记录基线，避免刷历史公告",
+    "default": false
+  },
+  "max_push_per_check": {
+    "description": "每次检查最多推送几条新公告",
+    "type": "int",
+    "default": 3
+  },
+  "reminder_enabled": {
+    "description": "维护提醒",
+    "type": "bool",
+    "hint": "公告里解析到停服维护时间时，自动在维护前和开服时提醒群聊",
+    "default": true
+  },
+  "reminder_advance_minutes": {
+    "description": "维护前提前提醒的分钟数",
+    "type": "int",
+    "default": 5
+  },
+  "target_umos": {
+    "description": "推送目标 unified_msg_origin 列表",
+    "type": "list",
+    "hint": "可用 /方舟公告绑定 在群里自动添加",
+    "default": []
+  },
+  "webui_enabled": {
+    "description": "启用公告卡片样式 WebUI",
+    "type": "bool",
+    "hint": "开启后可在指定端口编辑标题、背景、颜色、尺寸、字体和分页策略",
+    "default": false
+  },
+  "webui_port": {
+    "description": "公告卡片样式 WebUI 端口",
+    "type": "int",
+    "hint": "例如 6192",
+    "default": 6192
+  },
+  "bili_enabled": {
+    "description": "启用 B 站官号（视频/动态）推送",
+    "type": "bool",
+    "hint": "独立于官网公告检查；B 站这一路出任何问题都不会影响官网公告推送",
+    "default": true
+  },
+  "bili_mid": {
+    "description": "B 站官号 UID",
+    "type": "string",
+    "hint": "明日方舟官号 161775300",
+    "default": "161775300"
+  },
+  "bili_push_video": {
+    "description": "推送 B 站新视频",
+    "type": "bool",
+    "hint": "正常的下载合并后发视频；超时长/体积上限的改发卡片 + 原链接",
+    "default": true
+  },
+  "bili_push_dynamic": {
+    "description": "推送 B 站新动态",
+    "type": "bool",
+    "hint": "带图动态会发卡片 + 原图合并转发；投稿类动态由视频那一路处理，不重复发",
+    "default": true
+  },
+  "bili_check_interval_minutes": {
+    "description": "B 站检查间隔（分钟）",
+    "type": "int",
+    "hint": "官网公告与 B 站各自按自己的间隔检查；建议 10-30 分钟",
+    "default": 10
+  },
+  "bili_max_push_per_check": {
+    "description": "每次检查最多推送几条 B 站新内容",
+    "type": "int",
+    "hint": "视频与动态各自分别计数",
+    "default": 3
+  },
+  "bili_video_max_duration_minutes": {
+    "description": "视频时长上限（分钟）",
+    "type": "int",
+    "hint": "超过则不下载，改发卡片 + 原链接",
+    "default": 10
+  },
+  "bili_video_max_size_mb": {
+    "description": "视频体积上限（MB）",
+    "type": "int",
+    "hint": "下载合并后仍超过该体积则不发送，改发卡片 + 原链接",
+    "default": 200
+  },
+  "bili_cookies_path": {
+    "description": "B 站 cookies 文件路径",
+    "type": "string",
+    "hint": "Netscape 格式。留空或路径不存在时回退到 yt-dlp 插件的 cookies.txt（只读借用，不会修改它）",
+    "default": "/AstrBot/data/plugins/astrbot_plugin_yt_dlp/cookies.txt"
+  },
+  "bili_at_all_video": {
+    "description": "视频推送时 @全体成员",
+    "type": "bool",
+    "default": true
+  },
+  "bili_at_all_dynamic": {
+    "description": "动态推送时 @全体成员",
+    "type": "bool",
+    "hint": "官方号每天多条动态，建议保持关闭，避免刷屏打扰群友",
+    "default": false
+  }
+}

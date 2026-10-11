@@ -5,17 +5,18 @@
 .lobby-body {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  gap: .5rem;
+  gap: .36rem;
   width: 100%;
   max-width: 19.2rem;
   margin: 0 auto;
-  padding: .36rem .6rem .4rem;
+  padding: .22rem .6rem .24rem;
   align-content: start;
+  overflow: hidden;
 }
-.lobby-left, .lobby-right { display: flex; flex-direction: column; min-width: 0; }
+.lobby-left, .lobby-right { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
 /* ---- mode cards ------------------------------------------------------------------------------------ */
-.mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: .24rem; margin-bottom: .22rem; }
+.mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: .18rem; margin-bottom: .08rem; }
 .mode-card {
   --bk-c: transparent;
   --bk-l: .2rem;
@@ -23,9 +24,9 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: .16rem;
-  min-height: 3.55rem;
-  padding: .24rem .3rem .22rem;
+  gap: .08rem;
+  min-height: 2.62rem;
+  padding: .18rem .24rem .16rem;
   overflow: hidden;
   text-align: left;
   background: linear-gradient(180deg, rgba(28, 34, 31, .92), rgba(13, 16, 15, .94));
@@ -59,8 +60,8 @@
 }
 .mode-card__icon {
   position: relative;
-  width: .88rem;
-  height: .88rem;
+  width: .62rem;
+  height: .62rem;
   display: grid;
   place-items: center;
   background: #0c0f0e;
@@ -69,11 +70,11 @@
   clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
   transition: background var(--t-med), color var(--t-med);
 }
-.mode-card__icon .icon { width: .44rem; height: .44rem; }
-.mode-card__text { position: relative; display: flex; flex-direction: column; gap: .1rem; }
-.mode-card__name { font-size: calc(.46 * var(--t)); font-weight: 900; letter-spacing: .08em; line-height: 1.1; }
-.mode-card__desc { font-size: calc(.17 * var(--t)); color: var(--text-lo); line-height: 1.65; max-width: 3.6rem; }
-.mode-card__points { display: flex; flex-direction: column; gap: .05rem; margin-top: .06rem; font-size: calc(.15 * var(--t)); color: var(--text-md); }
+.mode-card__icon .icon { width: .32rem; height: .32rem; }
+.mode-card__text { position: relative; display: flex; flex-direction: column; gap: .05rem; }
+.mode-card__name { font-size: calc(.36 * var(--t)); font-weight: 900; letter-spacing: .08em; line-height: 1.1; }
+.mode-card__desc { font-size: calc(.15 * var(--t)); color: var(--text-lo); line-height: 1.4; max-width: 4rem; }
+.mode-card__points { display: flex; flex-direction: column; gap: .02rem; margin-top: .02rem; font-size: calc(.13 * var(--t)); color: var(--text-md); }
 .mode-card__points span::before {
   content: '';
   display: inline-block;
@@ -113,13 +114,7 @@
 .mode-card.is-selected .mode-card__check { opacity: 1; transform: none; }
 @keyframes card-in { from { opacity: 0; transform: translateY(.14rem); } }
 
-/* ---- join panel ------------------------------------------------------------------------------------ */
-.join-panel { margin-bottom: .22rem; }
-.join-panel .panel__body { display: flex; flex-direction: column; gap: .14rem; padding: .22rem .26rem .18rem; }
-.join-row { display: flex; gap: .16rem; align-items: stretch; }
-.join-row .field { flex: 1; }
-.join-row .btn { height: .64rem; }
-.join-foot { display: flex; align-items: center; flex-wrap: wrap; gap: .1rem; min-height: .32rem; font-size: calc(.14 * var(--t)); }
+/* ---- room directory + code entry (the former standalone join block lives in this header) -------- */
 .code-chip {
   padding: .03rem .12rem .03rem .16rem;
   border: 1px solid var(--line-2);
@@ -132,10 +127,17 @@
 }
 .code-chip:hover { border-color: var(--amber); background: rgba(246, 163, 41, .08); }
 
-.room-directory { background: linear-gradient(145deg, rgba(20, 31, 27, .94), rgba(9, 14, 13, .96)); }
-.room-directory .panel__body { padding: .1rem .14rem .12rem; }
+.room-directory { flex: 1; min-height: 0; display: flex; flex-direction: column; background: linear-gradient(145deg, rgba(20, 31, 27, .94), rgba(9, 14, 13, .96)); }
+.room-directory .panel__head { align-items: center; padding-block: .1rem; }
+.room-directory .panel__actions { flex: 1; min-width: 0; justify-content: flex-end; }
+.room-directory .panel__body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: .08rem .14rem .1rem; }
+.room-directory__join { display: flex; align-items: center; justify-content: flex-end; gap: .07rem; min-width: 0; width: 100%; }
+.room-directory__join .field { flex: 1; min-width: 2.5rem; max-width: 5.7rem; }
+.room-directory__join .field__box { height: .46rem; }
+.room-directory__join .btn { min-height: .42rem; white-space: nowrap; }
+.room-directory__recent { display: flex; align-items: center; flex-wrap: wrap; gap: .07rem; min-height: .35rem; padding: 0 .02rem .07rem; font-size: calc(.13 * var(--t)); }
 .room-directory__empty { margin: 0; padding: .3rem .16rem; color: var(--text-lo); font-size: calc(.16 * var(--t)); text-align: center; }
-.room-directory__list { display: flex; flex-direction: column; gap: .08rem; max-height: 2.1rem; overflow-y: auto; overscroll-behavior: contain; }
+.room-directory__list { flex: 1; min-height: .72rem; display: flex; flex-direction: column; gap: .08rem; overflow-y: auto; overscroll-behavior: contain; }
 .room-directory__room {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -149,6 +151,10 @@
 .room-directory__identity { display: flex; align-items: baseline; gap: .14rem; min-width: 0; }
 .room-directory__code { color: var(--mint-400); font-size: calc(.21 * var(--t)); font-weight: 800; letter-spacing: .14em; }
 .room-directory__host { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-hi); font-size: calc(.16 * var(--t)); }
+.room-directory__recruit { display: inline-flex; align-items: center; flex: 0 0 auto; min-height: .25rem; padding: .025rem .1rem;
+  border: 1px solid rgba(246, 163, 41, .7); background: rgba(246, 163, 41, .09); color: var(--amber);
+  font-size: calc(.14 * var(--t)); font-weight: 850; letter-spacing: .06em; line-height: 1; white-space: nowrap;
+  text-shadow: 0 0 .1rem rgba(246, 163, 41, .2); }
 .room-directory__details { display: flex; align-items: center; flex-wrap: wrap; gap: .06rem .15rem; color: var(--text-md); font-size: calc(.14 * var(--t)); }
 .room-directory__difficulty, .room-directory__count { display: inline-flex; align-items: center; gap: .04rem; white-space: nowrap; }
 .room-directory__difficulty { color: var(--d-color); }
@@ -161,6 +167,8 @@
 .room-directory__actions .btn { min-height: .4rem; }
 .room-directory__foot { padding: .1rem .04rem 0; border-top: 1px solid var(--line); color: var(--text-dim); font-size: calc(.13 * var(--t)); text-align: right; }
 @media (max-width: 1050px) {
+  .room-directory .panel__head { align-items: stretch; flex-direction: column; }
+  .room-directory .panel__actions { width: 100%; }
   .room-directory__room { grid-template-columns: minmax(0, 1fr); }
   .room-directory__actions { grid-column: 1; grid-row: auto; justify-content: flex-end; }
 }
@@ -168,11 +176,12 @@
 /* ---- tips -------------------------------------------------------------------------------------------- */
 .tips {
   --bk-c: var(--line-3);
-  margin-top: .18rem;
-  padding: .16rem .22rem .2rem;
+  margin: 0 0 .14rem;
+  padding: .1rem .16rem .12rem;
   background: rgba(8, 10, 9, .55);
   border: 1px solid var(--line);
 }
+.lobby-right > .tips { margin-top: auto; margin-bottom: 0; }
 .tips__head { display: flex; align-items: center; gap: .1rem; font-size: calc(.16 * var(--t)); font-weight: 700; color: var(--text-md); }
 .tips__head > .icon { width: .2rem; height: .2rem; color: var(--mint-500); }
 .tips__idx { margin-left: auto; font-size: calc(.16 * var(--t)); color: var(--text-md); }
@@ -269,6 +278,30 @@
 .diff-card.is-selected .diff-card__check span { opacity: 1; }
 
 /* ---- create ------------------------------------------------------------------------------------------ */
-.create-box { margin-top: .3rem; display: flex; flex-direction: column; gap: .12rem; }
+.create-box { margin-top: .2rem; display: flex; flex-direction: column; gap: .08rem; }
 .create-box .btn--xl { height: .92rem; font-size: calc(.32 * var(--t)); letter-spacing: .3em; }
 .create-box__hint { display: flex; align-items: center; justify-content: center; min-height: .3rem; font-size: calc(.14 * var(--t)); color: var(--text-lo); }
+
+/* ---- short viewports: compress the column, hide nothing ----------------------------------------------------------
+   The root font size scales with the viewport (theme.css: `clamp(40px, min(100vw / 19.2, 100vh / 10.8), 240px)`), so
+   every `.NNNrem` here shrinks as the window gets shorter — but not enough between 700 and 820 CSS px of height.
+   Measured on the room-directory e2e: at 1423x764 `.lobby-body` overflowed by 131 px and the 创建 box sat 57 px below
+   the fold. `.lobby-body` is `overflow: hidden`, so that button was not merely off-screen — it was unreachable.
+   1920x1080 was fine, which is why this went unnoticed; devices.css only compresses ≤460 px (landscape phones).
+   Order follows the plan: paddings/margins first, then card paddings, then the create area. Text stays readable and
+   no control is hidden. */
+@media (max-height: 820px) {
+  .lobby-body { padding-top: .10rem; padding-bottom: .12rem; }
+  .mode-cards { margin-bottom: .04rem; }
+  .mode-card { padding: .16rem .22rem .15rem; }
+  .create-box { margin-top: .12rem; }
+  .create-box .btn--xl { height: .78rem; }
+}
+@media (max-height: 740px) {
+  .lobby-body { padding-top: .06rem; padding-bottom: .08rem; }
+  .mode-card { min-height: 2.35rem; padding: .12rem .2rem .11rem; }
+  .mode-card__desc { line-height: 1.25; }
+  .room-directory__room { padding-block: .1rem; }
+  .create-box { margin-top: .08rem; gap: .05rem; }
+  .create-box .btn--xl { height: .70rem; font-size: calc(.28 * var(--t)); }
+}

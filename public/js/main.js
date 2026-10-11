@@ -308,6 +308,8 @@ function App() {
   return html`<div class="app-root">
     <div class="app-bg" aria-hidden="true"></div>
     ${error ? html`<${ScreenCrashed} error=${error} reset=${resetError} />` : html`<${Screen} key=${route} />`}
+    ${route === 'title' ? html`<button type="button" id="distribution-reopen"
+      onClick=${() => { const panel = document.getElementById('distribution-notice'); if (panel) panel.hidden = false; }}>${t('公告')}</button>` : null}
     <${ConnectionBanner} />
     <${ToastHost} />
     <${UiHosts} />
@@ -372,7 +374,10 @@ async function boot() {
 
   const pendingJoin = parseRoomParam(location.search);
   const savedName = sanitizeName(identity.loadName());
-  const entered = identity.wasEntered() && !!savedName;
+  // 保持登录（设置里的开关，默认开）：关掉就当作从没登录过，并清掉已存下的登录状态与名字，
+  // 免得下一次启动又被自动带进大厅（旧行为是被 token 归属规则静默退回登录页，玩家不知道原因）。
+  if (!settingsStore.get().keepSignedIn) { identity.setEntered(false); identity.saveName(''); }
+  const entered = settingsStore.get().keepSignedIn && identity.wasEntered() && !!savedName;
   store.set((s) => ({
     me: { ...s.me, name: savedName },
     session: { entered },
@@ -380,6 +385,10 @@ async function boot() {
   }));
 
   wireNet();
+  // 设置里把「保持登录」关掉的那一刻就清掉凭证，不必等下次启动
+  settingsStore.subscribe((cur, prev) => {
+    if (prev?.keepSignedIn && !cur.keepSignedIn) { identity.setEntered(false); identity.saveName(''); }
+  });
   installStatsRecorder(store); // follows the match on screen, so a 放弃模拟 can be recorded (ui/stats.js)
   installLoadoutSync({ net });
   installOwnershipSync({ net });
@@ -397,8 +406,13 @@ async function boot() {
   data.load('local').catch(() => {});
 
   const connectWhenReady = identityReady.then(() => {
-    if (entered) net.setName(savedName);
-    else net.connect();
+    // A remembered login is usable only with an unclaimed reconnect token.
+    // Another live tab must never inherit that tab's account automatically.
+    if (entered && identity.getToken()) net.setName(savedName);
+    else {
+      if (entered) store.patch('session', { entered: false });
+      net.connect();
+    }
   });
   // the language (and its UI translations) before the first render: no Chinese flash for an English player
   const langReady = initLang().catch((err) => console.warn('[app] language setup failed', err));

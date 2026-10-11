@@ -26,7 +26,7 @@ import { MatchRecordsButton } from './records.js';
 import { net } from '../net.js';
 import { store, useStore, shallowEqual, emptyMatch, isSpectating } from '../store.js';
 import { difficultyInfo } from './lobby.js';
-import { t, tc } from '../../../shared/i18n.js';
+import { N_, t, tc } from '../../../shared/i18n.js';
 
 /**
  * Seats padded to the room's capacity (co-op 4, solo 1), each null or a seat record.
@@ -83,6 +83,15 @@ export function roomFacts(room, myId) {
 export function aiLastOption(room, myId) {
   if (!room || room.mode === 'solo') return null;
   return { on: room.aiPicksLast === true, editable: room.hostId != null && room.hostId === myId };
+}
+
+export function roomAccessOptions(room, myId) {
+  if (!room || room.mode === 'solo') return null;
+  return {
+    inviteOnly: room.inviteOnly === true,
+    recruitWanted: room.recruitWanted === true,
+    editable: room.hostId != null && room.hostId === myId,
+  };
 }
 
 /** Invite link for a room code (current page URL with ?room=CODE). */
@@ -220,6 +229,27 @@ function AiLastToggle({ option, busy, onToggle }) {
   </div>`;
 }
 
+function RoomAccessOptions({ option, busy, onInviteOnly, onRecruitWanted }) {
+  if (!option) return null;
+  // The plan ships a purpose-drawn 256² transparent PNG per switch (§4 图片素材), so the picture carries the
+  // meaning and nothing else is stacked on it: no same-meaning SVG glyph, and the label text stays HTML (never
+  // baked into the art) so it can go through t(). State is styling only — CSS dims it when off and brightens it
+  // when on — which keeps the two images out of a JS src swap that would flicker on a slow connection.
+  const toggle = (name, on, art, action) => html`<button type="button" role="switch" aria-checked=${on ? 'true' : 'false'}
+      class=${`room-access__toggle${on ? ' is-active' : ''}`} disabled=${!option.editable || !!busy}
+      onClick=${() => option.editable && action(!on)}>
+    <span class="room-access__icon"><img src=${`/assets/ui/room/${art}.png`} alt="" aria-hidden="true" draggable=${false} /></span>
+    <span><strong>${t(name)}</strong><small>${on ? t('已开启') : t('已关闭')}</small></span>
+    <span class="room-access__switch" aria-hidden="true"></span>
+  </button>`;
+  return html`<aside class="room-access-options brackets" aria-label=${t('房间设置')}>
+    <${MicroLabel} tone="mint">ROOM ACCESS<//>
+    ${toggle(N_('仅邀请'), option.inviteOnly, 'invite-only', onInviteOnly)}
+    ${toggle(N_('期望路人加入'), option.recruitWanted, 'recruit-wanted', onRecruitWanted)}
+    ${option.editable ? null : html`<span class="room-access__readonly">${t('由创建者设置')}</span>`}
+  </aside>`;
+}
+
 /** Room screen component. */
 export function RoomScreen() {
   const room = useStore((s) => s.room);
@@ -261,6 +291,8 @@ export function RoomScreen() {
   };
   const setDifficulty = (difficulty) => run('diff', () => net.request('room.setDifficulty', { difficulty }));
   const setAiLast = (on) => run('ailast', () => net.request('room.setAiPicksLast', { on }));
+  const setInviteOnly = (on) => run('inviteOnly', () => net.request('room.setInviteOnly', { on }));
+  const setRecruitWanted = (on) => run('recruitWanted', () => net.request('room.setRecruitWanted', { on }));
   // spectator seats: the host frees one; a spectator takes a free player seat with room.join of this room
   const removeSpectator = (playerId) => run(`rs${playerId}`, () => net.request('room.removeSpectator', { playerId }));
   const sit = () => run('sit', () => net.request('room.join', { code: room.code }));
@@ -325,6 +357,8 @@ export function RoomScreen() {
     <main class=${`seats${coop ? '' : ' seats--solo'}`}>
       ${facts.seats.map((s, i) => html`<${SeatCard} key=${s ? `p${s.playerId}` : `e${i}`} seat=${s} index=${i} room=${room} facts=${facts}
         myId=${me.playerId} busy=${busy} onAddBot=${addBot} onRemoveBot=${removeBot} onKick=${kick} />`)}
+      ${coop ? html`<${RoomAccessOptions} option=${roomAccessOptions(room, me.playerId)} busy=${busy}
+        onInviteOnly=${setInviteOnly} onRecruitWanted=${setRecruitWanted} />` : null}
       ${coop ? null : html`<aside class="solo-brief brackets">
         <${MicroLabel} tone="mint">BRIEFING<//>
         <h2>${DIFFICULTY_NAMES[room.difficulty] ? t(DIFFICULTY_NAMES[room.difficulty]) : ''}<span class="num t-dim"> ${info.code}</span></h2>

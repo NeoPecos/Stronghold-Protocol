@@ -55,6 +55,36 @@ export class AccountStore {
     return { account };
   }
 
+  /**
+   * 改密码：必须提供**旧密码**验证身份（`Authenticate` 的 login 分支），再以同一套 scrypt 参数写入新盐与新哈希。
+   *
+   * 为什么必须有旧密码：这个入口是给「群里/私聊的机器人代改」用的，若只凭账号名就能改，任何知道昵称的人都能
+   * 顶掉别人的账号。旧密码是这里唯一的持有证明（同 DESIGN 的登录语义）；忘记密码只能由维护者直接改库。
+   *
+   * 失败一律返回 `{ error }`，不改动任何状态；`save()` 失败时把内存里的旧值放回去，避免内存与磁盘不一致。
+   * @param {string} name
+   * @param {string} oldPassword
+   * @param {string} newPassword
+   * @returns {Promise<{ account?: object, error?: 'BAD_CREDENTIALS'|'WEAK_PASSWORD'|'SAME_PASSWORD'>}
+   */
+  async changePassword(name, oldPassword, newPassword) {
+    if (!validPassword(newPassword)) return { error: 'WEAK_PASSWORD' };
+    if (oldPassword === newPassword) return { error: 'SAME_PASSWORD' };
+    const key = accountKey(name);
+    const existing = this.byName.get(key);
+    if (!existing) return { error: 'BAD_CREDENTIALS' };
+    if (!validPassword(oldPassword)) return { error: 'BAD_CREDENTIALS' };
+    const derivedOld = await scrypt(oldPassword, Buffer.from(existing.salt, 'hex'), KEY_LENGTH, PARAMS);
+    if (!timingSafeEqual(derivedOld, Buffer.from(existing.hash, 'hex'))) return { error: 'BAD_CREDENTIALS' };
+    const salt = randomBytes(16);
+    const hash = await scrypt(newPassword, salt, KEY_LENGTH, PARAMS);
+    const updated = { ...existing, salt: salt.toString('hex'), hash: hash.toString('hex') };
+    this.byName.set(key, updated);
+    try { this.save(); }
+    catch (error) { this.byName.set(key, existing); throw error; }
+    return { account: updated };
+  }
+
   save() {
     mkdirSync(path.dirname(this.file), { recursive: true });
     const temporary = `${this.file}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;

@@ -152,7 +152,7 @@ export class SpineActor {
     this.attackUntil = 0;
     this.clock = 0;
     this.current = '';
-    this.frozen = false;
+    this.frozen = false;          // skip the skeleton update: nothing can change the pose (poseHeld)
     this.dead = false;
     this.interval = 1;
     /**
@@ -265,6 +265,11 @@ export class SpineActor {
     } else if (this.mode === 'stun') {
       const name = this.has(this.roles.stun?.loop) ? this.roles.stun.loop : this._baseName();
       this._play(name, true, { mix: 0 });
+    } else if (this.mode === 'frozen') {
+      // 冻结 holds the pose, but a form swap (骨刺's A/B attachments) must still land: play the new set's resting
+      // clip and hold THAT at zero time scale, exactly as entering 冻结 does.
+      this._play(this._baseName(), true, { mix: 0 });
+      this._holdTrack();
     } else if (this.mode === 'base') {
       this._play(this._baseName(), true, { mix: 0 });
     } else {
@@ -326,17 +331,62 @@ export class SpineActor {
     return true;
   }
 
-  /** Resting state from the snapshot. */
+  /**
+   * Resting state from the snapshot.
+   *
+   * `'stun'` plays the stun clip (or holds the pose when the skeleton has none). `'frozen'` is the 冻结 status
+   * effect and must HOLD the current pose instead of playing that clip: a frozen unit is not a stunned one, and
+   * routing 冻结 through `_enterStun` made a frozen boss loop its 晕眩 animation (reported 2026-10-11). Frozen is
+   * idempotent — a later frame must not restart the clip it is holding.
+   */
   setBase(base) {
     if (this.dead) return;
-    const b = base === 'move' || base === 'stun' ? base : 'idle';
+    const b = base === 'move' || base === 'stun' || base === 'frozen' ? base : 'idle';
+    if (this.mode === 'frozen') {
+      if (b === 'frozen') return;   // already holding this pose
+      this._leaveFrozen();          // anything else (a real stun, a move, idle) resumes the clock
+    }
     // a mode change clip plays out first; the resting state it lands in is remembered
     if (this.mode === 'change') { this.stunWanted = b === 'stun'; if (b !== 'stun') this.base = b; return; }
     if (b === 'stun') { this._enterStun(); return; }
+    if (b === 'frozen') { this._enterFrozen(); return; }
     if (this.mode === 'stun') this._leaveStun();
     if (b === this.base && this.mode !== 'stun') return;
     this.base = b;
     if (this.mode === 'base') this._play(this._baseName(), true);
+  }
+
+  /**
+   * 冻结: hold the pose the model is in. The official look is the unit standing still under the 冻结 treatment
+   * (render/units.js tints a frozen model), not a stun performance.
+   *
+   * Two mechanisms, both needed:
+   *   - `frozen = true` skips the skeleton update, which is what the 骨刺 attachment swap relies on (forms.test.js
+   *     asserts `update(0)` while a hidden/shown swap still lands immediately: the swap happens in the clip change,
+   *     not in the update);
+   *   - the current track is parked at `timeScale 0`, so the pose is genuinely held rather than merely un-updated
+   *     (and so 解冻 resumes the clip where it stopped, instead of jumping to where the clock got to).
+   */
+  _enterFrozen() {
+    if (this.mode === 'frozen') return;
+    this.mode = 'frozen';
+    this.frozen = true;
+    this._holdTrack();
+  }
+
+  /** Park the current track at `timeScale 0` (nothing moves) and remember it, so 解冻 can resume it. */
+  _holdTrack() {
+    const e = this.spine?.state?.tracks?.[0];
+    if (e && e.timeScale !== 0) { this._frozenTrack = e; e.timeScale = 0; }
+  }
+
+  _leaveFrozen() {
+    if (this.mode !== 'frozen') return;
+    this.mode = 'base';
+    this.frozen = false;
+    const e = this._frozenTrack;
+    if (e && e.timeScale === 0) e.timeScale = 1;
+    this._frozenTrack = null;
   }
 
   _enterStun() {

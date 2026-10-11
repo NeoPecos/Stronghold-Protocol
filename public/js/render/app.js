@@ -141,7 +141,7 @@ import { renderInfo, FORCED_EXIT, showsDeathFx } from './app/info.js';
 import { resolveAssets, makeData, withTimeout, QUALITY_RES, BOARD_RES, releaseGl } from './app/host.js';
 import { t } from '../../../shared/i18n.js';
 import { skinFor } from '../ui/skins.js';
-import { resolutionCap, boardResolutionCap } from '../ui/gameLogic/settings.js';
+import { resolutionCap, boardResolutionCap, canvasPixelRatio } from '../ui/gameLogic/settings.js';
 
 export { ensurePixi } from './app/pixi.js';
 export { PEN_CAMERA_MS, LEADER_HIT_STYLE, DRAG_HOLD_TILES } from './app/tune.js';
@@ -191,8 +191,8 @@ export async function createFieldView(host, options = {}) {
   const size = () => ({ width: Math.max(1, host.clientWidth || 1), height: Math.max(1, host.clientHeight || 1) });
   // 分辨率: an explicit choice caps the pixel ratio on its own, independent of 画质 (which also decides the board's
   // expensive features) — 'auto' keeps the quality table, i.e. upstream behaviour.
-  const dpr = () => Math.min(globalThis.devicePixelRatio || 1, resolutionCap(settings.resolution) ?? (QUALITY_RES[settings.quality] || 2));
-  const boardDpr = () => Math.min(globalThis.devicePixelRatio || 1, boardResolutionCap(settings.resolution) ?? (BOARD_RES[settings.quality] || 2));
+  const dpr = () => { const s = size(); return canvasPixelRatio(s.width, s.height, globalThis.devicePixelRatio, resolutionCap(settings.resolution) ?? (QUALITY_RES[settings.quality] || 2), 3_700_000); };
+  const boardDpr = () => { const s = size(); return canvasPixelRatio(s.width, s.height, globalThis.devicePixelRatio, boardResolutionCap(settings.resolution) ?? (BOARD_RES[settings.quality] || 2), 2_100_000); };
   const s0 = size();
   // Construction is synchronous until the complete view can own cancellation. If setup throws,
   // dispose only the resources acquired by this attempt, never another view's host contents.
@@ -788,6 +788,8 @@ export async function createFieldView(host, options = {}) {
         v._sig = sig;
         v.setWorld(w.x, w.y, w.z);
         views.set(key, v);
+        // 休整期落格由下面的 _prevArea 判据统一处理（视图在棋子的 uid 上复用：手牌→棋盘不会新建视图，
+        // 而 prevBoard 只看 uid，棋子在手牌时就已经在里面了，所以按 uid 判断永远为假）。
         if (promoFrom.has(e.uid)) {
           // a merge's elite: on the tile of the deployed copy it replaced, or on its bench slot
           if (e.area === 'board') v.onDeploy?.();
@@ -810,6 +812,19 @@ export async function createFieldView(host, options = {}) {
           if (e.area === 'board' && !prevBoard.has(e.uid) && v.onDeploy) { v.onDeploy(); fx.deploy(v); }
         }
       }
+      // 休整期落格：视图按 `p:<uid>` 复用，手牌→棋盘不会新建视图，而 `prevBoard` 只看 uid（棋子在手牌时就已经
+      // 在里面），所以上面两条按 uid 的分支对「从手牌放到棋盘」永远为假 —— 入场动作与落地反馈从不播出（只有
+      // 语音，它走另一条路）。这里按**区域迁移**判断：上一帧在手牌/临时区、这一帧在棋盘，就是一次落格。
+      // 每次落格只播一次（_deployedOnBoard 按 uid 记住；离开棋盘再放回来会重新播，这符合直觉）。
+      if (e.area === 'board' && info.kind !== 'item' && !promoFrom.has(e.uid)) {
+        const from = v._prevArea;
+        if (!v._deployedOnBoard || from === 'hand' || from === 'temp') {
+          v._deployedOnBoard = true;
+          v.onDeploy?.();
+          fx.deploy(v);
+        }
+      }
+      v._prevArea = e.area;
       v._home = w;
       v.dimmed = false;
       if (info.kind === 'item' && v.setIcon) v.setIcon(info.icon); // an icon the manifest named late (onAssets)
@@ -1763,6 +1778,21 @@ export async function createFieldView(host, options = {}) {
     setupCleanup.push(() => ro.disconnect());
     ro.observe(host);
   }
+  // The browser can settle the viewport after fullscreenchange and after its resize event.
+  // Sample once in the next frame and again after the transition so both canvases and camera agree.
+  let fullscreenTimer = 0;
+  const onFullscreenChange = () => {
+    requestAnimationFrame(() => resize());
+    clearTimeout(fullscreenTimer);
+    fullscreenTimer = setTimeout(() => resize(), 350);
+  };
+  globalThis.document?.addEventListener?.('fullscreenchange', onFullscreenChange);
+  globalThis.document?.addEventListener?.('webkitfullscreenchange', onFullscreenChange);
+  setupCleanup.push(() => {
+    clearTimeout(fullscreenTimer);
+    globalThis.document?.removeEventListener?.('fullscreenchange', onFullscreenChange);
+    globalThis.document?.removeEventListener?.('webkitfullscreenchange', onFullscreenChange);
+  });
   // a DPR change without a size change (window dragged to another monitor, zoom) must re-rasterise too; polled
   // per frame because not every browser fires a resize / matchMedia change for it
   let lastDpr = globalThis.devicePixelRatio || 1;

@@ -26,6 +26,7 @@ import { t, N_ } from '../../../shared/i18n.js';
 import { scriptOf } from '../../../shared/i18nPacks.js';
 import { GIcon } from '../ui/gameComponents.js';
 import { SettingsModal } from '../ui/settings.js';
+import { useSettings, updateSettings } from '../ui/settings.js';
 
 // Same character classes as server/net.js sanitizeName (control, zero-width, bidi, BOM), so a name
 // the client accepts is never rejected by the server's hello validation.
@@ -70,7 +71,7 @@ export function sanitizeName(raw) {
 /** @param {any} raw @returns {boolean} */
 export const isValidName = (raw) => {
   const name = sanitizeName(raw);
-  return name.length > 0 && !/^(?:\d+|test|admin|a{3,})$/i.test(name);
+  return name.length > 0 && !/^(?:test|admin|a{3,})$/i.test(name);
 };
 
 /**
@@ -199,7 +200,10 @@ export function TitleScreen() {
   useLang(); // re-render on a language switch
   const [name, setName] = useState(() => store.get().me.name || identity.loadName() || '');
   const [password, setPassword] = useState('');
-  const [authMode, setAuthMode] = useState('register');
+  // Logging in is the common case (returning player); registering is the exception. Default to login and
+  // put its tab first, so the title screen does not ask a returning player to pick "register" every time.
+  const [authMode, setAuthMode] = useState('login');
+  const settings = useSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const assetsSettled = useData('assets');
   const assets = data.get('assets');
@@ -281,21 +285,23 @@ export function TitleScreen() {
           placeholder=${t('输入你的代号（最多 {NAME_MAX_LEN} 字）', { NAME_MAX_LEN })} autoFocus=${!touchUi}
           onInput=${setName} onEnter=${start} />
         <div class="title-auth-mode" role="radiogroup" aria-label=${t('账号操作')}>
-          <button type="button" role="radio" aria-checked=${authMode === 'register'} class=${authMode === 'register' ? 'is-on' : ''}
-            onClick=${() => setAuthMode('register')}>${t('注册账号')}</button>
           <button type="button" role="radio" aria-checked=${authMode === 'login'} class=${authMode === 'login' ? 'is-on' : ''}
             onClick=${() => setAuthMode('login')}>${t('登录账号')}</button>
+          <button type="button" role="radio" aria-checked=${authMode === 'register'} class=${authMode === 'register' ? 'is-on' : ''}
+            onClick=${() => setAuthMode('register')}>${t('注册账号')}</button>
         </div>
         <${TextField} label=${t('密码')} micro="PASSWORD" size="lg" icon="key" value=${password} maxLength=${128}
           type="password" autoComplete=${authMode === 'register' ? 'new-password' : 'current-password'}
           placeholder=${t('至少 8 位密码')} onInput=${setPassword} onEnter=${start} />
+        <label class="title-keep">
+          <input type="checkbox" role="checkbox" checked=${!!settings.keepSignedIn}
+            aria-checked=${settings.keepSignedIn ? 'true' : 'false'}
+            onChange=${(e) => updateSettings({ keepSignedIn: e.currentTarget.checked })} />
+          <span>${t('保持登录')}</span>
+        </label>
         ${conn.lastError && ['AUTH_REQUIRED', 'BAD_CREDENTIALS', 'NAME_TAKEN', 'WEAK_PASSWORD'].includes(conn.lastError.code)
           ? html`<div class="title-auth-error" role="alert">${t(conn.lastError.text)}</div>` : null}
         <${Button} variant="primary" size="xl" block=${true} iconRight="chevrons" disabled=${!valid || conn.status === 'handshaking'} onClick=${start}>${t(authMode === 'register' ? '注册并开始' : '登录并开始')}<//>
-        ${isNativeClient() ? null : html`<div class="title-downloads">
-          <a href="/client/#windows" target="_blank" rel="noopener noreferrer">${t('下载 Windows 客户端')}</a>
-          <a href="/client/#android" target="_blank" rel="noopener noreferrer">${t('下载 Android 客户端')}</a>
-        </div>`}
         <div class="title-conn">
           <span class=${`status-dot ${dotClass}`}></span>
           <span>${STATUS_TEXT[conn.status] ? t(STATUS_TEXT[conn.status]) : conn.status}</span>

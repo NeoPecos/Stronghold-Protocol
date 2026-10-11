@@ -1,6 +1,11 @@
 name: astrbot_plugin_sp_records
-desc: 群聊中 @黍 战绩 房间号，发送卫戍协议最近一局战绩卡片
-help: "@黍 战绩 ABCD"
-version: 1.0.0
-author: Leiothrix/Codex
+display_name: 卫戍协议战绩卡片
+desc: 群里 @黍 战绩 <账号名> 以合并转发发送最近一局的战绩卡片（总览 + 各人明细）；私聊「改密码 账号名 旧密码 新密码」修改游戏账号密码。可配置只在指定群启用。
+help: |
+  群聊：@黍 战绩 <账号名>        → 发送该账号最近一局的战绩（合并转发：总览 + 各人明细；也支持 4 位房间号）
+  私聊：改密码 <账号名> <旧密码> <新密码>
+  说明：一局 4 人会有 5~9 张图，合并转发把它们收进一张「聊天记录」卡片，群里只占一条消息。
+        改密码必须提供正确的旧密码；因涉及密码，该命令只在私聊响应。
+version: 1.2.0
+author: Leiothrix
 repo: https://github.com/NeoPecos/Stronghold-Protocol

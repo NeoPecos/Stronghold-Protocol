@@ -367,7 +367,7 @@ export function sanitizeName(raw) {
   if (typeof raw !== 'string') return null;
   let s = raw.normalize('NFC').replace(LONE_SURROGATE_RE, '').replace(/\s+/g, ' ').replace(STRIP_RE, '').replace(/ {2,}/g, ' ').trim();
   s = [...s].slice(0, NAME_MAX_LEN).join('').trim();
-  return s.length > 0 && !/^(?:\d+|test|admin|a{3,})$/i.test(s) ? s : null;
+  return s.length > 0 && !/^(?:test|admin|a{3,})$/i.test(s) ? s : null;
 }
 
 // ---------------------------------------------------------------------------------------------------

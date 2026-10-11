@@ -39,13 +39,14 @@
 .toolbtn--amber .toolbtn__iconbox { background: #312200; }
 .toolbtn--ice.is-on { background-image: url('/assets/ui/shopPanel/frozen_bg_unselect.png'); }
 .toolbtn__free { position: absolute; top: -.11rem; left: 50%; transform: translateX(-50%); width: 1.01rem; height: .35rem;
-  display: grid; place-items: center; padding-bottom: .03rem; color: #61edc1; font-size: .15rem; font-weight: 800; white-space: nowrap;
+  display: flex; align-items: center; justify-content: flex-end; padding: 0 .13rem .03rem .55rem; color: #61edc1; font-size: .15rem; font-weight: 800; white-space: nowrap;
   background: url('/assets/ui/shopPanel/cost_free.png') center / 100% 100% no-repeat; }
 .toolbtn .hex { --hex-h: .26rem; position: absolute; top: -.08rem; left: 50%; transform: translateX(-50%); }
 
 .shopbar__row {
   position: relative; display: flex; align-items: stretch; gap: .08rem; padding: .1rem;
-  background: linear-gradient(180deg, rgba(14, 17, 16, .82), rgba(8, 11, 10, .94));
+  /* 透明：否则卡片之间的缝隙会被这层深色填满 */
+  background: none;
   border: 1px solid rgba(196, 207, 200, .28); border-top: 1px solid rgba(196, 207, 200, .4);
   box-shadow: 0 -.04rem .24rem rgba(0, 0, 0, .45);
 }
@@ -89,16 +90,16 @@
   --tc: var(--tier-1);
   position: relative; width: 1.56rem; height: 2.24rem; padding: 0; overflow: visible; text-align: left;
   display: flex; flex-direction: column; justify-content: flex-end;
-  background: #151a18; border: 1px solid rgba(208, 216, 210, .34);
+  /* 透明：卡片之间露出棋盘（而不是一片黑）；边框与立绘保留 */
+  background: transparent; border: 1px solid rgba(208, 216, 210, .34);
   transition: transform var(--t-fast) var(--ease-out), border-color var(--t-fast), box-shadow var(--t-fast);
 }
 .scard--t1 { --tc: var(--tier-1); } .scard--t2 { --tc: var(--tier-2); } .scard--t3 { --tc: var(--tier-3); }
 .scard--t4 { --tc: var(--tier-4); } .scard--t5 { --tc: var(--tier-5); } .scard--t6 { --tc: var(--tier-6); }
 .scard__bg { position: absolute; inset: 0;
-  background: linear-gradient(180deg, #1c2320, #0f1311); /* fallback: no color-mix() (Safari < 16.2) */
+  background: transparent; /* fallback: no color-mix() (Safari < 16.2) */
   background:
-  radial-gradient(120% 70% at 80% 30%, color-mix(in srgb, var(--tc) 22%, transparent), transparent 70%),
-  linear-gradient(180deg, #1a1e1c, #0d100f); }
+  radial-gradient(120% 70% at 80% 30%, color-mix(in srgb, var(--tc) 22%, transparent), transparent 70%); }
 .scard__water { position: absolute; left: -.2rem; top: .34rem; width: 1.1rem; height: 1.1rem; opacity: .1; clip-path: inset(0 0 0 .2rem); }
 .scard__water .bglyph { width: 100%; height: 100%; }
 .scard__art { position: absolute; right: -.14rem; top: 0; height: 100%; width: auto; max-width: none; object-fit: cover; pointer-events: none;
@@ -110,7 +111,7 @@
 .scard__pips { display: flex; gap: .03rem; padding: .03rem .04rem; background: rgba(0, 0, 0, .6); }
 .scard__pips i { width: .07rem; height: .07rem; border: 1px solid var(--gold); transform: rotate(45deg); }
 .scard__pips i.on { background: var(--gold); }
-.scard__body { position: relative; z-index: 2; display: flex; flex-direction: column; gap: .03rem; padding: .3rem .08rem .08rem; background: linear-gradient(0deg, rgba(8, 11, 10, .96) 45%, rgba(8, 11, 10, .66) 75%, transparent); }
+.scard__body { position: relative; z-index: 2; display: flex; flex-direction: column; gap: .03rem; padding: .3rem .08rem .08rem; background: none; text-shadow: 0 1px 3px rgba(0, 0, 0, .92), 0 0 8px rgba(0, 0, 0, .7); }
 /* the loadout's skill (DESIGN §16) above the name; mint frame = not the default skill */
 .scard__skill { position: absolute; right: .07rem; top: -.02rem; width: .3rem; height: .3rem; display: grid; place-items: center;
   background: #0a0d0c; border: 1px solid var(--line-3); box-shadow: 0 1px 3px rgba(0, 0, 0, .8); }

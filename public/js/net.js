@@ -695,7 +695,7 @@ const K_TOKEN = 'sp.token';      // sessionStorage: this tab's token
 const K_WELCOME = 'sp.tokenWelcome'; // sessionStorage: { hash, at } from the first welcome for this token
 const K_RECENT = 'sp.tokens';    // localStorage: this browser's recent tokens, most recent first
 const K_MATCHES = 'sp.matches'; // local metadata for explicit recovery of another closed tab's seat
-const K_ENTERED = 'sp.entered';  // sessionStorage: this tab passed the title screen
+const K_ENTERED = 'sp.entered';  // localStorage: a remembered login; token ownership still decides whether it can resume
 const RECENT_MAX = 4;
 const TOKEN_MAX_LEN = 64;        // protocol limit for hello.token
 const CHANNEL_NAME = 'sp.identity';
@@ -971,10 +971,13 @@ export function createIdentity(deps = {}) {
       sdel(session, K_WELCOME);
       if (t) writeRecent(readRecent().filter((x) => x !== t));
     },
-    /** Whether this tab already passed the title screen (survives reloads, not new tabs). */
-    wasEntered: () => sget(session, K_ENTERED) === '1',
+    /** Remember a completed login across browser restarts. */
+    wasEntered: () => sget(local, K_ENTERED) === '1' || sget(session, K_ENTERED) === '1',
     /** @param {boolean} on */
-    setEntered: (on) => (on ? sset(session, K_ENTERED, '1') : sdel(session, K_ENTERED)),
+    setEntered: (on) => {
+      if (on) { sset(local, K_ENTERED, '1'); sset(session, K_ENTERED, '1'); }
+      else { sdel(local, K_ENTERED); sdel(session, K_ENTERED); }
+    },
   };
 }
 

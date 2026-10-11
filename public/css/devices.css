@@ -45,7 +45,11 @@ input, textarea, select { -webkit-user-select: text; user-select: text; }
 .gm__hud > .shopbar { bottom: calc(.2rem - var(--sa-b)); }
 .gm > .spov { left: calc(2.8rem + var(--sa-l)); right: var(--sa-r); }
 /* every other screen is laid out inside the safe area (the app backdrop fills the notch strip) */
-.screen:not(.gm) { top: var(--sa-t); right: var(--sa-r); bottom: var(--sa-b); left: var(--sa-l); }
+/* every other screen is laid out inside the safe area (the app backdrop fills the notch strip).
+   .title-screen is excepted: its layout is centred, and insetting it by --sa-l shifts the whole column
+   sideways (the reported ‘phone login page has a gap on the left / does not line up’). A centred
+   card already keeps far more than the notch’s ~44 px clear on each side, so it needs no inset. */
+.screen:not(.gm):not(.title-screen) { top: var(--sa-t); right: var(--sa-r); bottom: var(--sa-b); left: var(--sa-l); }
 .guide, .awayov { padding: var(--sa-t) var(--sa-r) var(--sa-b) var(--sa-l); }
 /* (in a match the toasts sit under the top bar: components.css .sp-in-match .toast-host already adds --sa-t) */
 html:not(.sp-in-match) .toast-host { margin-top: var(--sa-t); }
@@ -156,3 +160,6 @@ html:not(.sp-in-match) .toast-host { margin-top: var(--sa-t); }
 
 .rotate-hint__pwa { pointer-events: auto; margin-top: 6px; }
 .rotate-hint__pwa[hidden] { display: none; }
+
+/* #distribution-reopen is positioned by an inline <style> in index.html, which outranks this sheet:
+   the notice button was raised clear of the version label THERE, not here (2026-10-11). */

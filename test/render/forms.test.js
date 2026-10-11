@@ -248,6 +248,10 @@ describe('骨刺 effective stealth drives A/B clips', () => {
     });
   }
 
+  // 冻结与沉睡不再共用 'stun' 模式（2026-10-11）：表现层要能把「真的被晕眩」和「只是不能行动」分开，否则被
+  // 冻结的 Boss 会一直播晕眩动作。这个测试守的是「骨架冻结 + B/A 附件立刻应用」——对三种控制都仍然成立；
+  // 变的只是模式名：冻结/沉睡报 'frozen'（姿势保持、不播 stun clip），真晕眩仍报 'stun'。
+  const controlMode = (control) => (control === UF.STUNNED ? 'stun' : 'frozen');
   for (const control of [UF.FROZEN, UF.STUNNED, UF.SLEEP]) {
     test(`骨刺: control ${control} keeps the skeleton frozen while B/A attachments are applied immediately`, async () => {
       const v = await enemy(BONE);
@@ -259,7 +263,7 @@ describe('骨刺 effective stealth drives A/B clips', () => {
         for (const hidden of [false, true]) {
           v.sync(sample(control | (hidden ? UF.STEALTH : 0)), 2);
           assert.equal(clip(v), hidden ? 'Idle_A' : 'Idle_B');
-          assert.equal(v.actor.mode, 'stun');
+          assert.equal(v.actor.mode, controlMode(control));
           assert.equal(v.actor.frozen, true);
           assert.equal(v.actor.spine.state.tracks[0].mixDuration, 0);
         }

@@ -584,6 +584,105 @@ describe('websocket lobby', () => {
     await expectError(host, { t: 'room.join', code: own.code }, ERR.ROOM_NOT_FOUND);
   });
 
+  test('invite-only rooms stay off the directory but remain joinable by code; recruitment is public metadata', async () => {
+    const host = await pool.player('Host');
+    const guest = await pool.player('Guest');
+    const probe = await pool.player('Probe');
+    const st = await createRoom(host, 'coop', 'HARD');
+    assert.equal(st.inviteOnly, false);
+    assert.equal(st.recruitWanted, false);
+
+    await expectError(guest, { t: 'room.setInviteOnly', on: true }, ERR.NOT_IN_ROOM);
+    await expectOk(host, { t: 'room.setRecruitWanted', on: true });
+    await host.waitFor('room.state', (s) => s.recruitWanted === true);
+    await expectOk(probe, { t: 'room.list' });
+    const listed = await probe.waitFor('room.list', (m) => m.rooms.some((r) => r.code === st.code));
+    assert.equal(listed.rooms.find((r) => r.code === st.code).recruitWanted, true);
+
+    await expectOk(host, { t: 'room.setInviteOnly', on: true });
+    await host.waitFor('room.state', (s) => s.inviteOnly === true);
+    await expectOk(probe, { t: 'room.list' });
+    const hidden = await probe.waitFor('room.list');
+    assert.equal(hidden.rooms.some((r) => r.code === st.code), false);
+
+    const joined = await joinRoom(guest, st.code);
+    assert.equal(joined.code, st.code);
+    assert.equal(joined.inviteOnly, true);
+  });
+
+  test('room access switches: host-only, pre-match-only, and never on a solo room', async () => {
+    // ① a guest is not the host — in a solo room the host starts alone, so no ready handshake is needed
+    const host = await pool.player('Host');
+    const st = await createRoom(host, 'solo', 'FUNNY');
+    const outsider = await pool.player('Outsider');
+    await expectError(outsider, { t: 'room.setInviteOnly', on: true }, ERR.NOT_IN_ROOM);
+    await expectError(outsider, { t: 'room.setRecruitWanted', on: true }, ERR.NOT_IN_ROOM);
+
+    // ② once the match runs the switches are frozen
+    await expectOk(host, { t: 'room.start' });
+    await host.waitFor('room.state', (s) => s.inMatch);
+    await expectError(host, { t: 'room.setInviteOnly', on: true }, ERR.ROOM_STARTED);
+    await expectError(host, { t: 'room.setRecruitWanted', on: true }, ERR.ROOM_STARTED);
+    assert.equal(st.mode, 'solo');
+  });
+
+  test('a solo room refuses the directory switches (it is never listed) and a coop guest gets NOT_HOST', async () => {
+    const solo = await pool.player('Solo');
+    await createRoom(solo, 'solo', 'FUNNY');
+    await expectError(solo, { t: 'room.setInviteOnly', on: true }, ERR.BAD_TARGET);
+    await expectError(solo, { t: 'room.setRecruitWanted', on: true }, ERR.BAD_TARGET);
+
+    const host = await pool.player('Host');
+    const guest = await pool.player('Guest');
+    const coop = await createRoom(host);
+    await joinRoom(guest, coop.code);
+    await expectError(guest, { t: 'room.setInviteOnly', on: true }, ERR.NOT_HOST);
+    await expectError(guest, { t: 'room.setRecruitWanted', on: true }, ERR.NOT_HOST);
+  });
+
+  test('invite-only rooms stay spectatable by code, and the switches survive a host hand-over', async () => {
+    const host = await pool.player('Host');
+    const guest = await pool.player('Guest');
+    const watcher = await pool.player('Watcher');
+    const st = await createRoom(host);
+    await joinRoom(guest, st.code);
+
+    await expectOk(host, { t: 'room.setInviteOnly', on: true });
+    await expectOk(host, { t: 'room.setRecruitWanted', on: true });
+    await host.waitFor('room.state', (s) => s.inviteOnly && s.recruitWanted);
+
+    // an invite-only room is still reachable by whoever knows the code — spectating included
+    await expectOk(watcher, { t: 'room.spectate', code: st.code });
+    const watched = await watcher.waitFor('room.state', (s) => s.spectators.some((x) => x.playerId === watcher.id));
+    assert.equal(watched.inviteOnly, true);
+    assert.equal(watched.recruitWanted, true);
+
+    // the host leaves: the remaining human takes over and the switches keep their values
+    await expectOk(host, { t: 'room.leave' });
+    const handed = await guest.waitFor('room.state', (s) => s.hostId === guest.id);
+    assert.equal(handed.inviteOnly, true, 'inviteOnly survives the hand-over');
+    assert.equal(handed.recruitWanted, true, 'recruitWanted survives the hand-over');
+    await expectOk(guest, { t: 'room.setInviteOnly', on: false }, 'the new host can change it');
+    await guest.waitFor('room.state', (s) => s.inviteOnly === false);
+  });
+
+  test('roomAccessOptions: solo hides the switches, others see them read-only, a missing field means false', async () => {
+    const { roomAccessOptions } = await import('../public/js/screens/room.js');
+    const base = { hostId: 'p_host', mode: 'coop', inMatch: false, inviteOnly: true, recruitWanted: false };
+    assert.equal(roomAccessOptions({ ...base, mode: 'solo' }, 'p_host'), null, 'a solo room has no directory entries');
+    const own = roomAccessOptions(base, 'p_host');
+    assert.ok(own, 'the host sees them');
+    assert.equal(own.editable, true);
+    assert.equal(own.inviteOnly, true);
+    assert.equal(own.recruitWanted, false);
+    const other = roomAccessOptions(base, 'p_guest');
+    assert.ok(other, 'a guest sees the state');
+    assert.equal(other.editable, false, 'but cannot touch it');
+    const legacy = roomAccessOptions({ hostId: 'p_host', mode: 'coop' }, 'p_host');
+    assert.equal(legacy.inviteOnly, false, 'an older server without the field reads as false');
+    assert.equal(legacy.recruitWanted, false);
+  });
+
   test('room full, solo rooms admit one human and no AI', async () => {
     const host = await pool.player('H');
     const st = await createRoom(host);
@@ -1014,6 +1113,22 @@ describe('websocket lobby', () => {
       if (reply.t === 'ok') okCounts[msg.t] = (okCounts[msg.t] || 0) + 1;
       if (reply.t === 'error') assert.ok(Object.hasOwn(ERR, reply.code), reply.code);
       if (i % 50 === 0) await delay(30); // stay well under the rate limit
+    }
+    // The random stream must reach every intent family at least once. `g.infoReady` is the one that cannot be left to
+    // chance: it only succeeds during PHASE.INFO_CHECK, and that window is a real 25 s co-op timer, so whether 500
+    // random messages happen to land inside it depends on wall-clock timing — it went red as soon as other tests in
+    // this file shifted the schedule (2026-10-11). Ask for it deliberately instead: get a client into a running match,
+    // wait for the phase, send it. The fuzz loop above already proved the message is accepted in general.
+    if (!okCounts['g.infoReady']) {
+      const c = clients[0];
+      await c.request({ t: 'room.leave' }, 3000);
+      const created = await c.request({ t: 'room.create', mode: 'solo', difficulty: 'FUNNY' }, 3000);
+      if (created.t === 'ok') {
+        await c.request({ t: 'room.start' }, 3000);
+        await c.waitFor('m.public', (m) => m.phase === PHASE.INFO_CHECK);
+        const reply = await c.request({ t: 'g.infoReady' }, 3000);
+        if (reply.t === 'ok') okCounts['g.infoReady'] = (okCounts['g.infoReady'] || 0) + 1;
+      }
     }
     for (const t of ['room.create', 'room.join', 'room.start', 'room.addBot', 'g.infoReady']) assert.ok(okCounts[t] > 0, `fuzz never succeeded at ${t}`);
     // invariants
@@ -1971,7 +2086,8 @@ describe('platform units', () => {
     assert.equal(sanitizeName(''), null);
     assert.equal(sanitizeName(42), null);
     assert.equal([...sanitizeName('😀'.repeat(20))].length, 12);
-    for (const name of ['1', '123', 'test', 'TEST', 'admin', 'AAA', 'aaa']) assert.equal(sanitizeName(name), null);
+    for (const name of ['1', '123']) assert.equal(sanitizeName(name), name, '纯数字账号名可注册');
+    for (const name of ['test', 'TEST', 'admin', 'AAA', 'aaa']) assert.equal(sanitizeName(name), null);
     assert.equal(sanitizeName('Amiya123'), 'Amiya123');
   });
 

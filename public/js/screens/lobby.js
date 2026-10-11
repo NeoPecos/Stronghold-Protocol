@@ -240,10 +240,26 @@ function DifficultyCard({ roomMode, difficulty, selected, onSelect }) {
   </button>`;
 }
 
-function RoomDirectory({ rooms, online, loading, error, busy, onRefresh, onJoin, onSpectate }) {
+function RoomDirectory({ rooms, online, loading, error, busy, code, codeOk, recent, onCode, onRefresh, onJoin, onSpectate }) {
   return html`<${Panel} class="room-directory" tone="mint" title=${t('服务器房间')} micro="ALLIANCE DIRECTORY"
-    actions=${html`<${Button} variant="ghost" size="sm" icon="refresh" disabled=${!online} loading=${loading}
-      onClick=${onRefresh}>${t('刷新')}<//>`}>
+    actions=${html`<div class="room-directory__join">
+      <${TextField} size="code" icon="key" value=${code} placeholder=${t('输入同盟密钥 / 粘贴邀请链接')}
+        transform=${normalizeCode} onInput=${(v) => onCode(normalizeCode(v))} onEnter=${() => onJoin()} />
+      <${Button} variant="amber" size="sm" icon="users" loading=${busy === 'join'} disabled=${!codeOk || !online}
+        onClick=${() => onJoin()}>${t('加入同盟')}<//>
+      <${Tooltip} text=${t('以观战者身份进入：不占博士席位，只能观看（每个同盟最多 {MAX_SPECTATORS} 名，模拟进行中也可进入）', { MAX_SPECTATORS })}>
+        <${Button} variant="secondary" size="sm" icon="eye" loading=${busy === 'spectate'} disabled=${!codeOk || !online}
+          onClick=${() => onSpectate()}>${t('观战')}<//>
+      <//>
+      <${Button} variant="ghost" size="sm" icon="refresh" disabled=${!online} loading=${loading}
+        onClick=${onRefresh}>${t('刷新')}<//>
+    </div>`}>
+    <div class="room-directory__recent">
+      ${recent.length ? html`<span class="t-lo">${t('最近的同盟')}</span>
+        ${recent.map((c) => html`<button key=${c} type="button" class="code-chip num" title=${t('填入密钥（不会直接加入）')}
+          onClick=${() => onCode(c)}>${c}</button>`)}`
+        : html`<span class="t-dim">${t('向同伴索取 {ROOM_CODE_LEN} 位同盟密钥，或直接打开邀请链接', { ROOM_CODE_LEN })}</span>`}
+    </div>
     ${!online ? html`<p class="room-directory__empty">${t('连接服务器后即可查看房间')}</p>`
       : error && !rooms ? html`<p class="room-directory__empty">${t('房间列表暂时无法加载，请刷新重试')}</p>`
       : !rooms ? html`<p class="room-directory__empty">${t('正在查找服务器房间…')}</p>`
@@ -258,6 +274,7 @@ function RoomDirectory({ rooms, online, loading, error, busy, onRefresh, onJoin,
             <div class="room-directory__identity">
               <span class="room-directory__code num">${room.code}</span>
               <span class="room-directory__host" title=${room.hostName}>${t('房主')} · ${room.hostName || t('博士')}</span>
+              ${room.recruitWanted ? html`<strong class="room-directory__recruit">${t('期望路人加入')}</strong>` : null}
             </div>
             <div class="room-directory__details">
               <span class="room-directory__difficulty" style=${`--d-color:${DIFFICULTY_COLORS[room.difficulty] || 'var(--mint-400)'}`}>
@@ -408,27 +425,9 @@ export function LobbyScreen() {
         <div class="mode-cards">
           ${MODE_CARDS.map((c) => html`<${ModeCard} key=${c.id} card=${c} selected=${roomMode === c.id} onSelect=${pickMode} />`)}
         </div>
-
-        <div class="section-label"><span class="section-label__idx num">03</span>${t('加入同盟')}<${MicroLabel}>JOIN WITH ALLIANCE KEY<//></div>
-        <${Panel} class="join-panel" tone="amber">
-          <div class="join-row">
-            <${TextField} size="code" icon="key" value=${code} placeholder=${t('输入同盟密钥 / 粘贴邀请链接')}
-              transform=${normalizeCode} onInput=${(v) => setCode(normalizeCode(v))} onEnter=${() => join()} />
-            <${Button} variant="amber" size="lg" icon="users" loading=${busy === 'join'} disabled=${!codeOk || !online} onClick=${() => join()}>${t('加入同盟')}<//>
-            <${Tooltip} text=${t('以观战者身份进入：不占博士席位，只能观看（每个同盟最多 {MAX_SPECTATORS} 名，模拟进行中也可进入）', { MAX_SPECTATORS })}>
-              <${Button} variant="secondary" size="lg" icon="eye" class="join-spectate" loading=${busy === 'spectate'} disabled=${!codeOk || !online} onClick=${spectate}>${t('观战')}<//>
-            <//>
-          </div>
-          <div class="join-foot">
-            ${recent.length ? html`<span class="t-lo">${t('最近的同盟')}</span>
-              ${recent.map((c) => html`<button key=${c} type="button" class="code-chip num" title=${t('填入密钥（不会直接加入）')}
-                onClick=${() => setCode(c)}>${c}</button>`)}`
-              : html`<span class="t-dim">${t('向同伴索取 {ROOM_CODE_LEN} 位同盟密钥，或直接打开邀请链接', { ROOM_CODE_LEN })}</span>`}
-          </div>
-        <//>
-
-        <div class="section-label"><span class="section-label__idx num">04</span>${t('查找同盟')}<${MicroLabel}>SERVER ROOMS<//></div>
+        <div class="section-label"><span class="section-label__idx num">03</span>${t('查找同盟')}<${MicroLabel}>SERVER ROOMS<//></div>
         <${RoomDirectory} rooms=${roomList} online=${online} loading=${listBusy} error=${listError} busy=${busy}
+          code=${code} codeOk=${codeOk} recent=${recent} onCode=${setCode}
           onRefresh=${refreshRooms} onJoin=${join} onSpectate=${spectate} />
       </section>
 

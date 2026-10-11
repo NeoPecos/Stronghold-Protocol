@@ -145,6 +145,10 @@
   flex-direction: column;
   align-items: center;
   margin-top: -.3rem;
+  /* zoom（而不是 transform: scale）来适配矮屏：transform 只缩小画面，布局盒仍是原尺寸，
+     所以内容会溢出并与底部/角落元素重叠；zoom 同时缩小布局盒，才是真正的适配。
+     下面的 media query 里按高度分档调整。Chrome/Edge/现代 Safari（客户端 WebView 与主流手机浏览器）都支持。 */
+  zoom: 1;
 }
 
 .emblem { position: relative; display: flex; align-items: center; gap: .26rem; margin-bottom: .26rem; animation: rise-in 600ms var(--ease-out) backwards; }
@@ -249,7 +253,10 @@
 .title-downloads a { color: var(--mint-500); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: .02rem; }
 .title-downloads a:hover, .title-downloads a:focus-visible { color: #fff; }
 .title-invite b { font-size: calc(.2 * var(--t)); letter-spacing: .2em; color: #ffd08a; }
-.title-conn { display: flex; align-items: center; justify-content: center; gap: .1rem; min-height: .32rem; font-size: calc(.14 * var(--t)); color: var(--text-lo); }
+/* nowrap: on a narrow viewport the status text ("已连接服务器") would otherwise wrap onto a second line and push
+   the 玩法说明 / 设置 / 全屏 buttons out of line. The row keeps its height and lets the title column be the
+   thing that compresses (title.css §landscape-phone blocks do the scaling). */
+.title-conn { display: flex; align-items: center; justify-content: center; gap: .1rem; white-space: nowrap; min-height: .32rem; font-size: calc(.14 * var(--t)); color: var(--text-lo); }
 /* 统计 (the local stats page) beside the language menu in the top-right corner */
 .title-corner__tools { display: flex; align-items: center; justify-content: flex-end; gap: .1rem; margin-bottom: .1rem; }
 .title-corner__tools .title-lang { margin-bottom: 0; }
@@ -260,7 +267,16 @@
 .title-lang.lang-select .ui-dropdown { width: 1.1rem; font-size: calc(.14 * var(--t)); }
 .title-lang.lang-select .ui-dropdown__trigger { height: .3rem; min-width: 0; padding: 0 .1rem; }
 .title-lang.lang-select .ui-dropdown__menu { min-width: 1.65rem; right: 0; left: auto; }
-@media (max-height: 480px) { .title-main { transform: scale(.9); } }
+/* Landscape phones commonly expose 480–540 CSS px after system/cutout insets. Compress before the title column
+   reaches either edge; 480px was too late on several Android WebViews. */
+@media (max-height: 560px) {
+  .title-main { zoom: .82; }
+  .title-corner--tl, .title-corner--tr { top: .22rem; }
+  .title-foot { bottom: .16rem; }
+}
+@media (max-height: 400px) {
+  .title-main { zoom: .72; }
+}
 .title-lang button { min-width: .74rem; height: max(.3rem, 1.4em); font-size: calc(.14 * var(--t)); cursor: pointer; }
 .lang-select select { height: max(.38rem, 1.4em); min-width: 1.6rem; padding: 0 .12rem; background: #0a0d0c; border: 0; color: var(--text-hi); font-size: calc(.16 * var(--t)); cursor: pointer; }
 .title-lang.lang-select select { height: max(.3rem, 1.4em); font-size: calc(.14 * var(--t)); }
@@ -288,4 +304,17 @@ html[data-script="alphabetic"] .title-login .btn--xl { letter-spacing: .3em; }
   background: rgba(255, 159, 67, .14);
   font-weight: 700;
   letter-spacing: .02em;
+}
+
+/* 保持登录（勾选框，在密码与登录按钮之间）。用原生 input 而不是自绘方块：
+   键盘、读屏与系统字体大小都自动适配，也就不会像自绘方块那样在窄屏上被挤歪。对齐到密码框的左边缘。 */
+.title-keep {
+  display: flex; align-items: center; gap: .1rem;
+  margin: .04rem 0 0; padding: .06rem 0;
+  font-size: calc(.14 * var(--t)); color: var(--text-lo);
+  cursor: pointer; user-select: none; touch-action: manipulation;
+}
+.title-keep input {
+  flex: none; width: max(18px, .2rem); height: max(18px, .2rem);
+  margin: 0; accent-color: var(--mint-400); cursor: pointer;
 }

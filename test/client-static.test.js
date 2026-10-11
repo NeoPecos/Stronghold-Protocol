@@ -140,6 +140,8 @@ describe('shared modules', () => {
     for (const ph of Object.keys(c.PHASE)) assert.ok(c.PHASE_NAMES[ph], `PHASE_NAMES.${ph}`);
     assert.equal(typeof p.validateC2S, 'function');
     assert.equal(p.validateC2S({ t: 'room.create', mode: 'coop', difficulty: 'HARD' }), null);
+    assert.equal(p.validateC2S({ t: 'room.setInviteOnly', on: true }), null);
+    assert.equal(p.validateC2S({ t: 'room.setRecruitWanted', on: false }), null);
     assert.ok(Array.isArray(p.S2C) && p.S2C.includes('room.state'));
   });
 });
@@ -870,6 +872,8 @@ describe('identity (reconnect-token selection across tabs)', () => {
     assert.equal(id.wasEntered(), false);
     id.setEntered(true);
     assert.equal(id.wasEntered(), true);
+    assert.equal(createIdentity({ local, session: memStorage(), tabId: 'new-tab', channel: null }).wasEntered(), true,
+      'completed login is remembered after a tab closes');
     id.setEntered(false);
     assert.equal(id.wasEntered(), false);
     id.saveName('凯尔希');
@@ -1012,6 +1016,7 @@ describe('screen helpers', () => {
     }
     assert.equal(sanitizeName(null), '');
     assert.equal(isValidName('   '), false);
+    assert.equal(isValidName('123456'), true, '纯数字账号名可注册');
     assert.equal(isValidName('Doctor'), true);
     assert.equal(findUiAsset({ ui: { 'entry/bkg_01': '/assets/ui/entry/bkg_01.png' } }, ['titleBackdrop', 'entry/bkg_01']), '/assets/ui/entry/bkg_01.png');
     assert.equal(findUiAsset({ ui: { titleBackdrop: { url: '/a.png' } } }, ['titleBackdrop']), '/a.png');
@@ -1301,7 +1306,11 @@ describe('multi-device & browser compatibility (static)', () => {
     const src = readFileSync(path.join(PUBLIC, 'css/devices.css'), 'utf8');
     for (const k of ['safe-area-inset-left', 'safe-area-inset-right', 'safe-area-inset-top', 'safe-area-inset-bottom']) assert.ok(src.includes(k), k);
     assert.match(src, /\.gm__hud \{[^}]*var\(--sa-l\)/);
-    assert.match(src, /\.screen:not\(\.gm\) \{[^}]*var\(--sa-t\)/);
+    // Every non-match screen is laid out inside the safe area — EXCEPT the title screen, whose layout is centred:
+    // insetting it by --sa-l shifted the whole login column sideways and left a gap on the left (reported on phones,
+    // fixed 2026-10-11). A centred card keeps far more than the notch's ~44px clear on each side.
+    assert.match(src, /\.screen:not\(\.gm\):not\(\.title-screen\) \{[^}]*var\(--sa-t\)/);
+    assert.doesNotMatch(src, /\.screen:not\(\.gm\) \{/, 'the title screen must stay out of this rule');
     assert.match(src, /overscroll-behavior: none/);
     assert.match(src, /touch-action: none/);
     assert.match(src, /width: max\(100%, var\(--tap-min\)\)/);

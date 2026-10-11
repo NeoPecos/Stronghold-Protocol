@@ -18,9 +18,9 @@ test('late model continues the current deployment at elapsed game time', async (
   const h = rig(2); h.v.onDeploy(); h.advance(0.1); await h.ready();
   assert.equal(h.v.actor.mode, 'deploy'); assert.ok(Math.abs(h.v.actor.deployElapsed() - 0.2) < 1e-6); h.v.destroy();
 });
-test('model arriving after Start duration does not replay the old entrance', async () => {
+test('prep placement still shows Start when its model arrives after the brief drop cue', async () => {
   const h = rig(); h.v.onDeploy(); h.advance(2); await h.ready();
-  assert.equal(h.v.actor.mode, 'base'); assert.equal(h.v._pendingDeployElapsed, null); h.v.destroy();
+  assert.equal(h.v.actor.mode, 'deploy'); assert.equal(h.v._pendingDeployElapsed, null); h.v.destroy();
 });
 test('an attack or death supersedes the pending entrance', async () => {
   for (const action of ['attack', 'die']) {

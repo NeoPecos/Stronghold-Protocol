@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>方舟公告卡片配置</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0f1218; --panel:#171c24; --line:#2c3441; --text:#e7ebf1; --muted:#9aa6b5; --accent:#78a6ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:"Microsoft YaHei","Noto Sans SC",system-ui,sans-serif; }
+    .app { display:grid; grid-template-columns:minmax(360px,430px) 1fr; min-height:100vh; }
+    aside { border-right:1px solid var(--line); background:#121720; padding:18px; overflow-y:auto; max-height:100vh; }
+    main { padding:20px; overflow:auto; }
+    h1 { margin:0 0 16px; font-size:20px; }
+    h2 { margin:22px 0 10px; font-size:14px; color:#c8d2df; }
+    label { display:grid; gap:6px; margin:10px 0; color:var(--muted); font-size:12px; }
+    input, select, button { width:100%; border:1px solid var(--line); background:var(--panel); color:var(--text); border-radius:6px; padding:9px 10px; font:inherit; min-height:38px; }
+    input[type="color"] { padding:2px; height:38px; }
+    input[type="range"] { padding:0; }
+    button { cursor:pointer; background:#20304a; border-color:#38527a; color:#edf4ff; font-weight:700; }
+    button.secondary { background:#191f29; border-color:var(--line); color:var(--muted); }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; position:sticky; bottom:0; padding-top:12px; background:#121720; }
+    .crop-editor { position:relative; min-height:180px; border:1px solid var(--line); border-radius:6px; background:#0b0e13; overflow:hidden; margin:10px 0; }
+    .crop-editor img { width:100%; display:block; min-height:180px; object-fit:contain; }
+    .crop-box { position:absolute; border:2px solid var(--accent); background:rgba(120,166,255,.13); cursor:move; min-width:24px; min-height:24px; }
+    .crop-box::after { content:""; position:absolute; right:-5px; bottom:-5px; width:12px; height:12px; border-radius:3px; background:var(--accent); cursor:nwse-resize; }
+    .preview-shell { display:grid; gap:14px; align-content:start; }
+    .preview-toolbar { display:flex; justify-content:space-between; color:var(--muted); font-size:13px; }
+    .preview-stage { min-height:calc(100vh - 88px); display:grid; place-items:start center; border:1px solid var(--line); background:#0b0e13; padding:18px; overflow:auto; }
+    .preview-stage img { max-width:min(100%,920px); height:auto; display:block; box-shadow:0 18px 50px rgba(0,0,0,.35); }
+    .status { min-height:18px; color:var(--accent); }
+    @media (max-width:900px) { .app{grid-template-columns:1fr;} aside{max-height:none;border-right:0;border-bottom:1px solid var(--line);} .preview-stage{min-height:420px;} }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <h1>方舟公告卡片配置</h1>
+      <label>分页策略
+        <select data-key="page_mode">
+          <option value="vertical_pages">竖版分页</option>
+          <option value="long_image">加长单图</option>
+          <option value="horizontal_pages">横版分页</option>
+          <option value="fit_text">缩小字体适配单图</option>
+        </select>
+      </label>
+
+      <h2>标题文字</h2>
+      <label>主标题 <input data-key="header_title"></label>
+      <label>副标题 <input data-key="header_subtitle"></label>
+      <label>续页标题 <input data-key="continue_title"></label>
+
+      <h2>背景图片</h2>
+      <label>上传背景图 <input id="bgFile" type="file" accept="image/png,image/jpeg,image/webp"></label>
+      <label>背景透明度 <input data-key="background_opacity" type="range" min="0" max="1" step="0.05"></label>
+      <label>正文面板遮罩 <input data-key="panel_opacity" type="range" min="0" max="1" step="0.05"></label>
+      <div class="crop-editor" id="cropEditor">
+        <img id="bgPreview" alt="背景裁切预览">
+        <div class="crop-box" id="cropBox"></div>
+      </div>
+      <div class="grid2">
+        <label>裁切 X <input data-key="bg_crop_x" type="number" min="0" max="1" step="0.01"></label>
+        <label>裁切 Y <input data-key="bg_crop_y" type="number" min="0" max="1" step="0.01"></label>
+        <label>裁切宽度 <input data-key="bg_crop_w" type="number" min="0.02" max="1" step="0.01"></label>
+        <label>裁切高度 <input data-key="bg_crop_h" type="number" min="0.02" max="1" step="0.01"></label>
+      </div>
+
+      <h2>图片大小</h2>
+      <div class="grid2">
+        <label>竖版宽度 <input data-key="width" type="number" min="640" max="2400"></label>
+        <label>竖版高度 <input data-key="height" type="number" min="640" max="6000"></label>
+        <label>横版宽度 <input data-key="horizontal_width" type="number" min="900" max="3000"></label>
+        <label>横版高度 <input data-key="horizontal_height" type="number" min="640" max="2000"></label>
+        <label>长图最大高度 <input data-key="long_max_height" type="number" min="1200" max="12000"></label>
+        <label>左右边距 <input data-key="margin_x" type="number" min="32" max="220"></label>
+      </div>
+
+      <h2>字体</h2>
+      <label>字体类型
+        <select data-key="font_family">
+          <option value="sans">思源黑体 / Noto Sans</option>
+          <option value="sans_bold">粗黑体</option>
+          <option value="serif">宋体 / 衬线</option>
+          <option value="source_han">思源宋体</option>
+          <option value="douyin">抖音体</option>
+        </select>
+      </label>
+      <label>正文行间距 <input data-key="line_spacing" type="range" min="0.8" max="2.8" step="0.05"></label>
+      <div class="grid2">
+        <label>顶部主标题 <input data-key="font_header_title" type="number" min="16" max="96"></label>
+        <label>顶部副标题 <input data-key="font_header_subtitle" type="number" min="12" max="72"></label>
+        <label>分类标签 <input data-key="font_label" type="number" min="12" max="72"></label>
+        <label>时间作者 <input data-key="font_meta" type="number" min="12" max="72"></label>
+        <label>公告标题 <input data-key="font_title" type="number" min="18" max="100"></label>
+        <label>正文 <input data-key="font_body" type="number" min="14" max="80"></label>
+        <label>正文最小 <input data-key="font_body_min" type="number" min="10" max="60"></label>
+        <label>链接页码 <input data-key="font_url" type="number" min="10" max="48"></label>
+      </div>
+
+      <h2>颜色</h2>
+      <div class="grid2">
+        <label>背景 <input data-key="bg_color" type="color"></label>
+        <label>顶栏 <input data-key="header_bg_color" type="color"></label>
+        <label>面板 <input data-key="panel_color" type="color"></label>
+        <label>边框 <input data-key="border_color" type="color"></label>
+        <label>强调条 <input data-key="accent_color" type="color"></label>
+        <label>顶栏文字 <input data-key="header_text_color" type="color"></label>
+        <label>公告标题 <input data-key="title_color" type="color"></label>
+        <label>正文 <input data-key="body_color" type="color"></label>
+        <label>元信息 <input data-key="meta_color" type="color"></label>
+        <label>弱化文字 <input data-key="muted_color" type="color"></label>
+        <label>链接 <input data-key="url_color" type="color"></label>
+        <label>副标题 <input data-key="subtitle_color" type="color"></label>
+      </div>
+
+      <div class="actions">
+        <button id="saveBtn">保存配置</button>
+        <button id="refreshBtn" class="secondary">刷新预览</button>
+      </div>
+    </aside>
+    <main>
+      <div class="preview-shell">
+        <div class="preview-toolbar">
+          <span>实时预览</span>
+          <span class="status" id="status"></span>
+        </div>
+        <div class="preview-stage">
+          <img id="preview" alt="公告卡片预览">
+        </div>
+      </div>
+    </main>
+  </div>
+  <script>
+    const fields = [...document.querySelectorAll("[data-key]")];
+    const statusEl = document.querySelector("#status");
+    const preview = document.querySelector("#preview");
+    const bgPreview = document.querySelector("#bgPreview");
+    const cropBox = document.querySelector("#cropBox");
+    const cropEditor = document.querySelector("#cropEditor");
+    let saveTimer = null;
+    function setStatus(text){ statusEl.textContent=text; if(text) setTimeout(()=>{ if(statusEl.textContent===text) statusEl.textContent=""; },2500); }
+    function field(key){ return document.querySelector(`[data-key="${key}"]`); }
+    function numberValue(key,fallback){ const value=Number(field(key)?.value); return Number.isFinite(value)?value:fallback; }
+    function collectStyle(){ const style={}; for(const f of fields){ const key=f.dataset.key; style[key]=(f.type==="number"||f.type==="range")?Number(f.value):f.value; } return style; }
+    function applyStyle(style){ for(const f of fields){ const key=f.dataset.key; if(style[key]!==undefined) f.value=style[key]; } updateCropBox(); }
+    async function loadConfig(){ const res=await fetch("/api/config"); const data=await res.json(); applyStyle(data.style); if(data.style.background_image) bgPreview.src="/api/background?t="+Date.now(); refreshPreview(); }
+    async function saveConfig(silent=false){ const res=await fetch("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:collectStyle()})}); const data=await res.json(); if(data.style) applyStyle(data.style); if(!silent) setStatus("已保存"); refreshPreview(); }
+    function refreshPreview(){ preview.src="/api/preview?t="+Date.now(); }
+    function queueSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(()=>saveConfig(true),450); }
+    function setCropValues(x,y,w,h){ w=Math.max(.02,Math.min(1,w)); h=Math.max(.02,Math.min(1,h)); x=Math.max(0,Math.min(1-w,x)); y=Math.max(0,Math.min(1-h,y)); field("bg_crop_x").value=x.toFixed(3); field("bg_crop_y").value=y.toFixed(3); field("bg_crop_w").value=w.toFixed(3); field("bg_crop_h").value=h.toFixed(3); updateCropBox(); queueSave(); }
+    function updateCropBox(){ const x=numberValue("bg_crop_x",0), y=numberValue("bg_crop_y",0), w=numberValue("bg_crop_w",1), h=numberValue("bg_crop_h",1); cropBox.style.left=`${x*100}%`; cropBox.style.top=`${y*100}%`; cropBox.style.width=`${w*100}%`; cropBox.style.height=`${h*100}%`; }
+    for(const f of fields){ f.addEventListener("input",()=>{ if(f.dataset.key?.startsWith("bg_crop_")) updateCropBox(); queueSave(); }); f.addEventListener("change",()=>{ if(f.dataset.key?.startsWith("bg_crop_")) updateCropBox(); queueSave(); }); }
+    let dragState=null;
+    cropBox.addEventListener("pointerdown",(event)=>{ event.preventDefault(); const rect=cropEditor.getBoundingClientRect(); const isResize=event.offsetX>cropBox.clientWidth-18&&event.offsetY>cropBox.clientHeight-18; dragState={mode:isResize?"resize":"move",startX:event.clientX,startY:event.clientY,rect,x:numberValue("bg_crop_x",0),y:numberValue("bg_crop_y",0),w:numberValue("bg_crop_w",1),h:numberValue("bg_crop_h",1)}; cropBox.setPointerCapture(event.pointerId); });
+    cropBox.addEventListener("pointermove",(event)=>{ if(!dragState) return; const dx=(event.clientX-dragState.startX)/dragState.rect.width; const dy=(event.clientY-dragState.startY)/dragState.rect.height; if(dragState.mode==="resize") setCropValues(dragState.x,dragState.y,dragState.w+dx,dragState.h+dy); else setCropValues(dragState.x+dx,dragState.y+dy,dragState.w,dragState.h); });
+    cropBox.addEventListener("pointerup",()=>{ dragState=null; });
+    document.querySelector("#saveBtn").addEventListener("click",()=>saveConfig(false));
+    document.querySelector("#refreshBtn").addEventListener("click",refreshPreview);
+    document.querySelector("#bgFile").addEventListener("change",async(event)=>{ const file=event.target.files[0]; if(!file) return; const reader=new FileReader(); reader.onload=async()=>{ const res=await fetch("/api/upload-background",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({data_url:reader.result,filename:file.name})}); const data=await res.json(); if(data.style) applyStyle(data.style); bgPreview.src="/api/background?t="+Date.now(); setStatus(data.ok?"背景已上传":(data.error||"上传失败")); refreshPreview(); }; reader.readAsDataURL(file); });
+    loadConfig().catch(err=>setStatus(String(err)));
+  </script>
+</body>
+</html>
