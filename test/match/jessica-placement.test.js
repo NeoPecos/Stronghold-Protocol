@@ -19,6 +19,7 @@ function prep(t, { row = 10, col = 4, skillIndex = 0, uniEquipId = null } = {}) 
   const h = makeMatch({ mode: 'solo', seed: 11, seats: [{ seat: 0, playerId: 'p_0', name: 'P0', isBot: false,
     connected: true, diy: { [SLOT]: { charId: JESCA, skillIndex, uniEquipId } } }] }).start();
   t.after(() => h.m.dispose());
+  h.setStage('act2autochess_m04');
   h.toPrep(1);
   assert.equal(h.m.stageId, 'act2autochess_m04');
   const ps = h.ps('p_0');
