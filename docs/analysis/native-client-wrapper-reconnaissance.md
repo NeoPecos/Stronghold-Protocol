@@ -150,13 +150,23 @@ Measured against live production with `.local/gate-probe.mjs` (read-only HEAD/GE
 |---|---|---|
 | live `/data/assets.json` `hash` | `18085e58f8df` | `18085e58f8df` |
 | gate 3 (release trust) | **FAIL** → per-file ETag validation | **FAIL** → per-file ETag validation |
-| per-file ETag sample (12 paths) | 12/12 `304` (unchanged), **102 ms per HEAD** | 12/12 `304`, 45 ms per HEAD |
+| per-file ETag sample (12 paths, canonical `/assets/…`) | 12/12 `304` (unchanged), **102 ms per HEAD** | 12/12 `304`, 45 ms per HEAD |
+| per-file ETag probe on `/media/…` (the route the client really uses for audio) | **0/12 `304`** — corrected 2026-10-12, see below | **0/12 `304`** |
 
 So today's shipped 1.2.8 bundle cannot take the whole-release fast path on either origin: it revalidates file
 by file for the life of a session. At the sampled 102 ms per request to the official origin, and with the
 client's own concurrency cap of 8, 13 642 paths would cost roughly `13642/8×0.102 ≈ 174 s ≈ 3 min` of
 wall-clock revalidation. Nothing is *wrong* with the served bytes (every sample still matches), but the
 "local assets" win is being paid for with per-file round trips.
+
+**Correction (2026-10-12, TASK-022).** The 12/12 `304` above only holds for **canonical `/assets/…` paths**,
+which nginx serves straight from disk. Audio is requested through the extension-less `/media/…` alias
+(`server/http/media.js`), which is **proxied to Node**, and Node emitted `<size>-<mtime-ms>` while nginx (and
+therefore the bundle index) emits `<mtime-seconds>-<size>`. Every `/media/…` validation therefore returned
+**200 with the full body**, which is the same outcome as having no local payload at all for the 11.73 GB/day
+of audio egress. Re-measured against the index extracted from the shipped APK: 6/6 `/media/` probes → 200,
+6/6 canonical `/assets/audio/…` probes → 304. Fixed in `server/http/files.js` (TASK-022) — the repository
+twin at `scripts/verify-client-rules.mjs` should grow the same assertion.
 
 ### 4.2 Both offline gate-verification scripts are stale — one cannot even finish
 

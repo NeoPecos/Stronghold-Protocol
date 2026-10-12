@@ -196,7 +196,12 @@ export async function serveFile(req, res, absPath, stat, mountName, segments, qu
   const compressible = COMPRESSIBLE.has(ext);
   const rangeHeader = req.headers.range;
   const useGzip = compressible && stat.size >= GZIP_MIN_BYTES && !rangeHeader && acceptsGzip(req.headers['accept-encoding']);
-  const baseTag = `${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}`;
+  // `<mtime-seconds>-<size>` in hex, seconds not milliseconds: this is nginx's own static-file ETag
+  // (`ngx_http_set_etag`), and the two must agree because they can answer for the same bytes. nginx serves
+  // `/assets/…` straight from disk while `/media/…` is proxied here, and the native client stores the tag it
+  // was built with — a different shape means its `If-None-Match` never matches and it re-downloads the whole
+  // file (`native-client-wrapper-reconnaissance.md` §4.1; measured 200-only audio egress 2026-10-12).
+  const baseTag = `${Math.floor(stat.mtimeMs / 1000).toString(16)}-${stat.size.toString(16)}`;
   const etag = `"${baseTag}${useGzip ? '-gz' : ''}"`;
   const lastModified = stat.mtime.toUTCString();
   const isHead = req.method === 'HEAD';

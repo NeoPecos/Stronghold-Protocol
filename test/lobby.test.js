@@ -290,6 +290,13 @@ describe('static http server', () => {
     assert.deepEqual(media.body, mp3, 'same bytes as the direct URL');
     assert.equal(media.headers['cache-control'], direct.headers['cache-control'], 'same 1-day policy as /assets/…');
     assert.equal(media.headers.etag, direct.headers.etag, 'ETag is the file validator, not the URL');
+    // The validator must be nginx's own shape `<mtime-seconds>-<size>`, not `<size>-<mtime-ms>`: nginx serves
+    // `/assets/…` from disk while `/media/…` is proxied to this server, and a client that stores one shape and
+    // revalidates against the other never gets a 304 (see docs/analysis/native-client-wrapper-reconnaissance.md).
+    assert.match(media.headers.etag, /^"[0-9a-f]+-[0-9a-f]+"$/);
+    assert.ok(!media.headers.etag.startsWith('W/'), 'nginx emits strong tags; a weak one would fail If-Range');
+    const quotedSize = Number.parseInt(media.headers.etag.slice(media.headers.etag.indexOf('-') + 1, -1), 16);
+    assert.equal(quotedSize, mp3.length, 'second half of the tag is the byte size, first half the mtime');
 
     const range = await httpReq(srv.port, '/media/bgm', { headers: { range: 'bytes=0-9' } });
     assert.equal(range.status, 206);
