@@ -1,6 +1,6 @@
 # TASK-017 — Freeze the current workspace into reviewable Git checkpoints
 
-Status: `planned`
+Status: `review_ready` (both checkpoints committed locally on 2026-10-12; Codex review pending; not pushed)
 
 Lead/reviewer: Codex
 
@@ -137,10 +137,57 @@ by TASK-009 plus the operations log. It is already preserved in commit `80430f6b
 
 ## Current checkpoint
 
+### 2026-10-12 23:05 (Asia/Singapore) — Checkpoint A and B executed — `review_ready`
+
+Starting inventory re-verified before any write: HEAD `a0503d46a8d54e7d435e667493539ac017e1a6e9`, branch
+`integrate-upstream-0.2.3`, `origin/integrate-upstream-0.2.3` = `7bc9a3c7f2391538fdaf6c0a3dc3f2f706c02845`, seven
+commits ahead, and the dirty set was exactly the two checkpoint path lists (no third-party path present).
+
+- **Checkpoint A** — `cd07107a19c501f766ee243a89681b2a55f5b94d` "TASK-014: replace top HUD frame and rest capsule"
+  (23:05:02 +08:00; 4 files, 95 insertions, 5 deletions): `public/css/screens/game.css`, `public/js/ui/hud.js`,
+  `test/ui/top-hud-art.test.js`, `docs/tasks/TASK-014-top-hud-official-art.md`.
+- **Checkpoint B** — `376ef0136a18e374732a41d6bfe2bd7ce8be7ef1` "docs: checkpoint roadmap for v0.2.5 integration"
+  (23:05:48 +08:00; 15 files, 901 insertions, 24 deletions): the fifteen governance/roadmap paths listed above.
+- Ignored art verified before staging and again after both commits, unchanged and still ignored by `.gitignore:16`:
+  `frame_mid_normal.png` =
+  `4FA2E8DCD1A5F3B8F8EAB748524A9FF41823EDBC4DDD11AAEB35D64E7EB05704`, `bg_rest.png` =
+  `4B0EDA5EBF8301E45C1ED9489B32EA59056817F16534E4C5689E8640449464BA`. `.local/task-014-top-hud-art/original/`
+  is untouched.
+- Tests on the frozen tree: `node --test test/ui/top-hud-art.test.js test/ui/gameLogic.test.js
+  test/ui/playtest6-bosshud.test.js` = 60/60 pass, 0 fail; `node --test test/package.test.js
+  test/docs-consistency.test.js test/docs-paths.test.js` = 42/42 pass, 0 fail; `npx eslint public/js/ui/hud.js
+  test/ui/top-hud-art.test.js` = 0 errors with the single pre-existing `MicroLabel` warning at
+  `public/js/ui/hud.js:28:60` (line 28 is outside every TASK-014 hunk).
+- `git diff --check` clean and the complete `git diff --cached` reviewed before each commit; only the listed paths were
+  staged, and `git status --short` after Checkpoint B is empty.
+- Safety compliance: no `git add -A`/`git add .`, no reset, clean, stash, rebase, merge, cherry-pick, checkout or
+  branch switch, no amend, no push. `origin` and `upstream` refs are unchanged.
+- New task documents were read and compared with `PROJECT-STATUS.md` before staging (TASK-010, TASK-011, TASK-012,
+  TASK-013, TASK-015, TASK-016, TASK-018, `docs/PAPER-0.2.4-SELECTIVE-PORT-PLAN.md`): no conflict found. The
+  paper plan's delivery order, TASK-015's `v0.2.5` / `cf7a9400` target with 221 files, TASK-016's dependency on
+  TASK-014 and TASK-015 acceptance, TASK-018's exclusion list and TASK-013's deferred/credential-remediation status
+  all match the current-state document.
+- `80430f6b` touched only `docs/analysis/native-client-wrapper-reconnaissance.md`, `docs/ops/2026-10.md` and
+  `docs/tasks/TASK-009-native-local-assets.md` — no file under `F:\DSH-workspace\stronghold-app`; the reconnaissance
+  document was not staged again and TASK-009 was not begun.
+- Ahead-of-origin chain: the seven preserved commits plus Checkpoints A and B = **nine** commits
+  (`git rev-list --count origin/integrate-upstream-0.2.3..HEAD` = 9).
+- Exact next action: Codex reviews the commit boundaries, the complete diffs and the ignored-art hashes. Push to
+  `origin` and any TASK-018 work wait for that acceptance; TASK-015 and TASK-016 stay blocked.
+
+### Note on the tenth commit (why the branch is ten ahead)
+
+Step 7 of this plan requires this checkpoint record and its operations-log entry, which change tracked files after
+Checkpoint B. They are therefore carried by one final documentation-only commit on top of `376ef013` (message
+`docs: record TASK-017 checkpoint results`), which is why the reviewed chain is ten commits ahead of origin instead of
+nine. That commit contains only this task file and `docs/ops/2026-10.md`, references no new hash of its own, and
+changes no code, asset, package or production state.
+
+### Earlier plan revision (preserved)
+
 - Codex created this execution plan after inventorying the shared worktree on 2026-10-12. Concurrent DeepSeek work
   advanced HEAD from `591d3d45` to `a0503d46`; the plan was rebased conceptually (without rewriting Git history) onto
   that seven-commit local chain. The TASK-009 reconnaissance is now already committed, not part of Checkpoint B.
-- Exact next action: DeepSeek verifies the starting inventory and performs Checkpoint A only.
 
 ## Review notes
 
