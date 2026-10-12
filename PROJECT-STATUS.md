@@ -42,6 +42,15 @@ handoff files. Update this page whenever production state, the active task, a re
   only `latest.json`, `latest.sig`, `*.patch.gz` and `windows-*.zip` are served (HTTP 200, `Cache-Control: no-store`);
   `/client/`, `/client/index.html` and every full installer return `410 Client downloads moved to the QQ group.` — so
   the in-client update path is live while the installers are distributed through the QQ group.
+- The 0.2.5 battlefield scenes are deployed for browser clients (2026-10-13 04:08 +08, TASK-026):
+  `public/assets/local/scene/**` (92 files, 61.44 MiB — eleven stages `act1autochess_m01`…`m07` and `act2autochess_m01`…`m04`
+  plus the shared `tex/`, each stage being `scene.json` + `scene.bin` + `lm*.png/webp`) and `data/local-assets.json`
+  (`82c322ca…`, 156 906 B, 1 532 entries with 57 `local/scene` refs, byte-identical to the served file). They had never
+  landed because extracted local art is git-ignored and the official bundles of the finished season were pruned from the
+  local client, so they were re-fetched from `ak.hycdn.cn` (version `26-04-13-12-31-42_e9b560`) and exported with the local
+  official client as the dependency root. Nothing existing was overwritten (the only new files are the 92 under
+  `local/scene`); the previous manifest is backed up at `/root/sp2-backups/local-assets-20261013-040810.json`. Native
+  clients still need this pack inside their package/bundle before the scenes render offline.
 - Browser-only gate: TASK-020 reports `SP_CLIENT_ONLY=1` is live; browsers receive the bandwidth notice while native
   clients still receive the game. Recheck directly before release work.
 - Media caching: TASK-021's nginx immutable-cache headers are live. TASK-022's Node/nginx ETag alignment is committed
@@ -125,11 +134,13 @@ handoff files. Update this page whenever production state, the active task, a re
 
 ## Immediate next action
 
-The integration batch is pushed and its server half is **live** (`0.2.5`, build `c13af814d77f`, server-only; backup
-`/root/sp2-backups/sp2-pre-025-20261013-015200.tgz`). Next: the maintainer's gameplay/device acceptance, then client
-packaging (Windows/Android `1.2.9`) with the update manifest and Codex review of TASK-014/TASK-015/TASK-016. Fix the two
-known CI failures on `9497533d` (CHANGELOG newest entry `0.2.4` vs `0.2.5`; `public/css/room-chat.css` font-size
-assertion) together with that packaging work. Native wrapper work remains separate.
+The server half of the 0.2.5 integration is **live** (`0.2.5`, build `c13af814d77f`, server-only; backup
+`/root/sp2-backups/sp2-pre-025-20261013-015200.tgz`), the top-HUD fix and the 0.2.5 battlefield scenes are deployed for
+browser clients (TASK-024 / TASK-026), and the `1.2.8 → 1.2.9` incremental client update is published and signed
+(TASK-025). Next: the maintainer verifies the in-client update on installed Windows and Android clients and the new maps
+in a browser; the scene pack (61.44 MiB) still has to ride a package or incremental patch before native clients render
+them offline; then Codex review of TASK-014/TASK-015/TASK-016/TASK-024/TASK-025/TASK-026, keeping
+`PROJECT-STATUS.md` and `docs/tasks/README.md` for the reviewer.
 
 ## Stop conditions
 
