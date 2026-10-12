@@ -43,6 +43,11 @@ handoff files. Update this page whenever production state, the active task, a re
 - The only review finding was in TASK-006's rollback command (bare filenames instead of the backup's `public/...`
   paths). Corrected in `bd68fe17`; documentation only.
 - TASK-003 was **deployed before review**, at the maintainer's explicit direction on 2026-10-12.
+- New independent tasks, deliberately kept separate from the wheel work:
+  `docs/tasks/TASK-007-native-fullscreen-button.md` (`planned`) — hide the fullscreen button in the Windows/Android
+  native clients through one shared native-client check, keeping the browser button; and
+  `docs/tasks/TASK-008-mobile-blur-diagnosis.md` (`planned`) — **diagnosis only** of the phone adaptation and blur
+  complaints, producing a root-cause report before any CSS, asset or image-quality change.
 - Shelved at the maintainer's direction: the mobile result-exit / native-wrapper item. It still needs an APK and
   on-device safe-area measurements to reproduce.
 - Next feature queue: selectable account avatar; room text chat and

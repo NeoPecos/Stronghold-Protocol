@@ -8,6 +8,8 @@
 | [TASK-004](TASK-004-player-avatar.md) | planned | unassigned | Account-bound selectable player avatar |
 | [TASK-005](TASK-005-room-communications.md) | planned | unassigned | Room text chat plus announcement/admin tools; no voice |
 | [TASK-006](TASK-006-deploy-wheel.md) | in_progress | DeepSeek (maintainer-authorised) | Push TASK-003 and deploy the wheel to production; Codex review fix pending re-review |
+| [TASK-007](TASK-007-native-fullscreen-button.md) | planned | unassigned | Hide the fullscreen button inside the native clients; one shared native-client check |
+| [TASK-008](TASK-008-mobile-blur-diagnosis.md) | planned | unassigned | Mobile adaptation and blur: diagnosis before any CSS or asset change |
 
 Only one task should be the repository-wide active implementation task unless tasks use isolated worktrees and do not
 touch overlapping files.
