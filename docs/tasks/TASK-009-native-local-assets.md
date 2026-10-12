@@ -1,12 +1,14 @@
 # TASK-009 — Deterministic native local assets and mobile rendering fallback
 
-Status: `in_progress` (offline batch 1 returned by Codex review)
+Status: `review_ready` (offline batch 1 + correction batch on `task-009-native-local-assets`)
 
 Lead: Codex
 
-Implementer: DeepSeek (offline batch 1: build/rule harness repair + freeze recheck)
+Implementer: DeepSeek (offline batch 1: build/rule harness repair + freeze recheck; correction batch: review findings
+1–4 — full ETag proof, no source-commit constant, committed validator tests, branch boundary)
 
-Starting commit: `ac058cd5` (main repository HEAD when this batch began) — wrapper side `7ec87b40` → `a0f0da4`
+Starting commit: `ac058cd5` (main repository HEAD when this batch began) — wrapper side `7ec87b40` (accepted baseline,
+`main`) → `a0f0da4` (batch 1) → `b6b2030` (`task-009-native-local-assets` HEAD)
 
 Depends on: TASK-007 accepted; TASK-008 accepted with a proven cause or explicit non-reproduction report
 
@@ -145,7 +147,8 @@ progress while the package is prepared, and fall back safely on devices without 
   `data/assets.json hash = 18085e58f8df`, ~102 ms per HEAD fallback). Acceptance items still owed: clean/upgrade
   install, offline launch, missing/corrupt asset recovery, on-device evidence (one Windows client, two Android DPR/GPU
   tiers) and scope items 4–7 (startup progress, diagnostics).
-- **Next action**: Codex reviews wrapper commit `a0f0da4` and this checkpoint.
+- **Next action**: Codex reviews wrapper commit `a0f0da4` and this checkpoint. — superseded: the review above requested
+  changes; the correction batch below answers findings 1–4 on branch `task-009-native-local-assets` (`b6b2030`).
 
 ## Review notes
 
@@ -176,6 +179,63 @@ The two-file scope is correct and no runtime/build script changed, but the appro
 
 Keep the batch limited to validators/tests. Do not modify wrapper runtime code, build a package, publish or push.
 Return with the correction commit hash, full test command/output summary and clean status for both branches.
+
+### 2026-10-13 — DeepSeek correction batch: the four findings answered
+
+Wrapper correction commit `b6b2030b70b22f3dd96640c16d114746ae3fed89` ("fix: require full ETag and content proof in the
+asset gate and bind the source baseline"), 7 files, +691/−119, on branch `task-009-native-local-assets`. Batch 1
+(`a0f0da4`) is preserved as the first commit of that branch; nothing was rewritten or discarded.
+
+1. **Missing ETags now fail (finding 1).** `scripts/verify-bundle.cjs` requires full ETag coverage from every trusted
+   origin: the origin fact table must satisfy `etagCount === 文件数`, and the per-file pass must count an `etags` entry
+   for every file of that origin. Reproduced the review's fixture directly from the real armed index
+   (`.local/task009/make-no-etags-fixture.mjs` strips all 27 284 per-file `etag`/`etags` entries and zeroes both
+   `etagCount` values while keeping the valid `verified` proof): the pre-correction gate exited 0 with `ETag 0 条`; the
+   corrected gate exits 1 with `sp.bs.leio.fun ETag 条数 0 ≠ 文件数 13642（必须全量）`,
+   `sp2.bs.leio.fun ETag 条数 0 ≠ 文件数 13642（必须全量）` and the two matching
+   `只有 0/13642 个文件带 ETag（受信来源必须全量）` lines. `scripts/verify-client-rules.mjs` gained the same rule as
+   section 2 checks `❌ <host> ETag 全量（= 文件数）  0/13642`.
+2. **No source-commit constant remains (finding 2).** `MATERIAL_BASELINE` / `WITHDRAWN_BASELINE` are gone. New shared
+   module `scripts/lib/source-provenance.cjs` validates `sourceCommit` as a 40-hex commit and, when the game checkout is
+   reachable (`--game-repo <dir>`, `STRONGHOLD_GAME_REPO`, or the sibling `../stronghold-base-0.2.1`), proves with
+   `git cat-file -e <sha>^{commit}` that the commit exists in it and binds `manifest.localAssets` to the sha256 of the
+   generated `data/local-assets.json`. On the real package this prints
+   `✅ sourceCommit 与素材仓库绑定（F:\DSH-workspace\stronghold-base-0.2.1）  d460f77fe746d5530c0456f067a5bdd3cc586307`;
+   both historical baselines (`d460f77f…`, `2cadc618…`) were confirmed to exist in that repository with
+   `git cat-file -t`. `manifest.assets` cannot be bound to the *current* generated file (the package predates it), so the
+   known gate-3 drift is surfaced as `⚠ manifest.assets dfcd70fdfb18 ≠ 当前 data/assets.json hash 18085e58f8df` without
+   failing the build. Where neither repository nor git is available the module prints a `⚠` note and validation stays
+   structural — the honest limit of an offline check on another checkout.
+3. **Deterministic tests are committed (finding 3).** New `test/validators/` exercises the same validator the build
+   scripts call (`import { verifyBundle, cli, MIN_FILES } from '../../scripts/verify-bundle.cjs'`):
+   `bundle-fixture.mjs` builds synthetic bundles (index + payload, per-file size/sha256, per-origin `etagCount` /
+   `verified` facts), and 21 tests cover armed success, the production `MIN_FILES = 7000` threshold, the `cli()` exit
+   code, the withdrawn/unarmed shape, all-missing ETags (the review's case), missing `manifest.localAssets`, no content
+   proof, lying origin facts, a stale legacy `etag`, out-of-scope paths, payload mismatch, an unregistered host and a
+   missing index, plus `isCommitId`, provenance degradation, a missing commit, the `localAssets` binding, the assets
+   drift note and a real-git end-to-end case. `npm run test:validators` (`node --test "test/validators/*.test.mjs"`) →
+   `ℹ tests 21 / ℹ pass 21 / ℹ fail 0`, exit 0. The real-index repro stays an ignored local fixture; the committed tests
+   encode the same defects synthetically so they run on any checkout.
+4. **Branch boundary restored (finding 4).** `git checkout -b task-009-native-local-assets` was created at `a0f0da4`
+   and `main` was repointed with `git branch -f main 7ec87b40`; no commit was rewritten. `main` is the accepted baseline
+   `7ec87b40`; the task branch carries `a0f0da4` + `b6b2030` and has no remote, tag or push (`remotes=0 tags=0`).
+
+Freeze recheck v2 (`.local/task009/freeze-recheck2.mjs`, same 42-file TASK-018 manifest): `files=43 totalBytes=234230
+expectedFiles=42+1 / identical=40 edited=2/2 drift=0 missing=0 extra=0` → `FREEZE MATCH (仅两个校验脚本改写 + 计划内新增)`.
+Only `scripts/verify-bundle.cjs` (955 → 12 454 B) and `scripts/verify-client-rules.mjs` (9 223 → 11 993 B) were edited;
+the single addition under the walked roots is `scripts/lib/source-provenance.cjs` (6 033 B, sha256 `e877b9ae…`), and
+`test/validators/` holds exactly the three planned files. `git diff --stat 7ec87b40 -- windows android assets test
+scripts/build-*.ps1` is empty — no runtime, asset or build-script drift. `package.json` (567 B, sha256 `8122539e…`) only
+adds the `test:validators` script.
+
+Other evidence at the committed revision: `node scripts/verify-bundle.cjs` exit 0 →
+`✅ 素材包可用（已武装）：13642 文件 / 797.2 MiB / 本地命中证明 13642 条 / ETag 13642 条` with the historical
+`verifiedFiles/verifiedBytes/sourceCommit` values unchanged; `node scripts/verify-client-rules.mjs` exit 0 with
+`✅ 全部通过（素材包 13642 文件 / 规则 3 组）`; `--bundle bundle.bad-030829` still fails both harnesses (3 unarmed
+failures / unarmed fail-fast); worktree clean on both branches. Not changed (outside the batch): `assemble-index.mjs:54,58,59`,
+the gate-3 drift, runtime scope items 4–7 and the on-device acceptance evidence.
+
+- **Next action**: Codex re-reviews `b6b2030` on `task-009-native-local-assets` (with `a0f0da4`) and this checkpoint.
 
 ## Rollback
 
