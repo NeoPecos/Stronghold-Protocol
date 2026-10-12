@@ -34,11 +34,15 @@ setting, and it sends nothing anywhere.
    Replace `192.168.0.100` with the PC's address if it changes; the server prints the right one at boot.
 
 3. On the page, tap in this order:
-   - **① 载入游戏** — the real app renders in the frame
-   - **② 测量** — the numbers appear, including one line per `<canvas>`
-   - **③ 载入对局页（COMBAT）** then **② 测量** again — the in-match screen, which is where the board canvas and
-     the HUD exist. **This is the measurement that matters for blur.**
-4. Tap **④ 复制结果** and send me the JSON (or just screenshot the page — it fits on one screen).
+   - **① 载入游戏** — the real app renders in the frame. (This is the title screen; it has **no canvas**, which is
+     normal — the frame simply shows the title.)
+   - **② 载入对局页（COMBAT）** — the in-match screen, which is where the board canvas and the HUD exist.
+     **This is the measurement that matters for blur.**
+   - **③ 测量** — the numbers appear, including one line per `<canvas>`, plus a "usable height" line.
+   - *(optional)* **④ 旋转测试** — then **rotate the phone to landscape** and keep the page in the foreground. The page
+     samples the game frame at 0 / 700 / 1400 / 2500 / 4000 ms and fills the "旋转 / 恢复重建" table, which answers
+     whether the canvas is rebuilt for the new orientation and whether it settles. It rotates nothing itself.
+4. Tap **⑤ 复制结果** and send me the JSON (or just screenshot the page — it fits on one screen).
 
 ### What to look for yourself
 

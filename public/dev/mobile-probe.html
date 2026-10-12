@@ -44,9 +44,10 @@
 <header>
   <b>手机适配探查 · TASK-008</b>
   <button id="btnLoad" class="primary" type="button">① 载入游戏（iframe）</button>
-  <button id="btnMeasure" class="primary" type="button">② 测量</button>
-  <button id="btnMatch" type="button">③ 载入对局页（COMBAT）</button>
-  <button id="btnCopy" type="button">④ 复制结果</button>
+  <button id="btnMatch" class="primary" type="button">② 载入对局页（COMBAT）</button>
+  <button id="btnMeasure" class="primary" type="button">③ 测量</button>
+  <button id="btnRotate" type="button">④ 旋转测试（转横屏）</button>
+  <button id="btnCopy" type="button">⑤ 复制结果</button>
   <span id="status">就绪</span>
 </header>
 
@@ -55,17 +56,20 @@
 <div id="panel">
   <h3>本机（探针页自身）</h3><div id="self"></div>
   <h3>游戏 iframe（真实应用，同源可读）</h3><div id="inner"></div>
+  <h3>旋转 / 恢复重建（探查项 7：点「④ 旋转测试」后把手机转横屏）</h3><div id="rotate"></div>
   <h3>原始 JSON（复制这段发回）</h3>
-  <textarea id="raw" readonly placeholder="点「测量」后出现在这里"></textarea>
+  <textarea id="raw" readonly placeholder="点「③ 测量」后出现在这里"></textarea>
 </div>
 <div class="hint">
   只做测量：不改 CSS、不改素材、不改任何设置，也不向外发送数据。测完把 textarea 里的 JSON 复制发回即可。
+  顺序：① 载入游戏 → ② 载入对局页 → ③ 测量 →（可选）④ 旋转测试并按提示转横屏 → ⑤ 复制结果。
 </div>
 
 <script type="module">
 const S = (id) => document.getElementById(id);
 const frame = () => S('stage').querySelector('iframe');
 let last = null;
+let rotation = [];
 
 /** env(safe-area-inset-*) resolves against a real element, so read it there. */
 function safeAreas(win) {
@@ -155,19 +159,34 @@ function loadGame(url) {
   f.addEventListener('load', () => { S('status').textContent = '已载入，点「测量」'; });
 }
 
-S('btnLoad').onclick = () => loadGame('/');
-
-S('btnMatch').onclick = () => loadGame('/dev/game-mock.html?phase=COMBAT&render=engine');
-
-S('btnMeasure').onclick = () => {
+function grab() {
   const self = measureWindow(window, 'probe page');
   const f = frame();
   let inner = null;
   try { inner = f && f.contentWindow ? measureWindow(f.contentWindow, 'game iframe') : null; }
   catch (e) { inner = { label: 'game iframe', error: 'same-origin read failed: ' + e.message }; }
-  last = { when: new Date().toISOString(), self, game: inner };
+  return { when: new Date().toISOString(), self, game: inner };
+}
 
-  rows(S('self'), { inner: self.inner, visualViewport: self.visualViewport, dpr: self.dpr, screen: self.screen, orient: self.orient, safeArea: self.safeArea, nativeClient: self.nativeClient });
+/** Short one-line summary of a grab, for the rotation history table. */
+function digest(g) {
+  const inn = g.game || {};
+  const cvs = (inn.canvases || []).map((c) => `${c.id}:back=${c.back} css=${c.css} ratio=${c.ratio}`).join('  |  ');
+  return {
+    when: g.when.slice(11, 19),
+    orient: g.self.orient,
+    'page inner': g.self.inner,
+    dpr: g.self.dpr,
+    'game iframe inner/doc': inn.inner && inn.doc ? [inn.inner, inn.doc] : inn.inner,
+    'usable height (iframe doc h)': inn.doc ? inn.doc[1] : null,
+    'cssVars --sp-vh / --t': inn.cssVars,
+    canvases: cvs || '(none yet)',
+  };
+}
+
+function render(last) {
+  rows(S('self'), { inner: last.self.inner, visualViewport: last.self.visualViewport, dpr: last.self.dpr, screen: last.self.screen, orient: last.self.orient, safeArea: last.self.safeArea, nativeClient: last.self.nativeClient });
+  const inner = last.game;
   if (inner && !inner.error) {
     const c = rows(S('inner'), {
       inner: inner.inner, doc: inner.doc, visualViewport: inner.visualViewport, dpr: inner.dpr,
@@ -182,8 +201,49 @@ S('btnMeasure').onclick = () => {
   } else {
     rows(S('inner'), inner || { note: '还没有 iframe：先点「载入游戏」' });
   }
-  S('raw').value = JSON.stringify(last, null, 1);
+  rows(S('rotate'), digest(last));
+  S('raw').value = JSON.stringify({ latest: last, rotation: rotation }, null, 1);
+}
+
+S('btnLoad').onclick = () => loadGame('/');
+
+S('btnMatch').onclick = () => loadGame('/dev/game-mock.html?phase=COMBAT&render=engine');
+
+S('btnMeasure').onclick = () => {
+  last = grab();
+  render(last);
   S('status').textContent = '测量完成';
+};
+
+/**
+ * Rotation / restore rebuild test (TASK-008 probe area 7). Samples the game frame repeatedly across an orientation
+ * change so we can see whether the canvas backing store is rebuilt for the new size and whether it settles. The page
+ * rotates nothing itself — the user rotates the phone — it only watches.
+ */
+S('btnRotate').onclick = async () => {
+  const snap = (tag) => { const g = grab(); rotation.push({ tag, ...digest(g), full: g }); render(g); };
+  rotation = [];
+  const f = frame();
+  const win = f && f.contentWindow;
+  if (!win) { S('status').textContent = '先点「载入游戏」再测旋转'; return; }
+  S('status').textContent = '请现在把手机转横屏（保持页面在前台）…';
+  snap('t0-before');
+  const onRv = () => rotation.push({ tag: 'event visualViewport.resize', inner: [win.innerWidth, win.innerHeight], dpr: win.devicePixelRatio });
+  const onR = () => rotation.push({ tag: 'event resize', inner: [win.innerWidth, win.innerHeight], dpr: win.devicePixelRatio });
+  const onO = () => rotation.push({ tag: 'event orientationchange', orient: String(win.orientation) });
+  win.addEventListener('resize', onR);
+  win.addEventListener('orientationchange', onO);
+  if (win.visualViewport) win.visualViewport.addEventListener('resize', onRv);
+  let waited = 0;
+  for (const ms of [700, 1400, 2500, 4000]) {
+    await new Promise((r) => setTimeout(r, ms - waited));
+    waited = ms;
+    snap('t' + ms + 'ms');
+  }
+  win.removeEventListener('resize', onR);
+  win.removeEventListener('orientationchange', onO);
+  if (win.visualViewport) win.visualViewport.removeEventListener('resize', onRv);
+  S('status').textContent = '旋转测量完成（' + rotation.length + ' 条）';
 };
 
 S('btnCopy').onclick = async () => {
