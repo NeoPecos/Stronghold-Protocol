@@ -1,6 +1,6 @@
 .spchat[hidden], .spchat [hidden] { display: none !important; }
 .quick-match { margin-bottom: .12rem; }
-.quick-match p { font-size: .11rem; margin: .06rem 0; }
+.quick-match p { font-size: calc(.11 * var(--t)); margin: .06rem 0; }
 .damage-panel__scroll { max-height: 45dvh; overflow: auto; }
 .damage-panel__table { width: 100%; border-collapse: collapse; }
 .damage-panel__table th, .damage-panel__table td { padding: .08rem; text-align: left; border-bottom: 1px solid #67d5b52b; }
