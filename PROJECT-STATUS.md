@@ -11,8 +11,10 @@ handoff files. Update this page whenever production state, the active task, a re
   `sp2.bs.leio.fun` (preview) from one process on `127.0.0.1:3810` — nginx cut production over from the home server
   (WG `10.0.0.2:3800`) on 2026-10-09. The unit's name and its "0.2.1 staging line" description are stale labels.
 - Game/server application: `0.2.5`; `/healthz` reports build `c13af814d77f` (server-only deploy 2026-10-13 01:52 +08 from
-  `9497533d`; client packages and the update manifest remain `1.2.8`).
-- Client update manifest: Windows `1.2.8` (`versionCode` 11), Android `1.2.8` (`versionCode` 11).
+  `9497533d`; the client packages and the update manifest were `1.2.8` at that moment — the `1.2.9` incremental update
+  was published the same night, see the TASK-025 bullet below).
+- Client update manifest: Windows `1.2.9` (`versionCode` 12), Android `1.2.9` (`versionCode` 12) — signed
+  `latest.json` / `latest.sig` published 2026-10-13 03:36 +08 (TASK-025).
 - Deployed web assets now include the TASK-003 circular deployment wheel: `public/js/ui/facing.js` sha256 `93cca594…`,
   `public/js/ui/facingWheel.js` `0d5ebe94…`, `public/css/screens/game-panels.css` `9a31bf33…` (deployed 2026-10-12
   18:13, backup `/opt/sp2/backups/wheel-20261012-181314/`). The manifest was deliberately left unchanged.
@@ -27,6 +29,19 @@ handoff files. Update this page whenever production state, the active task, a re
   amber art), and `public/assets/ui/hudPanel/btn_check_enemy.png` was restored to its original `d459f654…` (2 029 B)
   after the first round wrongly replaced that unused path. Backups `/root/sp2-backups/hud-art-20261013-023224/` and
   `-025529/`. Client packages still embed the old art, so a native client needs a rebuilt package.
+- TASK-025 published the `1.2.8 → 1.2.9` incremental client update (2026-10-13 03:36 +08): the Windows installer
+  `Stronghold-Protocol-Setup-1.2.9.exe` (584 961 214 B, `9510a7b2…`), the Android APK `Stronghold-Protocol-1.2.9.apk`
+  (626 987 980 B, `8b84b683…`, `versionCode` 12, `apksigner` v2+v3 verified), the Windows patch
+  `windows-1.2.8-to-1.2.9.zip` (2 134 089 B, `39644323…`, 6 changed files) and the APK patches
+  `1.2.8-to-1.2.9.patch.gz` (3 861 651 B, `bd65c120…`, base = the published 1.2.8 APK `645de666…`) plus
+  `1.2.8-local-to-1.2.9.patch.gz` (`720e6a6e…`, base = the locally built 1.2.8 APK `da98a468…`). Both clients now
+  carry the rebuilt, re-armed asset bundle (new top-HUD art included). `latest.json` (`0eaef28a…`) is signed
+  (`latest.sig` 512 B, `5e993d3d…`) and the signature verifies against the public keys embedded in **both** clients;
+  every published hash was re-read from the server and matches. The previous manifest pair is backed up at
+  `/root/sp2-backups/client-20261013-033604/`. Reaching `/client/` is deliberately restricted by nginx (2026-10-11):
+  only `latest.json`, `latest.sig`, `*.patch.gz` and `windows-*.zip` are served (HTTP 200, `Cache-Control: no-store`);
+  `/client/`, `/client/index.html` and every full installer return `410 Client downloads moved to the QQ group.` — so
+  the in-client update path is live while the installers are distributed through the QQ group.
 - Browser-only gate: TASK-020 reports `SP_CLIENT_ONLY=1` is live; browsers receive the bandwidth notice while native
   clients still receive the game. Recheck directly before release work.
 - Media caching: TASK-021's nginx immutable-cache headers are live. TASK-022's Node/nginx ETag alignment is committed
@@ -38,9 +53,11 @@ handoff files. Update this page whenever production state, the active task, a re
 - Working repository: `F:\DSH-workspace\stronghold-base-0.2.1`.
 - Current branch: `integrate-upstream-0.2.3` (historical branch name). Official v0.2.5 and the Paper-Yuan feature batch
   are committed in `9497533d` and pushed to the same origin branch. The previous checkpoint chain was included.
-- Game source version: `0.2.5`; no merge into `master` and no client packaging. The public server was deployed to `0.2.5`
-  on 2026-10-13 01:52 +08 (TASK-016, server-only, at the maintainer's explicit direction); client packages and the
-  update manifest remain `1.2.8`.
+- Game source version: `0.2.5`; no merge into `master`. The public server was deployed to `0.2.5`
+  on 2026-10-13 01:52 +08 (TASK-016, server-only, at the maintainer's explicit direction). TASK-025 then built both
+  clients at `1.2.9` in the wrapper repository (`F:\DSH-workspace\stronghold-app`, branch `task-009-native-local-assets`)
+  and published the incremental update to `/opt/sp2/public/client/` — the wrapper change is the six version literals
+  plus the asset-index exclusion, not a game-source change.
 - `npm run ci` is **green** on this line (last verified 2026-10-13 02:19; setup / test / smoke / lint / imports / typecheck
   all pass) after repairing three batch-carried gate failures: `CHANGELOG.md` dates the `0.2.5` entry, the quick-match
   text in `public/css/room-chat.css` sizes through `--t`, and `public/index.html` loads `room-chat.css` before
