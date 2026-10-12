@@ -57,9 +57,11 @@
 .gtop__meter {
   position: relative; display: flex; align-items: center; justify-content: space-between; gap: .18rem;
   width: 6.4rem; height: .48rem; padding: 0 .65rem;
-  /* 100% auto keeps the source 2172×724 aspect (3.00); 100% 455% squeezed it by 2.4% */
+  /* 100% auto keeps the source 2172×724 aspect (3.00); 100% 455% squeezed it by 2.4%。
+     `?v=` 是缓存标识：/assets/** 走 30 天强缓存，服务器换素材后已缓存的客户端不会自动重取；服务器忽略查询串，
+     原生客户端按 URL 路径匹配本地资源包（ServerPolicy.CanonicalPath 用 uri.AbsolutePath），命中行为不变 */
   background: rgba(8, 11, 10, .58)
-    url('/assets/ui/hudPanel/frame_mid_normal.png') center / 100% auto no-repeat;
+    url('/assets/ui/hudPanel/frame_mid_normal.png?v=20261013') center / 100% auto no-repeat;
 }
 .gtop__center--boss .gtop__meter { width: 8.4rem; }
 .gtop__meter::before {
@@ -67,8 +69,7 @@
   background: url('/assets/ui/hudPanel/frame_deco_txt1.png') center / 100% 100% no-repeat; opacity: .7;
 }
 /* the two official 🔍 buttons (ui/hud.js CheckBtn): btn_check_player (mint, left) and btn_check_enemy (amber, right);
-   player sprites are 35×29 (plain) / 61×29 (with chevrons) → .555rem / .967rem × .46rem;
-   the shipped enemy art is a 1047×454 canvas → its wide box keeps that ratio (rule below) */
+   player sprites are 35×29 (plain) / 61×29 (with chevrons) → .555rem / .967rem × .46rem */
 .gtop__iconbtn {
   display: flex; align-items: center; justify-content: center; gap: .04rem; min-width: .46rem; height: .46rem; padding: 0 .1rem;
   background: rgba(78, 216, 175, .06); border: 2px solid var(--mint-600); border-radius: .06rem; color: #fff;
@@ -164,8 +165,9 @@
 .capsule--rest-art {
   position: relative; width: 2.45rem; min-width: 2.45rem; flex: 0 0 2.45rem; padding: 0;
   /* auto 153% keeps the source 2172×724 aspect, so the baked 休息一下 capsule shows its own ratio
-     (1.64rem × .5rem); 123% 153% stretched it 31% horizontally and distorted the baked text */
-  background: transparent url('/assets/ui/hudPanel/bg_rest.png') center / auto 153% no-repeat;
+     (1.64rem × .5rem); 123% 153% stretched it 31% horizontally and distorted the baked text。
+     `?v=` 与中框同理：让已缓存的客户端重取这张素材 */
+  background: transparent url('/assets/ui/hudPanel/bg_rest.png?v=20261013') center / auto 153% no-repeat;
 }
 .capsule--rest-art > * { visibility: hidden; }
 .capsule--combat { --cap: var(--orange-hi); }
@@ -221,9 +223,6 @@
   background: var(--chk-sprite) center / 100% 100% no-repeat;
 }
 .gtop__iconbtn.has-sprite.is-wide, .enemybtn.has-sprite.is-wide { width: .967rem; }
-/* the enemy 🔍 art (ui/hudPanel/btn_check_enemy.png, 1047×454) is wider than the old 61×29 sprite:
-   size that box from its own canvas so the sprite is drawn uniformly (no resampling) */
-.enemybtn.has-sprite.is-wide { width: calc(.46rem * 1047 / 454); }
 .gtop__iconbtn.has-sprite:hover, .enemybtn.has-sprite:hover:not(.is-grey) { background: var(--chk-sprite) center / 100% 100% no-repeat; filter: brightness(1.2); box-shadow: none; }
 .gtop__iconbtn.has-sprite.is-on { background: var(--chk-sprite) center / 100% 100% no-repeat; }
 

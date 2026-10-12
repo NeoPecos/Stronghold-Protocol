@@ -16,13 +16,17 @@ handoff files. Update this page whenever production state, the active task, a re
 - Deployed web assets now include the TASK-003 circular deployment wheel: `public/js/ui/facing.js` sha256 `93cca594…`,
   `public/js/ui/facingWheel.js` `0d5ebe94…`, `public/css/screens/game-panels.css` `9a31bf33…` (deployed 2026-10-12
   18:13, backup `/opt/sp2/backups/wheel-20261012-181314/`). The manifest was deliberately left unchanged.
-- Deployed web assets also include the TASK-024 top-HUD art fix (deployed 2026-10-13 02:32): `public/assets/ui/hudPanel/`
-  now carries the TASK-014 art (`frame_mid_normal.png` `4fa2e8dc…`, `bg_rest.png` `4b0eda5e…` — `public/assets/` is
-  git-ignored, so the hash-compared 0.2.5 deploy never copied them) plus the maintainer-supplied `btn_check_enemy.png`
-  `11326027…`; `public/css/screens/game.css` `9d7e0d61…` and `public/css/devices.css` `d04ea594…` keep every art crop at
-  its source aspect (the previous `100% 455%` / `123% 153%` squeezed the frame by 2.4% and stretched the `休息一下`
-  capsule by 31%). Backup `/root/sp2-backups/hud-art-20261013-023224/`. Client packages still embed the old art, and a
-  browser that cached `/assets/**` needs a hard refresh (`max-age=2592000`).
+- Deployed web assets also include the TASK-024 top-HUD art fix (deployed 2026-10-13 02:32, corrected 02:55):
+  `public/assets/ui/hudPanel/` now carries the TASK-014 art (`frame_mid_normal.png` `4fa2e8dc…` 482 174 B,
+  `bg_rest.png` `4b0eda5e…` 900 142 B — `public/assets/` is git-ignored, so the hash-compared 0.2.5 deploy never copied
+  them). `public/css/screens/game.css` `1c6b0567…` (58 980 B) and `public/css/devices.css` `12d4e299…` (12 506 B) keep
+  every art crop at its source aspect (the previous `100% 455%` / `123% 153%` squeezed the frame by 2.4% and stretched
+  the `休息一下` capsule by 31%) and load both art files through a `?v=20261013` token, so a normal reload picks them up
+  even though `/assets/**` is `max-age=2592000`. The enemy check sprite was **not** replaced: the HUD loads it through
+  `localAsset('ui/battle', …)` → `/assets/local/ui/battle/btn_check_enemy.png` (1 746 B, 61×29, already the supplied
+  amber art), and `public/assets/ui/hudPanel/btn_check_enemy.png` was restored to its original `d459f654…` (2 029 B)
+  after the first round wrongly replaced that unused path. Backups `/root/sp2-backups/hud-art-20261013-023224/` and
+  `-025529/`. Client packages still embed the old art, so a native client needs a rebuilt package.
 - Browser-only gate: TASK-020 reports `SP_CLIENT_ONLY=1` is live; browsers receive the bandwidth notice while native
   clients still receive the game. Recheck directly before release work.
 - Media caching: TASK-021's nginx immutable-cache headers are live. TASK-022's Node/nginx ETag alignment is committed
@@ -71,7 +75,8 @@ handoff files. Update this page whenever production state, the active task, a re
 - TASK-014 is accepted locally: the supplied top-frame and literal `休息一下` art replace the two existing ignored
   manifest assets, with phase-gated markup, CSS transparent-margin positioning and a focused regression test. Its CSS is
   pushed and live, but the art reached the server only through TASK-024 (see Production truth above): it is still absent
-  from every client package, and TASK-024 replaced the enemy check sprite and removed the 2.4% / 31% resampling.
+  from every client package, and TASK-024 removed the 2.4% / 31% crop resampling, added the `?v=` cache token and left the
+  enemy check sprite untouched (`ui/battle/btn_check_enemy` is already the supplied art).
 - TASK-015's official `v0.2.5` code/data integration is committed/pushed in `9497533d`; focused checks pass.
   The maintainer will perform gameplay/device testing before packaging or deployment.
 - TASK-016 is the separate release task. Its **server-only** half ran on 2026-10-13 by direct maintainer order: the
