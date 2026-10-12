@@ -1,12 +1,12 @@
 # TASK-015 — Selectively integrate upstream v0.2.5
 
-Status: `planned`
+Status: `review_ready` (awaiting maintainer gameplay testing)
 
 Lead/reviewer: Codex
 
-Implementer: DeepSeek
+Implementer: Codex
 
-Starting commit: `TBD after TASK-017 is accepted and pushed`
+Starting commit: `a72aca6d` (local branch; no push or merge)
 
 Upstream target: `sganggs/Stronghold-Protocol` tag `v0.2.5`, commit
 `cf7a9400270d5aa79b2e601e405dab782e25f120`
@@ -71,14 +71,19 @@ into this fork without overwriting its account/record systems, room flow, deploy
 
 ## Current checkpoint
 
-- Upstream tag fetched read-only on 2026-10-12. Range `v0.2.4..v0.2.5` contains 221 changed files,
-  10,420 insertions and 2,027 deletions.
-- The release includes substantial deterministic-sim, server, rendering, packaging, data and golden changes; this is
-  not safe as a blind merge.
-- Current worktree contains accepted/local UI and governance work not yet checkpointed. DeepSeek must not begin until
-  Codex records the clean starting commit.
-- Exact next action: complete and review TASK-017, push its checkpoint chain to the existing origin branch, then fill
-  this task's starting hash from that accepted remote baseline.
+- The official `v0.2.4..v0.2.5` game, server, simulation, data, renderer and supported packaging changes have been
+  selectively applied to the local fork. Conflicts in loadout, settings, audio, rendering and shop actions retain the
+  fork's account features, custom HUD, deployment wheel and voice preferences. No Paper-Yuan runtime, room voice,
+  CDN, native wrapper or production files were deployed.
+- Upstream generated `data/choices.json` matches semantically and `data/i18n/en.json` matches the release blob.
+  Local regeneration is unavailable because the required official gamedata cache is absent; the upstream generated
+  snapshots were imported instead. Golden fixtures were recomputed with `npm run golden:update`; golden tests pass.
+- Focused rule/render/package tests (61), focused UI tests (15), i18n tests (11), docs checks (24), typecheck and lint
+  passed. A full CI run was stopped to prioritize implementation; gameplay/device acceptance belongs to the maintainer.
+- Deliberate omissions: the upstream PR-labeler workflow and unrelated documentation changes; extracted official
+  scene art is not bundled, so the existing metal board remains the fallback. Paper-Yuan preload, live statistics,
+  quick matchmaking and selectable account avatars are separate features, not part of official v0.2.5.
+- The maintainer authorized committing and pushing this implementation on 2026-10-13. TASK-009's concurrent documentation commit is preserved; its files were not edited by this integration. Production is unchanged.
 
 ## Review notes
 

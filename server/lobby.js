@@ -99,6 +99,9 @@
 //     a player seat (the seat is kept and given back on resume).
 
 import { randomBytes, randomInt } from 'node:crypto';
+import { createRoomChat } from './roomChat.js';
+import { Matchmaker } from './matchmaking.js';
+import { Announcements } from './announcements.js';
 import { ERR, MAX_SEATS, MAX_SPECTATORS, ROOM_CODE_LEN, modeIdFor } from '../shared/constants.js';
 import { checkLoadout, checkLoadoutOps, cultivationCharIds, checkNotOwned, checkDiyPicks } from '../shared/protocol.js';
 import { encode, isDroppable, isErrCode, sendRaw, sendSession } from './net.js';
@@ -111,6 +114,8 @@ export const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 
 /** Tunables. */
 export const LOBBY_DEFAULTS = Object.freeze({
+  roomChat: true,
+  matchmaking: true,
   lobbyGraceMs: 60_000,   // disconnected humans keep their lobby seat this long
   maxRooms: 1000,
   maxRoomsPerAddr: 16,    // rooms created from one client network that may exist at once (0 = unlimited)
@@ -281,6 +286,9 @@ export class Lobby {
     this.now = now;
     this.seedFn = seedFn || (() => randomInt(2 ** 32));
     this.opts = { ...LOBBY_DEFAULTS, ...options };
+    this.roomChat = createRoomChat(this);
+    this.matchmaker = new Matchmaker(this);
+    this.announcements = new Announcements(this);
     /** @type {Map<string, Room>} */
     this.rooms = new Map();
     /** @type {Map<string, NodeJS.Timeout>} lobby grace timers by playerId */
@@ -354,9 +362,16 @@ export class Lobby {
    * @returns {{ ok: true } | { error: string, detail?: string }}
    */
   onMessage(session, msg) {
+    if (['room.create', 'room.join', 'room.spectate', 'room.leave'].includes(msg.t))
+      this.matchmaker.remove(session.playerId);
     switch (msg.t) {
+      case 'match.queue': return this.matchmaker.enqueue(session, msg);
+      case 'match.cancel': return this.matchmaker.remove(session.playerId);
+      case 'match.status': return this.matchmaker.status(session);
       case 'room.create': return this.create(session, msg);
       case 'room.list': return this.listRooms(session);
+      case 'room.chat': return this.roomChat.send(session, msg);
+      case 'room.chat.history': return this.roomChat.history(session, msg);
       case 'records.mine':
         sendSession(session, { t: 'records.latest', record: this.records?.latestPlayer(session.playerId) || null });
         return OK;
@@ -387,6 +402,7 @@ export class Lobby {
 
   /** The session's socket closed. @param {import('./net.js').Session} session */
   onDisconnect(session) {
+    this.matchmaker.remove(session.playerId);
     this.clearResync(session.playerId); // the next resume resyncs immediately
     const room = this.roomOf(session);
     // a solo run may be resumed within singleReconnectTime (24 h); everything else keeps the registry's window
@@ -402,6 +418,7 @@ export class Lobby {
 
   /** The session's reconnect window elapsed (already removed from the registry). */
   onExpire(session) {
+    this.matchmaker.remove(session.playerId);
     session.notice = null;
     session.pendingResult = null;
     this.clearResync(session.playerId);
@@ -416,6 +433,8 @@ export class Lobby {
    * @param {string} [reason]
    */
   shutdown(reason = 'shutdown') {
+    this.announcements.stop();
+    this.matchmaker.stop();
     for (const room of [...this.rooms.values()]) this.disposeRoom(room, reason);
     for (const t of this.graceTimers.values()) clearTimeout(t);
     this.graceTimers.clear();

@@ -67,7 +67,7 @@ export const NET_DEFAULTS = Object.freeze({
  * (a ≤ 160-id list, the same way), room.diy (≤ 8 自选 picks checked against the data, the same way) and room.spectate
  * (taking a spectator seat in a running match resends its state like a watcher's g.watch — server/lobby.js spectate).
  */
-export const HEAVY_TYPES = new Set(['g.watch', 'room.list', 'room.loadout', 'room.skins', 'room.ownership', 'room.diy', 'room.spectate']);
+export const HEAVY_TYPES = new Set(['g.watch', 'room.list', 'room.loadout', 'room.skins', 'room.ownership', 'room.diy', 'room.spectate', 'room.chat.history', 'match.queue']);
 const ACTIVITY_TYPES = new Set(['room.create', 'room.join', 'room.leave', 'room.ready', 'room.setDifficulty', 'room.addBot', 'room.removeBot', 'room.kick', 'room.start', 'room.spectate', 'room.removeSpectator']);
 
 /** Close codes (see header). */

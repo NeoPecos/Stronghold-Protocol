@@ -86,7 +86,29 @@ export function createRequestHandler({ serveStatic, health, records, accounts = 
     const parts = splitUrl(url);
     if (!parts) { sendError(req, res, 400, '请求地址无效 · Bad request'); return; }
 
-    // 改密码是唯一的写操作，必须先于「只允许 GET/HEAD」的通用判断
+    if (['/api/admin/announcement', '/api/admin/announcement/cancel', '/api/admin/kick'].includes(parts.rawPath)) {
+      res.setHeader('Cache-Control', 'no-store');
+      if (!token) { sendJson(req, res, 404, { error: 'NOT_ENABLED' }); return; }
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        sendJson(req, res, 405, { error: 'METHOD_NOT_ALLOWED' });
+        return;
+      }
+      if (!sameSecret(req.headers['x-sp-admin-token'], token)) {
+        log.warn('[admin] rejected unauthenticated request');
+        sendJson(req, res, 401, { error: 'UNAUTHORIZED' });
+        return;
+      }
+      const body = await readJsonBody(req);
+      if (body === 'too-large') { sendJson(req, res, 413, { error: 'TOO_LARGE' }); return; }
+      if (!body || typeof body !== 'object' || Array.isArray(body)) { sendJson(req, res, 400, { error: 'BAD_REQUEST' }); return; }
+      const operations = health.lobby.announcements;
+      const result = parts.rawPath.endsWith('/cancel') ? operations.cancel(body.id)
+        : parts.rawPath.endsWith('/kick') ? operations.kick(body.playerId) : operations.publish(body);
+      sendJson(req, res, result.error ? 400 : 200, result);
+      return;
+    }
+
     if (parts.rawPath === '/api/account/password') {
       res.setHeader('Cache-Control', 'no-store');
       if (!token || !accounts) { sendJson(req, res, 404, { error: 'NOT_ENABLED' }); return; }

@@ -1,12 +1,12 @@
 # TASK-010 — Bounded resource preload and cache
 
-Status: `planned`
+Status: `review_ready`
 
 Lead: Codex
 
-Implementer: unassigned
+Implementer: Codex
 
-Starting commit: assign when work begins
+Starting commit: `64578102`, on top of the in-progress selective v0.2.5 worktree
 
 Depends on: TASK-009 accepted
 
@@ -42,8 +42,11 @@ coupling this fork to Paper's CDN and hosting layout.
 
 ## Current checkpoint
 
-- Planned only. Paper's resource modules are reference material, but its CDN routing and hosting assumptions are not
-  accepted. TASK-009 must first establish the native route and manifest contract.
+- 2026-10-13: implemented bounded warmup using the existing asset manifest/resolver and HTTP cache, covering selected battlefield assets, up to six current operators and four imminent enemy models.
+- Two concurrent requests, 20/40 files and 8/16 MiB per batch according to memory tier; stream responses without decoding or retaining textures. Room exit cancels pending work; new target lists replace the previous batch. Successful URLs are bounded to 256 per page. Normal HTTP validators and the existing build reload handle resource updates.
+- Uses the native wrapper's existing local interception path. Paper's CDN challenge, service worker and complete-library download were deliberately excluded. The old roadmap dependency is superseded by the maintainer's request to complete a small integrated implementation.
+- Targeted budget/concurrency tests pass. Manual loading/memory behavior remains for the maintainer.
+
 
 ## Review notes
 

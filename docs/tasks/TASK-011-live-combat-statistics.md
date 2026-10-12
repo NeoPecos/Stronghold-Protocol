@@ -1,12 +1,12 @@
 # TASK-011 — Live per-operator combat statistics
 
-Status: `planned`
+Status: `review_ready`
 
 Lead: Codex
 
-Implementer: unassigned
+Implementer: Codex
 
-Starting commit: assign when work begins
+Starting commit: `64578102`, on top of the in-progress selective v0.2.5 worktree
 
 Depends on: performance phases stable; existing record schema reviewed
 
@@ -40,8 +40,10 @@ existing post-match records and group-card output.
 
 ## Current checkpoint
 
-- Planned only. Paper's `damageStats` and `damagePanel` are candidate references; their local client totals are not
-  accepted as authoritative without reconciliation to this fork's server records.
+- 2026-10-13: adapted Paper's `damageStats.js` and `damagePanel.js`, connected the panel to the battle screen's DPS button and existing modal behavior. It follows the displayed field and lists operators with their owner, damage and average DPS.
+- Reads the same `unit.stats.dmg` counters used by `Battle.result().perPlayer[].unitStats`; there is no second accumulator or record upload. Simulation time excludes pause; independent non-operator summons are outside this operator-only table.
+- Existing records/card formats remain unchanged. Read-only counter and zero-time checks pass; actual viewing/closing/spectating is left to the maintainer.
+
 
 ## Review notes
 

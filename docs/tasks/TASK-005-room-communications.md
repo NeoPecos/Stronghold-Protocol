@@ -1,8 +1,8 @@
 # TASK-005 — Room text chat and announcement/admin tools
 
-Status: `planned`
+Status: `review_ready`
 
-Owner: unassigned
+Owner: Codex
 
 ## Goal
 
@@ -37,3 +37,9 @@ architecture.
 ## Rollback
 
 Disable the feature flag and remove chat/announcement handlers; room and account storage remain compatible.
+
+## 2026-10-13 implementation
+
+- Ported Paper-Yuan `e0a28445` room chat / draggable chat UI / optional floating messages into this fork's authenticated room membership. History is limited to 80 messages; text is limited to 200 characters with a one-second send limit.
+- Added administrator-token-protected announcement, delayed announcement, cancellation and room-removal routes. Schedules are memory-only and cleared on server shutdown. No voice modules were imported.
+- Backend isolation, abuse controls, admin authentication and queue behavior are covered by `test/paper-integration.test.js`. Actual mobile interaction is assigned to the maintainer.

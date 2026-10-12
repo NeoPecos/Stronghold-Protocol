@@ -31,6 +31,8 @@
 
 // Polyfills first (older Safari / Firefox ESR): every module evaluated after this one sees them.
 import './ui/compat.js';
+import { mountRoomChat } from './ui/roomChat.js';
+import { installResourceWarmup } from './resources/warmup.js';
 import { render } from '../vendor/preact.module.js';
 import { useErrorBoundary } from '../vendor/hooks.module.js';
 import { html, UiHosts, Button, MicroLabel, closeAllDialogs } from './ui/components.js';
@@ -45,7 +47,7 @@ import { rememberResult } from './screens/records.js';
 import { LobbyScreen, rememberRoom, parseRoomParam } from './screens/lobby.js';
 import { RoomScreen } from './screens/room.js';
 import { GameScreen } from './screens/game.js';
-import { installAudio } from './audio.js';
+import { audio, installAudio } from './audio.js';
 import { settingsStore } from './ui/settings.js';
 import { GuideHost } from './ui/guide.js';
 import { installDeviceSupport } from './ui/device.js';
@@ -241,6 +243,10 @@ function wireNet() {
   });
   net.on('m.public', (msg) => { matchAt = Date.now(); store.patch('match', { public: payload(msg) }); maybeFinishRestore(); });
   net.on('m.private', (msg) => { matchAt = Date.now(); store.patch('match', { private: payload(msg) }); });
+  net.on('m.layer', (msg) => {
+    const s = store.get();
+    if (selectRoute(s) === 'game' && msg.playerId === s.me?.playerId) audio.layerGain(msg.bondId, msg.add);
+  });
   net.on('m.field', (msg) => store.patch('match', { field: payload(msg) }));
   net.on('m.result', (msg) => {
     rememberResult(msg, store.get().room?.code, store.get().me.playerId);
@@ -391,6 +397,10 @@ async function boot() {
   }));
 
   wireNet();
+  installResourceWarmup(store);
+  net.on('server.announcement', message => {
+    if (typeof message.text === 'string') toast(message.text, 'info', { ttl: 15000 });
+  });
   // 设置里把「保持登录」关掉的那一刻就清掉凭证，不必等下次启动
   settingsStore.subscribe((cur, prev) => {
     if (prev?.keepSignedIn && !cur.keepSignedIn) { identity.setEntered(false); identity.saveName(''); }
@@ -424,6 +434,7 @@ async function boot() {
   const langReady = initLang().catch((err) => console.warn('[app] language setup failed', err));
   await Promise.all([waitForFonts(1200), connectWhenReady, langReady]);
   const root = document.getElementById('app');
+  mountRoomChat();
   render(html`<${App} />`, root);
 
   const splash = document.getElementById('boot');

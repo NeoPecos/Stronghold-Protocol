@@ -12,6 +12,7 @@
 // config.json mode texts come localized from data.js.
 
 import { ResumeMatchButton } from '../ui/resumeMatch.js';
+import { QuickMatch } from '../ui/matchmaking.js';
 import { useEffect, useRef, useState } from '../../vendor/hooks.module.js';
 import { DIFFICULTIES, DIFFICULTY_NAMES, DIFFICULTY_COLORS, ROOM_CODE_LEN, MAX_SEATS, MAX_SPECTATORS, modeIdFor, ERR } from '../../../shared/constants.js';
 import { html, Button, Icon, MicroLabel, Panel, TextField, PingPill, AvatarFrame, Tooltip, Spinner, DifficultyIcon, doctorNo } from '../ui/components.js';
@@ -437,6 +438,7 @@ export function LobbyScreen() {
           ${DIFFICULTIES.map((d) => html`<${DifficultyCard} key=${d} roomMode=${roomMode} difficulty=${d} selected=${difficulty === d} onSelect=${pickDifficulty} />`)}
         </div>
         <div class="create-box">
+          ${roomMode === 'coop' ? html`<${QuickMatch} difficulty=${difficulty} online=${online} />` : null}
           <${Tooltip} block=${true} text=${online ? null : t('正在连接服务器…')}>
             <${Button} variant="primary" size="xl" block=${true} iconRight="chevrons" loading=${busy === 'create'} disabled=${!online} onClick=${create}>
               ${roomMode === 'solo' ? t('开始独立模拟') : t('创建同盟')}

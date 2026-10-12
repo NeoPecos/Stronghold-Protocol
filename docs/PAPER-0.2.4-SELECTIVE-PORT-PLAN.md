@@ -2,6 +2,11 @@
 
 Updated: 2026-10-12
 
+2026-10-13 maintainer direction supersedes the sequential gates below: implement the useful Paper differences as
+one batch, perform focused automated checks, and leave actual gameplay/device testing to the maintainer. Room chat,
+announcements/admin room removal, quick matchmaking, live operator DPS and bounded current-match warmup are now
+implemented; source/behavior details are recorded in TASK-005/010/011/012. Voice/CDN/native runtime exclusions remain.
+
 This plan turns the useful Paper-Yuan `0.2.4` differences into small, reviewable tasks. It is not permission to merge
 the Paper-Yuan branch wholesale. The current fork's room directory, accounts/passwords, records/cards, custom combat
 HUD and placement behavior remain authoritative.

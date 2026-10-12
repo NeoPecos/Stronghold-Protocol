@@ -1,12 +1,12 @@
 # TASK-012 — Instrumented quick matchmaking
 
-Status: `planned`
+Status: `review_ready`
 
 Lead: Codex
 
-Implementer: unassigned
+Implementer: Codex
 
-Starting commit: assign when work begins
+Starting commit: `64578102`, on top of the in-progress selective v0.2.5 worktree
 
 Depends on: TASK-005 accepted; room/account contracts stable
 
@@ -42,7 +42,10 @@ architecture; AI fill remains optional and disabled until the queue is validated
 
 ## Current checkpoint
 
-- Planned only. Begin only after chat/announcement work is accepted and the room/account contracts are frozen.
+- 2026-10-13: implemented the quick-match behavior against this fork's existing lobby. Queue by difficulty, prefer public recruiting rooms, otherwise create a normal four-human room. The host starts through the existing ready/start controls.
+- Explicit cancellation, disconnect/manual-room-action cleanup, ten-minute expiry, bounded queue, rate limiting and change-only status broadcasts are implemented. No automatic AI fill.
+- Membership/recruitment/privacy/grouping/expiry checks pass in `test/paper-integration.test.js`; live multiplayer interaction remains for the maintainer.
+
 
 ## Review notes
 

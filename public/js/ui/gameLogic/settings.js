@@ -54,13 +54,13 @@ export const TEXT_SIZES = Object.freeze(['sm', 'md', 'lg', 'xl']);
 
 /** keys: the in-match shortcuts' key map (ui/gameLogic/shortcuts.js; settings → 快捷键). voiceLang: VOICE_LANGS.
  *  textSize: TEXT_SIZES (css/theme.css `--t`, applied by ui/settings.js applyTextSize). */
-export const DEFAULT_SETTINGS = Object.freeze({ bgm: 0.6, sfx: 0.8, voice: 0.8, voiceLang: 'cn', voiceOverrides: Object.freeze({}), resolution: 'auto', muted: false, damageNumbers: true, keepSignedIn: true, quality: 'high', textSize: 'sm', keys: DEFAULT_HOTKEYS });
+export const DEFAULT_SETTINGS = Object.freeze({ bgm: 0.6, sfx: 0.8, voice: 0.8, voiceLang: 'cn', voiceOverrides: Object.freeze({}), resolution: 'auto', muted: false, damageNumbers: true, officialDamageNumbers: false, keepSignedIn: true, quality: 'high', textSize: 'sm', keys: DEFAULT_HOTKEYS });
 const QUALITIES = ['high', 'medium', 'low'];
 
 /**
  * Sanitize persisted settings.
  * @param {any} raw
- * @returns {{ bgm: number, sfx: number, voice: number, voiceLang: 'cn'|'jp', voiceOverrides: Record<string, string>, muted: boolean, damageNumbers: boolean, quality: 'high'|'medium'|'low',
+ * @returns {{ bgm: number, sfx: number, voice: number, voiceLang: 'cn'|'jp', voiceOverrides: Record<string, string>, muted: boolean, damageNumbers: boolean, officialDamageNumbers: boolean, quality: 'high'|'medium'|'low',
  *   resolution: string, textSize: 'sm'|'md'|'lg'|'xl', keys: Record<'refresh'|'freeze'|'levelUp'|'retreat'|'sell'|'ready', string> }}
  */
 export function sanitizeSettings(raw) {
@@ -79,6 +79,7 @@ export function sanitizeSettings(raw) {
     damageNumbers: typeof r.damageNumbers === 'boolean' ? r.damageNumbers : DEFAULT_SETTINGS.damageNumbers,
     // 保持登录：默认开。老存档没有这个字段时维持原有行为（记住登录状态）。
     keepSignedIn: typeof r.keepSignedIn === 'boolean' ? r.keepSignedIn : DEFAULT_SETTINGS.keepSignedIn,
+    officialDamageNumbers: typeof r.officialDamageNumbers === 'boolean' ? r.officialDamageNumbers : false,
     quality: QUALITIES.includes(r.quality) ? r.quality : DEFAULT_SETTINGS.quality,
     textSize: TEXT_SIZES.includes(r.textSize) ? r.textSize : DEFAULT_SETTINGS.textSize,
     keys: sanitizeHotkeys(r.keys),

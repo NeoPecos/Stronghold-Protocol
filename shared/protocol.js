@@ -398,6 +398,12 @@ export const C2S = {
   'user.activity': {},
   'room.create': { mode: (v) => v === 'solo' || v === 'coop', difficulty: (v) => DIFFICULTIES.includes(v) },
   'room.list': {},
+  'match.queue': { difficulty: (v) => DIFFICULTIES.includes(v) },
+  'match.cancel': {},
+  'match.status': {},
+  'room.chat': { code: (v) => isStr(v, ROOM_CODE_LEN) && /^[A-Z]+$/.test(v),
+    text: (v) => typeof v === 'string' && v.trim().length > 0 && v.length <= 200 },
+  'room.chat.history': { code: (v) => isStr(v, ROOM_CODE_LEN) && /^[A-Z]+$/.test(v) },
   'records.mine': {},
   'room.join': { code: (v) => isStr(v, ROOM_CODE_LEN + 2) && /^[A-Za-z0-9]+$/.test(v) },
   'room.leave': {},
@@ -490,8 +496,12 @@ export const C2S = {
 // Server → client message types (documentation + client dispatch table keys).
 export const S2C = [
   'welcome', 'ok', 'error', 'pong',
-  'room.list', 'room.state', 'room.closed', 'records.latest',
+  'room.list', 'room.state', 'room.closed', 'records.latest', 'room.chat', 'room.chat.history',
+  'match.status', 'match.found',
+  'server.announcement',
   'm.public', 'm.private', 'm.field', 'm.toast', 'm.ticker', 'm.emote', 'm.result',
+  // m.layer { playerId, bondId, add } — own live prep layer gain; ephemeral, never replayed on resync.
+  'm.layer',
   // m.unitStats { seq, round, units: [unitStatsEntry] } — the answer to g.unitStats (the requester only)
   'm.unitStats',
   // client-side combat (DESIGN §14): b.start { battleId, fieldId, kind, spec, authoritative, startAt, serverNow, elapsed,

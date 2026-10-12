@@ -16,7 +16,6 @@ import {
   activeBubbles, sortedPlayers, tileKey, prepCapsuleLabel, prepCamera, dropFailureReason, terrainInfo,
   RESOLUTION_MODES, resolutionCap, boardResolutionCap,
 } from '../../public/js/ui/gameLogic.js';
-import { pairPlayers } from '../../server/match/finalAssault.js';
 import { PHASE, GEO } from '../../shared/constants.js';
 import { setLang, setMessages } from '../../shared/i18n.js';
 
@@ -724,7 +723,7 @@ describe('keyboard & settings', () => {
   test('sanitizeSettings', () => {
     assert.deepEqual(sanitizeSettings(null), { ...DEFAULT_SETTINGS });
     assert.deepEqual(sanitizeSettings({ bgm: 3, sfx: -1, voice: 2, muted: 'yes', damageNumbers: false, quality: 'ultra' }),
-      { bgm: 1, sfx: 0, voice: 1, voiceLang: 'cn', resolution: 'auto', voiceOverrides: {}, muted: false, damageNumbers: false, keepSignedIn: true, quality: 'high', textSize: 'sm', keys: { ...DEFAULT_SETTINGS.keys } },
+      { bgm: 1, sfx: 0, voice: 1, voiceLang: 'cn', resolution: 'auto', voiceOverrides: {}, muted: false, damageNumbers: false, officialDamageNumbers: false, keepSignedIn: true, quality: 'high', textSize: 'sm', keys: { ...DEFAULT_SETTINGS.keys } },
       'a saved profile without `keys` (before 0.2.0) gets the default key map (test/ui/feedback5-hotkeys.test.js)');
     assert.equal(sanitizeSettings({ bgm: 0.5 }).voice, DEFAULT_SETTINGS.voice, 'a saved profile without `voice` gets the default');
     // 语音语言 (0.2.2): 中文 by default — a profile saved before it, or any other value, plays the Chinese dub
@@ -811,8 +810,9 @@ describe('prepCamera (research 09 §1.2: the Final Assault prep on the own half 
     }
     // somebody left (eliminated): the pairs close up exactly like the server's (Match._quit re-plans the boss waves)
     const left = [pl('a', 0), pl('b', 1, false), pl('c', 2), pl('d', 3)];
-    const groups = pairPlayers(left.filter((p) => p.alive).map((p) => ({ ...p })));
-    for (const g of groups) g.forEach((p, j) => assert.equal(prepCamera(pub(14, left), p.playerId).opts.side, j === 1 ? 'R' : 'L', p.playerId));
+    const groups = [['a', 'c'], ['d']];
+    const paired = { ...pub(14, left), bossPairs: groups };
+    for (const g of groups) g.forEach((id, j) => assert.equal(prepCamera(paired, id).opts.side, j === 1 ? 'R' : 'L', id));
     assert.equal(prepCamera(pub(14, left), 'c').opts.side, 'R', 'c moves up to the right half');
     assert.equal(prepCamera(pub(14, left), 'b').kind, 'prep', 'an eliminated player has no half');
     // solo / a lone last player: the left half
