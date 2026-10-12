@@ -1,4 +1,8 @@
-# TASK-019 — Make /media/ audio cacheable (nginx header layer)
+# TASK-021 — Make /media/ audio cacheable (nginx header layer)
+
+> Renumbered from TASK-019 on the maintainer's instruction (2026-10-12) so the lead's TASK-018
+> (native-wrapper Git) keeps its number and every DeepSeek record sorts after it. The nginx artifact
+> and its backups carry no task number; only the commit message still reads "TASK-019".
 
 Status: review_ready
 Lead: Codex

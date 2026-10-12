@@ -1,4 +1,10 @@
-# TASK-018 — Close the browser entry on production and explain why on the notice page
+# TASK-020 — Close the browser entry on production and explain why on the notice page
+
+> Renumbered from TASK-018 on the maintainer's instruction (2026-10-12): TASK-018 is the lead's
+> assignment for putting the native client wrapper under Git (`TASK-018-version-client-wrapper.md`).
+> The deployed artifacts are unaffected — the systemd unit line and `public/browser-closed.html` never
+> carried a task number, and the original commit message still reads "TASK-018" because rewriting
+> published history would break the hash recorded in the operations log.
 
 Status: review_ready
 Lead: Codex
