@@ -1,6 +1,6 @@
 # Project Status
 
-Updated: 2026-10-12 23:35 (Asia/Singapore)
+Updated: 2026-10-12 23:52 (Asia/Singapore)
 
 This is the repository's single current-state entry point. Historical details belong in `docs/ops/` and archived
 handoff files. Update this page whenever production state, the active task, a release decision or a blocker changes.
@@ -58,9 +58,9 @@ handoff files. Update this page whenever production state, the active task, a re
 - TASK-017 is accepted locally. It split the former dirty tree into a TASK-014 runtime/test commit, a
   governance/roadmap commit and a documentation-only execution record; ignored art remains outside Git with verified
   hashes. No TASK-017 commit has been pushed.
-- TASK-018 follows TASK-017 and creates a separate local Git repository for the currently unversioned
-  `F:\DSH-workspace\stronghold-app` wrapper source. Signing keys, toolchains, 800+ MiB bundles, outputs and release
-  files are excluded; no remote or publication is authorised.
+- TASK-018 is accepted: `F:\DSH-workspace\stronghold-app` now has a clean local Git baseline at `7ec87b40` with 51
+  reviewed source files. Signing keys, toolchains, bundles, outputs, publication files and deferred `deploy/` files
+  remain ignored; the wrapper repository has no remote and is not published.
 - TASK-020 and TASK-021 are `review_ready` after production changes: the browser gate and nginx media-cache headers
   are live. TASK-022 is `review_ready` with a local Node ETag fix that is not deployed. TASK-017 preserves and audits
   these existing commits rather than rewriting them.
@@ -80,12 +80,10 @@ handoff files. Update this page whenever production state, the active task, a re
 
 ## Immediate next action
 
-Push the accepted TASK-017 checkpoint chain to `origin/integrate-upstream-0.2.3` only when explicitly authorised,
-then execute TASK-018's safe local client-wrapper Git initialisation. TASK-015 receives its final main-repository
-baseline only after that checkpoint is remote-backed; TASK-016 remains blocked on TASK-015 acceptance. TASK-008/009
-rendering work is replaced by TASK-023, which may begin from the remote-backed accepted baseline in a dedicated
-branch/worktree. TASK-009 remains blocked on the wrapper Git baseline. Nothing is merged to `master`, and no wrapper
-remote is created yet.
+Push the accepted main-repository checkpoint chain to `origin/integrate-upstream-0.2.3` only when explicitly
+authorised. TASK-009 may now begin against wrapper baseline `7ec87b40`; it precedes TASK-023. TASK-015 receives its
+final main-repository baseline only after that checkpoint is remote-backed, and TASK-016 remains blocked on TASK-015
+acceptance. Nothing is merged to `master`, and no wrapper remote is created yet.
 
 ## Stop conditions
 

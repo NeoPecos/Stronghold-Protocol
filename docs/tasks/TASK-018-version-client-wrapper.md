@@ -1,12 +1,12 @@
 # TASK-018 — Put the native client wrapper under Git
 
-Status: `review_ready`
+Status: `accepted`
 
 Lead/reviewer: Codex
 
 Implementer: DeepSeek
 
-Source tree: `F:\DSH-workspace\stronghold-app` (currently has no `.git`)
+Source tree: `F:\DSH-workspace\stronghold-app` (local Git baseline created; no remote)
 
 Depends on: TASK-017 reaches `review_ready` so the main repository checkpoint is no longer moving.
 
@@ -183,8 +183,28 @@ Rollback is as recorded below; nothing else is pending from this task.
 
 ## Review notes
 
-Codex reviews the ignore boundary, staged inventory, secret scan and initial commit. A remote/backup strategy is a
-separate maintainer decision after acceptance.
+### 2026-10-12 23:52 (Asia/Singapore) — Codex review — accepted
+
+- Recomputed the 42-file freeze: 42 files / 213,928 bytes, zero mismatch, missing or extra file.
+- Reviewed all 51 tracked paths / 232,016 bytes and root commit `7ec87b40`; no signing material, package, archive,
+  bundle, publication output, backup, `bin`/`obj` tree or deployment file is tracked.
+- Re-ran bundle verification (13,642 files / 835,966,781 bytes), Android resource-policy tests (22 assertions) and
+  the client-rule verifier. The only client-rule failure remains the documented stale expected `sourceCommit`; this
+  task did not introduce or hide it.
+- Secret-scan summary is consistent: 54 files, 69 classified findings, all explained by refusal tests, integrity
+  hashes and the embedded public update key; no private key block, credential assignment or private address entered
+  the baseline. The ignored `.signing/` contents were not printed or tracked.
+- Approved `deploy/` as an initial-baseline deferral rule. The two files contain host-specific nginx/systemd settings,
+  no detected secret, and remain candidates for a later reviewed operations commit; remove the documented ignore rule
+  before that commit rather than using `git add -f`.
+- Approved the extra `*.bak`/`*.tmp`/`*.orig` and package/binary-container rules as defensive boundaries for this
+  source repository. A future intentional binary fixture requires an explicit reviewed negation rule; the broad rule
+  must not be bypassed silently.
+- Confirmed clean `main`, zero remotes, tags and stashes, source-scale Git metadata, and the original `.gitignore`
+  backup hash `64B8B6E6...89AF`. No build, package, release, push or production action occurred.
+
+TASK-018 is accepted. Remote creation remains a separate maintainer decision; TASK-009 may now use this local Git
+baseline and must keep its implementation commits independently reviewable.
 
 ## Rollback
 

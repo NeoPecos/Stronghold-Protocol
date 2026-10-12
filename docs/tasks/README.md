@@ -19,7 +19,7 @@
 | [TASK-015](TASK-015-upstream-0.2.5-integration.md) | planned | DeepSeek | Selectively integrate upstream v0.2.5 while preserving fork behavior |
 | [TASK-016](TASK-016-release-0.2.5.md) | planned | DeepSeek after review | Build a real increment and deploy the accepted v0.2.5 release |
 | [TASK-017](TASK-017-workspace-git-checkpoint.md) | accepted | DeepSeek | Freeze current dirty work into reviewable Git checkpoints before v0.2.5 |
-| [TASK-018](TASK-018-version-client-wrapper.md) | planned | DeepSeek | Initialise safe local Git history for the unversioned native wrapper source |
+| [TASK-018](TASK-018-version-client-wrapper.md) | accepted | DeepSeek | Local Git baseline for the native wrapper; no remote or publication |
 | [TASK-020](TASK-020-close-browser-entry.md) | review_ready | DeepSeek | Production browser gate is live; Codex review pending |
 | [TASK-021](TASK-021-nginx-media-cache.md) | review_ready | DeepSeek | Immutable `/media/` cache headers are live; Codex review pending |
 | [TASK-022](TASK-022-media-etag-validator.md) | review_ready | DeepSeek | Align Node media ETags with nginx; implemented locally, not deployed |
