@@ -16,6 +16,13 @@ handoff files. Update this page whenever production state, the active task, a re
 - Deployed web assets now include the TASK-003 circular deployment wheel: `public/js/ui/facing.js` sha256 `93cca594…`,
   `public/js/ui/facingWheel.js` `0d5ebe94…`, `public/css/screens/game-panels.css` `9a31bf33…` (deployed 2026-10-12
   18:13, backup `/opt/sp2/backups/wheel-20261012-181314/`). The manifest was deliberately left unchanged.
+- Deployed web assets also include the TASK-024 top-HUD art fix (deployed 2026-10-13 02:32): `public/assets/ui/hudPanel/`
+  now carries the TASK-014 art (`frame_mid_normal.png` `4fa2e8dc…`, `bg_rest.png` `4b0eda5e…` — `public/assets/` is
+  git-ignored, so the hash-compared 0.2.5 deploy never copied them) plus the maintainer-supplied `btn_check_enemy.png`
+  `11326027…`; `public/css/screens/game.css` `9d7e0d61…` and `public/css/devices.css` `d04ea594…` keep every art crop at
+  its source aspect (the previous `100% 455%` / `123% 153%` squeezed the frame by 2.4% and stretched the `休息一下`
+  capsule by 31%). Backup `/root/sp2-backups/hud-art-20261013-023224/`. Client packages still embed the old art, and a
+  browser that cached `/assets/**` needs a hard refresh (`max-age=2592000`).
 - Browser-only gate: TASK-020 reports `SP_CLIENT_ONLY=1` is live; browsers receive the bandwidth notice while native
   clients still receive the game. Recheck directly before release work.
 - Media caching: TASK-021's nginx immutable-cache headers are live. TASK-022's Node/nginx ETag alignment is committed
@@ -62,8 +69,9 @@ handoff files. Update this page whenever production state, the active task, a re
 - TASK-008 is accepted as a bounded diagnosis: browser DPR-cap upscaling is proven, while native WebView and real
   usable-landscape conclusions remain explicitly unproven. TASK-023 owns the rendering-resolution implementation.
 - TASK-014 is accepted locally: the supplied top-frame and literal `休息一下` art replace the two existing ignored
-  manifest assets, with phase-gated markup, CSS transparent-margin positioning and a focused regression test. It is
-  not built, deployed or pushed.
+  manifest assets, with phase-gated markup, CSS transparent-margin positioning and a focused regression test. Its CSS is
+  pushed and live, but the art reached the server only through TASK-024 (see Production truth above): it is still absent
+  from every client package, and TASK-024 replaced the enemy check sprite and removed the 2.4% / 31% resampling.
 - TASK-015's official `v0.2.5` code/data integration is committed/pushed in `9497533d`; focused checks pass.
   The maintainer will perform gameplay/device testing before packaging or deployment.
 - TASK-016 is the separate release task. Its **server-only** half ran on 2026-10-13 by direct maintainer order: the
