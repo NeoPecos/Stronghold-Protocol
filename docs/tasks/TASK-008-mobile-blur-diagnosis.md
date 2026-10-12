@@ -91,27 +91,38 @@ affects the client **before** changing anything.
 
 ## Current checkpoint
 
-### 2026-10-12 18:55 — started; device measurements handed to the maintainer
+### 2026-10-12 19:00 — root cause found and reported
 
-- Written for the maintainer: `docs/analysis/mobile-probe-instructions.md` — a read-only, ready-to-paste
-  `javascript:` probe that dumps the CSS viewport, `visualViewport`, resolved `--sa-*`, `devicePixelRatio`, screen
-  size/orientation, **every canvas's backing store vs its CSS box**, image `currentSrc` + natural size vs CSS size,
-  the app's own `--sp-vh`/`--t`, and the active display options. Plus the four screenshots that separate
-  "whole frame soft" from "board only" from "HUD text only".
-- Why the maintainer and not the implementation: the safe-area insets, the real device pixel ratio and the wrapper's
-  own viewport can only be read on the device. A workstation can render 568×320 all day and still never see the
-  wrapper's chrome.
-- Partly measurable here, still to do in this task: the 568×320 / 640×360 / 756×366 / 812×375 / 844×390 metrics in a
-  headless browser, the canvas backing-store caps per 分辨率 mode (`canvasPixelRatio`, `boardPixelRatioCap`), and the
-  `data/local-assets.json` vs `data/assets.json` resolution for the same asset.
-- Not started: the report itself. **No CSS, asset or quality parameter has been touched** — and none will be until a
-  cause is proven.
-- Next: collect the device probe output, then run the local measurements and write `docs/analysis/` report.
+- The maintainer ran the probe on the phone and sent the output. **Cause identified and reproduced offline:**
+  the field canvas renders at 2 device pixels per CSS pixel on a dpr-3 screen (`back=770×640` for a 385×320 CSS box),
+  so the browser upscales it 1.5×. 1:1 would be 1155×960.
+- Mechanism: `render/app.js:194` caps the pixel ratio with `QUALITY_RES[settings.quality]` (`host.js:82`:
+  `high: 2`), and the default quality is `high`. The 3.7 M pixel budget is **not** involved at this size (it only
+  begins to bind above 9610 px of height at this width). Reproduced with the project's own `canvasPixelRatio` for
+  every quality and 分辨率 mode.
+- **No setting can fix it**: `RES_CAP` (`settings.js:29`) tops out at 2 (`1440p: 2, native: 2`), so a 3× phone has no
+  path to a native-resolution canvas — "native" stops at 2×.
+- Secondary, independent finding: `public/assets/ui/hudPanel/icon_hp.png` is **12×19** but drawn at 17×17 CSS
+  (≈51 device px at dpr 3) and has no `@2x`/`@3x` variant. The other sampled images (31×37, ~100×100, 35×35) are all
+  drawn *down* and are fine.
+- Report: `docs/analysis/mobile-blur-root-cause.md`, including the fix plan and an explicit "what this does NOT
+  establish" section.
+- **Still unmeasured**: the native client's own WebView viewport (`dpr`/size may differ from the browser's), and the
+  screenshot set that would split perceived blur between the field canvas and the HUD glyphs. `safeArea` read `0px`
+  everywhere in the browser, which is expected there and says nothing about the wrapper.
+- **No CSS, asset or image-quality parameter has been changed** — the report is the deliverable, and the fix needs a
+  task of its own plus a perf check on a real device.
+- Next: maintainer decision on the fix plan (raise the cap so `native` reaches `devicePixelRatio`, and whether the
+  default quality should change); optional client-side measurement via Method B; address `icon_hp.png` separately.
 
 ## Handoff — what the maintainer does
 
-Run `docs/analysis/mobile-probe-instructions.md` on the phone, once in the browser and once in the app, and send back
-the alert text plus the four screenshots. Nothing else is needed; do not change 分辨率 / 质量 between runs.
+Method A is done (data received). Remaining, both optional but they close the two gaps above:
+
+1. If the blur is also visible **in the app**, measure it there (Method B: remote debugging into the client WebView).
+   If the wrapper does not expose debugging, say so and it is recorded as "client viewport unmeasured".
+2. The four screenshots (whole frame / with 设置 open / after rotating / in-app if applicable) — they decide how much
+   of the complaint is the field canvas versus the HUD glyphs.
 
 ## Rollback
 
