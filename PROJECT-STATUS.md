@@ -24,9 +24,9 @@ handoff files. Update this page whenever production state, the active task, a re
 ## Repository truth
 
 - Working repository: `F:\DSH-workspace\stronghold-base-0.2.1`.
-- Current branch: `integrate-upstream-0.2.3`; TASK-017's reviewed implementation chain ends at `24fe723c`; remote
-  branch currently ends at `7bc9a3c7`. The accepted local checkpoint chain is not pushed or merged into `master`.
-- Last committed upstream game baseline: `0.2.4`; an uncommitted selective `v0.2.5` integration is implemented locally.
+- Current branch: `integrate-upstream-0.2.3` (historical branch name). Official v0.2.5 and the Paper-Yuan feature batch
+  are committed in `9497533d` and pushed to the same origin branch. The previous checkpoint chain was included.
+- Game source version: `0.2.5`; no merge into `master`, client packaging or production deployment was performed.
 - Production-hotfix and browser-gate files are now tracked in the frozen baseline and match JING byte-for-byte.
 - `/opt/sp2` was deployed from this same checkout by file copy, not by `git pull`: its `.git` is a leftover gitfile
   pointing at a Windows worktree, so it cannot be treated as a Git-based install.
@@ -54,8 +54,8 @@ handoff files. Update this page whenever production state, the active task, a re
 - TASK-014 is accepted locally: the supplied top-frame and literal `休息一下` art replace the two existing ignored
   manifest assets, with phase-gated markup, CSS transparent-margin positioning and a focused regression test. It is
   not built, deployed or pushed.
-- TASK-015's official `v0.2.5` code/data integration is implemented locally against `a72aca6d`; focused checks pass.
-  It is not committed, pushed, packaged or deployed; the maintainer will perform gameplay/device testing.
+- TASK-015's official `v0.2.5` code/data integration is committed/pushed in `9497533d`; focused checks pass.
+  The maintainer will perform gameplay/device testing before packaging or deployment.
 - TASK-016 is the separate planned release task. It packages the accepted TASK-015 result together with TASK-014's
   art, proves a real deployed-baseline increment, then backs up and deploys; it is not yet authorised to run.
 - TASK-017 is accepted locally. It split the former dirty tree into a TASK-014 runtime/test commit, a
@@ -83,8 +83,8 @@ handoff files. Update this page whenever production state, the active task, a re
 
 ## Immediate next action
 
-Commit and push the integration batch to the existing origin branch, as explicitly authorized on 2026-10-13.
-The maintainer tests gameplay/device behavior before packaging or production release. Native wrapper work remains separate.
+The integration batch is pushed. The maintainer tests gameplay/device behavior before packaging or production release.
+Native wrapper work remains separate.
 
 ## Stop conditions
 

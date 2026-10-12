@@ -83,7 +83,7 @@ into this fork without overwriting its account/record systems, room flow, deploy
 - Deliberate omissions: the upstream PR-labeler workflow and unrelated documentation changes; extracted official
   scene art is not bundled, so the existing metal board remains the fallback. Paper-Yuan preload, live statistics,
   quick matchmaking and selectable account avatars are separate features, not part of official v0.2.5.
-- The maintainer authorized committing and pushing this implementation on 2026-10-13. TASK-009's concurrent documentation commit is preserved; its files were not edited by this integration. Production is unchanged.
+- Committed in `9497533d` and pushed to `origin/integrate-upstream-0.2.3` on 2026-10-13 at the maintainer's request. TASK-009's concurrent documentation commit is preserved; its files were not edited by this integration. Production is unchanged.
 
 ## Review notes
 
