@@ -1,6 +1,6 @@
 # Project Status
 
-Updated: 2026-10-12 19:23 (Asia/Singapore)
+Updated: 2026-10-12 23:27 (Asia/Singapore)
 
 This is the repository's single current-state entry point. Historical details belong in `docs/ops/` and archived
 handoff files. Update this page whenever production state, the active task, a release decision or a blocker changes.
@@ -24,8 +24,8 @@ handoff files. Update this page whenever production state, the active task, a re
 ## Repository truth
 
 - Working repository: `F:\DSH-workspace\stronghold-base-0.2.1`.
-- Current branch: `integrate-upstream-0.2.3`; current local HEAD `a0503d46`; remote branch currently ends at
-  `7bc9a3c7`, so the local branch is seven commits ahead before TASK-017. It is **not** merged into `master`.
+- Current branch: `integrate-upstream-0.2.3`; TASK-017's reviewed implementation chain ends at `24fe723c`; remote
+  branch currently ends at `7bc9a3c7`. The accepted local checkpoint chain is not pushed or merged into `master`.
 - Upstream game baseline included locally: `0.2.4`.
 - Production-hotfix and browser-gate files are now tracked in the frozen baseline and match JING byte-for-byte.
 - `/opt/sp2` was deployed from this same checkout by file copy, not by `git pull`: its `.git` is a leftover gitfile
@@ -55,9 +55,9 @@ handoff files. Update this page whenever production state, the active task, a re
   target is tag `v0.2.5` / `cf7a9400`; its 221-file range is too broad for a wholesale merge.
 - TASK-016 is the separate planned release task. It packages the accepted TASK-015 result together with TASK-014's
   art, proves a real deployed-baseline increment, then backs up and deploys; it is not yet authorised to run.
-- TASK-017 is the immediate Git checkpoint task assigned to DeepSeek. It splits the current tree into a TASK-014
-  runtime/test commit and a governance/roadmap commit, preserves ignored art by hash, stops for Codex review and does
-  not push or begin v0.2.5 integration.
+- TASK-017 is accepted locally. It split the former dirty tree into a TASK-014 runtime/test commit, a
+  governance/roadmap commit and a documentation-only execution record; ignored art remains outside Git with verified
+  hashes. No TASK-017 commit has been pushed.
 - TASK-018 follows TASK-017 and creates a separate local Git repository for the currently unversioned
   `F:\DSH-workspace\stronghold-app` wrapper source. Signing keys, toolchains, 800+ MiB bundles, outputs and release
   files are excluded; no remote or publication is authorised.
@@ -80,10 +80,10 @@ handoff files. Update this page whenever production state, the active task, a re
 
 ## Immediate next action
 
-DeepSeek executes TASK-017 Checkpoint A, then B, and stops at `review_ready`. After Codex review it performs TASK-018's
-safe local client-wrapper Git initialisation. Only then does TASK-015 receive the accepted main-repository baseline;
-TASK-016 remains blocked on TASK-015 acceptance. TASK-008/009 rendering work remains blocked. Nothing is merged to
-`master`, and no wrapper remote is created yet.
+Push the accepted TASK-017 checkpoint chain to `origin/integrate-upstream-0.2.3` only when explicitly authorised,
+then execute TASK-018's safe local client-wrapper Git initialisation. TASK-015 receives its final main-repository
+baseline only after that checkpoint is remote-backed; TASK-016 remains blocked on TASK-015 acceptance. TASK-008/009
+rendering work remains blocked. Nothing is merged to `master`, and no wrapper remote is created yet.
 
 ## Stop conditions
 

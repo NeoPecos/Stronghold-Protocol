@@ -1,6 +1,6 @@
 # TASK-017 — Freeze the current workspace into reviewable Git checkpoints
 
-Status: `review_ready` (both checkpoints committed locally on 2026-10-12; Codex review pending; not pushed)
+Status: `accepted` (Codex review completed on 2026-10-12; not pushed)
 
 Lead/reviewer: Codex
 
@@ -191,8 +191,23 @@ changes no code, asset, package or production state.
 
 ## Review notes
 
-Codex reviews commit boundaries, complete diffs, ignored-art hashes and the ahead-of-origin chain. After acceptance,
-Codex may authorise pushing the existing branch to `origin`; only then can TASK-015 receive the final baseline hash.
+### 2026-10-12 23:27 (Asia/Singapore) — Codex review — accepted
+
+- Reviewed the complete patches and exact file boundaries of `cd07107a`, `376ef013` and `24fe723c`; Checkpoint A
+  contains only the four TASK-014 paths, Checkpoint B contains only its fifteen declared governance paths, and the
+  final record commit contains only this task and the monthly operations log.
+- Re-audited the seven preserved commits between `591d3d45` and `a0503d46`; their boundaries match the inventory and
+  no wrapper source, ignored art, package, archive, database, credential or upstream v0.2.5 code entered TASK-017.
+- Recomputed both ignored-art SHA256 values and their ignore rules; they match the recorded values. The original
+  backup remains ignored under `.local/task-014-top-hud-art/original/`.
+- Re-ran the required checks: UI tests 60/60, package/docs tests 42/42, `git diff --check` clean, and changed-file
+  eslint 0 errors with only the recorded pre-existing `MicroLabel` warning.
+- Review found one documentation-only inconsistency: `PROJECT-STATUS.md` and `docs/tasks/README.md` still described
+  TASK-017 as not yet executed. Codex corrected those two current-truth files in the review-record commit; no runtime,
+  package, asset or production file changed.
+
+The implementation and checkpoint boundaries are accepted. Push remains a separate maintainer-authorised action;
+TASK-015 may receive its final baseline only after the accepted branch is remote-backed.
 
 ## Rollback
 
