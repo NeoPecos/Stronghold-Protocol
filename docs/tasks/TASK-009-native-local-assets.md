@@ -1,6 +1,6 @@
 # TASK-009 — Deterministic native local assets and mobile rendering fallback
 
-Status: `in_progress` (offline batch 1 accepted; runtime/device batches remain)
+Status: `review_ready` (客户端本地资源 MVP：离线优先 + 缺失/损坏即报错)
 
 Lead: Codex
 
@@ -252,8 +252,38 @@ the gate-3 drift, runtime scope items 4–7 and the on-device acceptance evidenc
 - Corrected one checkpoint wording error: its quoted diff command included `test/` and therefore was not empty; the
   runtime-only path check is empty, while `test/` intentionally contains the three new regression files.
 
-Offline batch 1 is accepted. TASK-009 itself remains `in_progress`: clean/upgrade installation, offline launch,
-missing/corrupt recovery, startup progress/diagnostics and Windows/two-Android device evidence are still outstanding.
+Offline batch 1 is accepted. TASK-009 was then re-scoped by the maintainer (m00598 narrowed it to a client local-asset
+MVP; m00659 dropped the evidence-heavy parts and moved package building to the maintainer's own pipeline). Only three
+acceptance items remain: 能安装、能登录游玩、断网后静态素材仍能加载. Startup progress/diagnostics, WebGL fallback, the
+multi-device matrix and repeated evidence reports are out of scope; see the checkpoint below.
+
+### 2026-10-13 00:45 — TASK-009 — DeepSeek (客户端本地资源 MVP：离线优先 + 缺失即报错)
+
+范围由维护者收窄：m00598 把 TASK-009 收窄为「客户端本地资源 MVP」，m00659 进一步规定 DS 只做小范围代码改动、
+交给维护者审查，不构建安装包、不跑真机、不产出重复证据，构建流程由维护者一次性收敛。因此本批次只改客户端本地资源判定；
+`scripts/assemble-index.mjs` 参数化修整与跨端确定性测试不在本批次内。
+
+改动（wrapper 分支 `task-009-native-local-assets`，提交 `498847b`，4 文件 +138/−238）：
+
+- `windows/BundledAssets.cs`、`android/src/fun/leio/stronghold/BundledAssets.java`：**离线优先**。保留
+  「受信来源 + 构建时内容一致白名单」两道判定（依据都在索引里，不联网）；**删除**「整版 manifest 校验
+  （`GET /data/assets.json`）+ 逐文件 ETag HEAD」在线校验 —— 断网时它必然失败，会把随包素材退化成网络请求，
+  与「安装包自带全部静态素材」的目标冲突，也是冷启动上万次 HEAD 的来源。命中后读 `payload/<path>`，
+  并复核索引记录的 size/sha256。
+- 缺失/损坏语义：本机文件不在包里 / 读不出 / 与索引 sha256 不符 → 返回 **500 +
+  `X-Stronghold-Asset: unavailable`** 的具名失败，**不回落网络**。两端各自记录具名失败
+  （C# `LocalFailures`/`LastFailure`，Java `localFailures()`/`lastFailure()`）。
+- `windows/Program.cs`、`android/src/fun/leio/stronghold/MainActivity.java`：收到具名失败时用现有错误面板显示
+  「本机素材缺失或损坏 + 具体路径 + 请重新安装客户端」；Program.cs 的离线冒烟断言改为「白名单路径连续 5 次本地 200」，
+  介绍文案同步（不再声称联网校验）。
+- 不认识的路径、外服、白名单外路径仍然返回 null 走网络（外服必须用它自己的资源，本机不顶替）。
+
+验证（只做编译，未打包、未跑真机）：`javac --release 8`（`android.jar` 为 `.toolchain/platform/android-35-ext15/`，
+8 个 java 文件）exit 0；`dotnet build windows\StrongholdProtocol.csproj -t:Compile` 0 警告 0 错误
+（产物 dll 时间戳晚于全部源码改动）。改动后 wrapper `git status` 只有这 4 个文件，无远程、无 tag、无 push。
+
+不在本批次（维护者构建流程 / 后续批次）：`assemble-index.mjs` 参数化与缺失即失败、跨端确定性测试、
+断网真机证据、启动进度/诊断、WebGL 回退、多机型矩阵。
 
 ## Rollback
 
