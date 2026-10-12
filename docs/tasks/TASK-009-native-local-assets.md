@@ -1,12 +1,12 @@
 # TASK-009 — Deterministic native local assets and mobile rendering fallback
 
-Status: `planned`
+Status: `review_ready` (offline batch 1)
 
 Lead: Codex
 
-Implementer: unassigned (proposed: DeepSeek after TASK-008 review)
+Implementer: DeepSeek (offline batch 1: build/rule harness repair + freeze recheck)
 
-Starting commit: assign when work begins
+Starting commit: `ac058cd5` (main repository HEAD when this batch began) — wrapper side `7ec87b40` → `a0f0da4`
 
 Depends on: TASK-007 accepted; TASK-008 accepted with a proven cause or explicit non-reproduction report
 
@@ -89,9 +89,63 @@ progress while the package is prepared, and fall back safely on devices without 
   12/12 sampled paths still returned `304`, at **102 ms per HEAD** to `sp.bs.leio.fun` (45 ms to `sp2`), i.e. roughly
   3 minutes of revalidation per session at the client's concurrency cap of 8. `manifest.localAssets` still equals the
   current `sha256(data/local-assets.json)` = `3438b638…b2df`.
-- **Exact next action (blocked)**: obtain the accepted TASK-008 outcome, then repair the two harnesses, add the build
+- **Exact next action (superseded by the batch below — TASK-008 was accepted and the batch is now done)**: obtain the
+  accepted TASK-008 outcome, then repair the two harnesses, add the build
   gate once approved, and only then touch wrapper behaviour. Device evidence for the acceptance list (one Windows
   client, two Android DPR/GPU tiers) is untouched and still owed.
+
+### 2026-10-12 23:57 — TASK-009 — DeepSeek (implementer, offline batch 1: harness repair + freeze recheck)
+
+- **Lead sign-off obtained** (maintainer relay of the Codex decision): this batch is limited to the first work that can
+  be finished offline — repair the two stale harnesses, recheck the freeze, commit into the wrapper baseline — and must
+  not touch client runtime code; device evidence stays with the maintainer. "Index is armed" is **approved as a hard
+  build gate**, so the item the previous checkpoint marked *decision requested* is now decided.
+- **Wrapper commit `a0f0da4`** "fix: detect unarmed asset indexes in the bundle gate and refresh the client rule
+  harness" on top of `7ec87b40` (2 files, +166/−12, no remote, no tag, no push, `git status --short` clean).
+- **`scripts/verify-bundle.cjs`** (955 → 7 969 bytes) is now the armed gate. It takes `--bundle <dir>` (default
+  `../bundle`) and checks in this order: schema == 1 and file count ≥ 7000 → **armed index** → path safety
+  (`/assets|/fonts|/vendor` only, no `..`, no `\`) → per-file size + sha256 against `payload/`. The armed section
+  requires `manifest.assets` = `^[0-9a-f]{8,64}$` and `manifest.localAssets` = 64-hex; both trusted hosts present in
+  `origins` with non-negative integer `etagCount/verified/mismatch/missing`; `verified+mismatch+missing === files` and
+  `etagCount ≤ files`; **both hosts at `mismatch = 0 && missing = 0`** (a package with partial proof is not shipped);
+  every `verified[host]` equal to the entry's own `sha256`; no fact from an unregistered host; legacy
+  `entry.etag === entry.etags['sp.bs.leio.fun']`; per-host per-file tallies equal to the fact table; at least one proved
+  file. Failures are collected and printed as named lines (≤ 40) with exit 1; success prints one human line plus the
+  same JSON as before (`verifiedFiles` / `verifiedBytes` / `sourceCommit`) extended with `manifest` and
+  `armed{provedFiles,etagFiles,origins}`. `scripts/build-windows.ps1:4` and `scripts/build-android.ps1:8` need no
+  change: they invoke it without arguments and only test the exit code.
+- **`scripts/verify-client-rules.mjs`** (9 223 → 11 221 bytes) drops the stale pin: `sourceCommit` is now checked as
+  40-hex, as equal to the registered current material baseline `d460f77fe746d5530c0456f067a5bdd3cc586307`, and as
+  **not** the withdrawn unarmed snapshot baseline `2cadc6183c133fb22f5853c15db945bbaf4ce700`. A new section 1b fails
+  fast with a named message when the index is not armed (`manifest` / `origins` / per-file proofs) instead of cascading
+  into thousands of per-file failures. The stale `:83` comment now describes ETag counts as per-origin facts (both
+  origins carry all 13 642 today; the old 7976/13322 asymmetry is history). All 12 `canonicalPath` / `originOf`
+  assertions and the section-2 cross-checks are unchanged.
+- **Evidence, all at the committed revision** (worktree == HEAD): `node scripts/verify-bundle.cjs` exit 0 →
+  `✅ 素材包可用（已武装）：13642 文件 / 797.2 MiB / 本地命中证明 13642 条 / ETag 13642 条`, with
+  `verifiedFiles` / `verifiedBytes` (835 966 781) / `sourceCommit` identical to the pre-change run.
+  `node scripts/verify-client-rules.mjs` exit 0, **45/45 assertions** (12 package + 15 per-origin + 18 policy).
+  Negative tests: the real withdrawn package `--bundle bundle.bad-030829` fails in both harnesses (exit 1) — the build
+  gate names all three missing armed facts, the rule harness names the withdrawn baseline and stops before the file
+  loop; four synthetic single-defect fixtures (`.local/task009/make-negative-fixtures.mjs` → `no-proof`,
+  `lying-facts`, `no-local-assets`, `stale-etag`) each exit 1 with the expected named message.
+- **Freeze recheck** (`.local/task009/freeze-recheck.mjs`): 42/42 files present, 222 940 bytes,
+  `identical=40 edited=2/2 drift=0 missing=0 extra=0` → `FREEZE MATCH`, and the only two edited files are exactly the
+  allowlisted harnesses — `verify-bundle.cjs` `30a77dff…` → `d256bdaf…`, `verify-client-rules.mjs` `09b9722a…` →
+  `4611085f…`. `git diff --stat 7ec87b40 -- windows android assets test scripts/build-*.ps1` is empty: no runtime,
+  asset or build-script file changed. Blob hashes at `a0f0da4`: `b055d6abd24a942121d831e690d20e2d1f45c669` and
+  `84ce66ebb06fab6fb31fbe33d87fbdfa314218ea`.
+- **Deliberately not run**: `scripts/test-windows.ps1` (needs a built WebView2 dist) and `test/ApkPatchTest.java`
+  (needs the withdrawn artifacts and writes an APK) — the same non-offline skips recorded for TASK-018. The main
+  repository's `npm run ci` / `npm run golden` are not affected by a wrapper-only change and were not run.
+- **Left for the lead, not changed here** (outside the approved batch): `scripts/assemble-index.mjs:54,58` hard-codes
+  the main repository's absolute `data/*.json` paths and `:59` silently omits `manifest.localAssets` when
+  `data/local-assets.json` is absent, so a partially armed index is now caught later by the new gate instead of at the
+  arming step. The live gate-3 drift is unchanged (`manifest.assets = dfcd70fdfb18` vs live
+  `data/assets.json hash = 18085e58f8df`, ~102 ms per HEAD fallback). Acceptance items still owed: clean/upgrade
+  install, offline launch, missing/corrupt asset recovery, on-device evidence (one Windows client, two Android DPR/GPU
+  tiers) and scope items 4–7 (startup progress, diagnostics).
+- **Next action**: Codex reviews wrapper commit `a0f0da4` and this checkpoint.
 
 ## Review notes
 
