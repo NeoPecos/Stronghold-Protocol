@@ -4,9 +4,10 @@
 |---|---|---|---|
 | [TASK-001](TASK-001-project-governance.md) | accepted | Codex | Establish durable multi-agent project workflow |
 | [TASK-002](TASK-002-release-baseline.md) | accepted | Codex | Reconcile the dirty tree and freeze the next release baseline |
-| [TASK-003](TASK-003-mobile-deployment-ui.md) | in_progress | Codex lead / implementer unassigned | Hybrid deployment wheel and reliable mobile result exit |
+| [TASK-003](TASK-003-mobile-deployment-ui.md) | review_ready | Codex lead / DeepSeek implementer | Hybrid deployment wheel and reliable mobile result exit |
 | [TASK-004](TASK-004-player-avatar.md) | planned | unassigned | Account-bound selectable player avatar |
 | [TASK-005](TASK-005-room-communications.md) | planned | unassigned | Room text chat plus announcement/admin tools; no voice |
+| [TASK-006](TASK-006-deploy-wheel.md) | in_progress | DeepSeek (maintainer-authorised) | Push TASK-003 and deploy the wheel to production |
 
 Only one task should be the repository-wide active implementation task unless tasks use isolated worktrees and do not
 touch overlapping files.

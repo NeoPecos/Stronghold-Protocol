@@ -84,7 +84,7 @@ describe('rotation (DESIGN §3: RIGHT (dr,dc) · UP (dc,−dr) · LEFT (−dr,�
 });
 
 describe('the wheel: swipe → direction with a ~0.5 tile dead-zone', () => {
-  test('dominant axis decides; screen up = UP; inside the dead-zone nothing', () => {
+  test('45° sectors decide; screen up = UP; inside the dead-zone nothing', () => {
     const s = 80; const dead = s * DEAD_ZONE_TILES;
     assert.equal(DEAD_ZONE_TILES, 0.5);
     assert.equal(dirFromDelta(10, 5, dead), null, 'inside the centre');
@@ -92,7 +92,13 @@ describe('the wheel: swipe → direction with a ~0.5 tile dead-zone', () => {
     assert.equal(dirFromDelta(-60, 10, dead), 'LEFT');
     assert.equal(dirFromDelta(5, -60, dead), 'UP');
     assert.equal(dirFromDelta(5, 60, dead), 'DOWN');
-    assert.equal(dirFromDelta(50, -50, dead), 'RIGHT', 'ties go horizontal');
+    // TASK-003: the drawn quadrant is a 45° sector of the circular wheel, so a diagonal snaps to a sector boundary
+    // rather than to the horizontal axis (was: the dominant axis, i.e. ties went horizontal). The bounds reproduce
+    // Paper-Yuan's chained conditions exactly.
+    assert.equal(dirFromDelta(50, -50, dead), 'RIGHT', 'the −45° ray: the RIGHT sector tests >= −45, so it wins');
+    assert.equal(dirFromDelta(50, 50, dead), 'DOWN', 'the 45° ray starts the DOWN sector');
+    assert.equal(dirFromDelta(40, -41, dead), 'UP', 'just past the boundary');
+    assert.equal(dirFromDelta(41, -40, dead), 'RIGHT', 'just inside it');
     assert.equal(dirFromDelta(NaN, 0, dead), null);
     assert.equal(dirFromKey('ArrowUp'), 'UP');
     assert.equal(dirFromKey('KeyW'), null);

@@ -17,7 +17,9 @@ describe('settlement return control under enlarged text (#458)', { skip: !ENABLE
     mkdirSync(new URL('../e2e/out/', import.meta.url), { recursive: true });
   });
   after(async () => { await browser?.close(); await srv?.close(); });
-  for (const [width, height] of [[1366, 768], [844, 390], [640, 360], [844, 320]]) for (const textSize of ['md', 'lg', 'xl']) {
+  // TASK-003 asks for 568x320, 640x360, 756x366, 812x375 and 844x390; #458's originals (1366x768 and 844x320) stay
+  // covered too, so every size named by the task plus the two that were already here are exercised.
+  for (const [width, height] of [[568, 320], [640, 360], [756, 366], [812, 375], [844, 390], [1366, 768], [844, 320]]) for (const textSize of ['md', 'lg', 'xl']) {
     test(`${width}×${height}, ${textSize}: return is inside the viewport and clickable`, async () => {
       const page = await browser.newPage();
       try {

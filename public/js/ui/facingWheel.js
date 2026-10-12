@@ -2,22 +2,30 @@
 //
 // After a legal drop of an operator / summon on a board tile (also its own tile: re-orient in place) — or of a
 // directional Art (画卷) — the piece stays on the tile as a ghost and this overlay opens:
-//   * a white diamond centred on the tile, ~3 tiles across its diagonal, a smaller inner diamond (the centre
-//     dead-zone, ~0.5 tile) and 4 chevrons (UP / RIGHT / DOWN / LEFT);
-//   * a red "✕ 点击取消" tag on the diamond's upper-left edge;
-//   * press and drag from the centre: past the dead-zone that side's chevron lights and the unit's range grid, rotated
-//     to that direction (DESIGN §3), shows as orange striped tiles (view.highlightTiles group 'facing' under the units
-//     + a striped SVG layer — slotted between the 3D board canvas and the Pixi canvas when the 3D board is on, so the
-//     units stand on the stripes; an overlay otherwise); outside the centre the tooltip "拖回中心区域取消" shows;
+//   * a circular joystick centred on the tile, ~3 tiles across its diameter, with a smaller inner circle (the centre
+//     dead-zone, ~0.5 tile), four 45-degree sector hit areas, a dashed sub-ring, the two diagonal dividers and 4
+//     chevrons (UP / RIGHT / DOWN / LEFT). The sectors are what the swipe snapping follows (facing.js dirFromDelta);
+//   * a red "✕ 点击取消" tag on the wheel's upper-left edge;
+//   * press and drag from the centre: past the dead-zone the knob and its beam follow the finger (clamped to the wheel
+//     radius, so the knob is a direction indicator and not a cursor), that side's sector and chevron light up and the
+//     unit's range grid, rotated to that direction (DESIGN §3), shows as orange striped tiles (view.highlightTiles
+//     group 'facing' under the units + a striped SVG layer — slotted between the 3D board canvas and the Pixi canvas
+//     when the 3D board is on, so the units stand on the stripes; an overlay otherwise); outside the centre the tooltip
+//     "拖回中心区域取消" shows;
 //   * or tap a chevron directly (W2): press previews that side, release commits it — two taps instead of one drag, which
-//     is what a phone wants (the chevron's own hit circle is r=22 of the wheel's 100-unit half-diagonal, so it does not
-//     steal a press meant for the centre);
+//     is what a phone wants (the chevron's own hit circle is r=22 of the wheel's 100-unit radius, so it does not steal
+//     a press meant for the centre). This is a fork-only control that upstream Paper-Yuan removed, and it must survive
+//     every change to the wheel's look;
 //   * on the mirrored right half of the Final Assault prep a screen direction maps to its board direction (RIGHT ↔
 //     LEFT, facing.js boardDir): the chevrons follow the finger, the range / model / intent use the board direction;
 //   * release outside the centre commits (g.move {uid, to, dir} / g.art {…, dir}); release inside the centre, a tap
-//     on ✕, a press outside the diamond or Esc cancels (the piece returns to where it came from). Arrow keys preview a
+//     on ✕, a press outside the wheel or Esc cancels (the piece returns to where it came from). Arrow keys preview a
 //     direction and Enter commits it (keyboard alternative) — Enter on a focused ✕ cancels, on any other focused
 //     button does nothing while the wheel is open (GitHub #394). Mouse, pen and touch all use pointer events.
+//
+// The wheel's follower geometry and the range stripes re-project at ~30 Hz, not per animation frame: a per-frame
+// getBoundingClientRect plus re-projection costs real main-thread time during the placement drag on a high-refresh
+// display, and ~30 Hz is already smoother than the camera glide it follows.
 //
 // View bridge: the field view (render/app.js or the DOM fallback) may implement `tileScreen(row, col)`,
 // `holdPiece(uid, tile|null)` and `setPieceDir(uid, dir)` (render/app.js does, DESIGN §9); a view without them falls
@@ -157,23 +165,39 @@ export function useTileScreen(view, row, col) {
     let alive = true;
     // no tile (nothing selected): nothing to follow
     if (!view || !Number.isInteger(row) || !Number.isInteger(col)) { last.current = ''; setG(null); return undefined; }
+    // ~30 Hz is plenty for a follower of the camera's glide (CAMERA_MS); a per-rAF getBoundingClientRect +
+    // re-projection on a high-refresh display costs real main-thread time during the placement drag
+    const FOLLOW_MS = 1000 / 30;
     const tick = () => {
-      if (!alive) return;
       const t = tileScreen(view, row, col);
       const key = t ? `${t.x.toFixed(1)},${t.y.toFixed(1)},${t.s.toFixed(2)}` : '';
       if (key !== last.current) { last.current = key; setG(t); }
-      raf = requestAnimationFrame(tick);
     };
-    tick();
-    return () => { alive = false; cancelAnimationFrame(raf); };
+    const loop = () => {
+      if (!alive) return;
+      tick();
+      raf = setTimeout(loop, FOLLOW_MS);
+    };
+    loop();
+    return () => { alive = false; clearTimeout(raf); };
   }, [view, row, col]);
   return g;
 }
 
 // ---- the wheel -------------------------------------------------------------------------------------------------------
 
-/** Chevron centre (viewBox units, diamond half-diagonal = 100) and rotation per direction. */
+/** Chevron centre (viewBox units, circle radius = 100) and rotation per direction. */
 const CHEV = { UP: [0, -64, -90], RIGHT: [64, 0, 0], DOWN: [0, 64, 90], LEFT: [-64, 0, 180] };
+
+/** ViewBox units per wheel radius; the sectors/rings of the wheel are drawn at this radius (`half` in px). */
+const VB_R = 100;
+/** Half-diagonal of a 45-degree sector wedge at radius 100: the sector boundaries. */
+const VB_DIAG = VB_R / Math.SQRT2;
+/** How far the knob may travel, as a fraction of the wheel radius (the knob is an indicator, not a cursor). */
+const KNOB_TRAVEL = 0.6;
+/** Knob and beam geometry in viewBox units (a fraction of the wheel, so it scales with the board). */
+const KNOB_R = VB_R * 0.16;   // = 16
+const BEAM_R = VB_R * 0.06;   // = 6
 
 /**
  * One direction chevron: a tap target of its own.
@@ -183,8 +207,10 @@ const CHEV = { UP: [0, -64, -90], RIGHT: [64, 0, 0], DOWN: [0, 64, 90], LEFT: [-
  * centre drag still works: the chevron stops the pointer events it handles from reaching the overlay, so the two
  * gestures never fight (see FacingWheel's onDown/onUp).
  *
- * `r=22` is the hit circle (viewBox units, the wheel's half-diagonal being 100): it covers the chevron and a little
- * around it without swallowing the centre dead-zone, so a press meant for "drag from the middle" is not stolen.
+ * `r=22` is the hit circle (viewBox units, the wheel's radius being 100): it covers the chevron and a little around
+ * it without swallowing the centre dead-zone (33), so a press meant for "drag from the middle" is not stolen. The
+ * knob's travel (60) stays inside it: the knob only exists while a drag is already in progress, and it is painted
+ * after the chevrons, so it cannot take a fresh tap away from one.
  */
 function Chevron({ dir, on, onPick }) {
   const [x, y, rot] = CHEV[dir];
@@ -221,9 +247,10 @@ export function FacingWheel({ view, row, col, grid, name = '', onPreview, onComm
   const g = useTileScreen(view, row, col);
   const [dir, setDir] = useState(null);
   const [drag, setDrag] = useState(null); // { id } while a pointer is down
+  const [knob, setKnob] = useState(null); // { x, y } in viewBox units while a pointer is down
   const live = useRef({});
   const s = g && g.s > 0 ? g.s : 64;
-  const half = s * 1.5;              // half-diagonal: ~3 tiles across
+  const half = s * 1.5;              // wheel radius in px: ~3 tiles across the diameter
   const dead = s * DEAD_ZONE_TILES;  // centre dead-zone radius
   // `dir` is the SCREEN direction (chevrons, swipe, arrow keys). On the mirrored right half of the Final Assault prep
   // (research 09 §1.2: col c → 20 − c, RIGHT ↔ LEFT) the board direction differs: the range, the model preview and
@@ -237,10 +264,21 @@ export function FacingWheel({ view, row, col, grid, name = '', onPreview, onComm
   useEffect(() => { try { onPreview?.(bdir); } catch { /* ignore */ } }, [bdir]);
   useEffect(() => () => { showRange(view, null, row, col, null); }, []);
 
+  // Choose the direction of a pointer position and move the knob there. The knob/beam is FEEDBACK ONLY: it is clamped
+  // to KNOB_TRAVEL of the radius (an indicator that the drag is live, not a cursor that follows the finger off the
+  // wheel), while the direction still comes from the raw offset, via the same 45-degree sectors the wheel draws. The
+  // knob's clamp also keeps it clear of the chevrons' r=22 tap circles, so the W2 tap keeps its own target.
   const choose = (clientX, clientY) => {
     const L = live.current;
     if (!L.g) return null;
-    const d = dirFromDelta(clientX - L.g.x, clientY - L.g.y, L.dead);
+    const dx = clientX - L.g.x;
+    const dy = clientY - L.g.y;
+    const dist = Math.hypot(dx, dy);
+    // px → viewBox units, capped at the knob's travel radius. `half` is never 0 (s falls back to 64); the guard only
+    // protects a degenerate geometry a view could still report.
+    const k = dist > 0 && half > 0 ? Math.min(dist, half * KNOB_TRAVEL) / dist : 0;
+    setKnob({ x: dist > 0 ? dx * k * (VB_R / half) : 0, y: dist > 0 ? dy * k * (VB_R / half) : 0 });
+    const d = dirFromDelta(dx, dy, L.dead);
     setDir(d);
     return d;
   };
@@ -261,7 +299,9 @@ export function FacingWheel({ view, row, col, grid, name = '', onPreview, onComm
   const inside = (clientX, clientY) => {
     const L = live.current;
     if (!L.g) return true;
-    return Math.abs(clientX - L.g.x) + Math.abs(clientY - L.g.y) <= L.half * 1.18;
+    // the wheel is a circle now: a radial test instead of the old diamond's |dx| + |dy| (which let the corners of
+    // the diamond reach sqrt(2) further out than the drawn shape)
+    return Math.hypot(clientX - L.g.x, clientY - L.g.y) <= L.half * 1.6;
   };
 
   const onDown = (e) => {
@@ -280,10 +320,11 @@ export function FacingWheel({ view, row, col, grid, name = '', onPreview, onComm
   const onUp = (e) => {
     if (!drag || e.pointerId !== drag.id) return;
     setDrag(null);
+    setKnob(null);   // the knob is drag feedback: it disappears with the drag, whatever the outcome
     const d = choose(e.clientX, e.clientY);
     if (d) onCommit(boardDir(d, live.current.mirror)); else onCancel();
   };
-  const onPointerCancel = () => { setDrag(null); setDir(null); };
+  const onPointerCancel = () => { setDrag(null); setDir(null); setKnob(null); };
 
   // keyboard: arrows preview, Enter commits, Esc cancels (capture: the game's own shortcuts must not see them). Enter
   // follows the focus (gameLogic facingEnter, GitHub #394): on ✕ it cancels, on any other button (Tab reaches the HUD
@@ -320,13 +361,20 @@ export function FacingWheel({ view, row, col, grid, name = '', onPreview, onComm
     ${g ? html`<${Stripes} tiles=${tiles} view=${view} row=${row} col=${col} />` : null}
     ${g ? html`<div class="fwheel__dia" style=${`left:${g.x}px;top:${g.y}px;width:${box}px;height:${box}px`}>
       <svg class="fwheel__svg" viewBox="-110 -110 220 220" aria-hidden="true">
-        <path class="fwheel__outer" d="M0 -100 L100 0 L0 100 L-100 0 Z" />
-        <path class=${cx('fwheel__quad', dir === 'UP' && 'is-on')} d="M0 -100 L50 -50 L0 0 L-50 -50 Z" />
-        <path class=${cx('fwheel__quad', dir === 'RIGHT' && 'is-on')} d="M100 0 L50 50 L0 0 L50 -50 Z" />
-        <path class=${cx('fwheel__quad', dir === 'DOWN' && 'is-on')} d="M0 100 L-50 50 L0 0 L50 50 Z" />
-        <path class=${cx('fwheel__quad', dir === 'LEFT' && 'is-on')} d="M-100 0 L-50 -50 L0 0 L-50 50 Z" />
-        <path class="fwheel__inner" d=${`M0 ${-DEAD_ZONE_TILES / 1.5 * 100} L${DEAD_ZONE_TILES / 1.5 * 100} 0 L0 ${DEAD_ZONE_TILES / 1.5 * 100} L${-DEAD_ZONE_TILES / 1.5 * 100} 0 Z`} />
+        <!-- four 45-degree sectors around the circle: the boundaries are the two diagonals at r * 1/sqrt(2) -->
+        <path class=${cx('fwheel__quad', dir === 'RIGHT' && 'is-on')} d=${`M0 0 L${VB_DIAG} ${-VB_DIAG} A${VB_R} ${VB_R} 0 0 1 ${VB_DIAG} ${VB_DIAG} Z`} />
+        <path class=${cx('fwheel__quad', dir === 'DOWN' && 'is-on')} d=${`M0 0 L${VB_DIAG} ${VB_DIAG} A${VB_R} ${VB_R} 0 0 1 ${-VB_DIAG} ${VB_DIAG} Z`} />
+        <path class=${cx('fwheel__quad', dir === 'LEFT' && 'is-on')} d=${`M0 0 L${-VB_DIAG} ${VB_DIAG} A${VB_R} ${VB_R} 0 0 1 ${-VB_DIAG} ${-VB_DIAG} Z`} />
+        <path class=${cx('fwheel__quad', dir === 'UP' && 'is-on')} d=${`M0 0 L${-VB_DIAG} ${-VB_DIAG} A${VB_R} ${VB_R} 0 0 1 ${VB_DIAG} ${-VB_DIAG} Z`} />
+        <circle class="fwheel__outer" cx="0" cy="0" r=${VB_R} />
+        <circle class="fwheel__subring" cx="0" cy="0" r=${VB_R * 0.75} />
+        <line class="fwheel__axis" x1=${-VB_DIAG} y1=${-VB_DIAG} x2=${VB_DIAG} y2=${VB_DIAG} />
+        <line class="fwheel__axis" x1=${-VB_DIAG} y1=${VB_DIAG} x2=${VB_DIAG} y2=${-VB_DIAG} />
         ${DIRS.map((d) => html`<${Chevron} key=${d} dir=${d} on=${dir === d} onPick=${onPick} />`)}
+        <circle class="fwheel__inner" cx="0" cy="0" r=${(DEAD_ZONE_TILES / 1.5) * VB_R} />
+        ${knob ? html`<line class="fwheel__stick" x1="0" y1="0" x2=${knob.x} y2=${knob.y} />
+          <circle class="fwheel__knob" cx=${knob.x} cy=${knob.y} r=${KNOB_R} />
+          <circle class="fwheel__knobdot" cx=${knob.x} cy=${knob.y} r=${BEAM_R} />` : null}
       </svg>
       <button type="button" class="fwheel__cancel" onPointerDown=${(e) => e.stopPropagation()}
         onClick=${(e) => { e.stopPropagation(); onCancel(); }} aria-label=${t('点击取消')}>
@@ -378,8 +426,9 @@ export function stripePolys(view, tiles, ox = 0, oy = 0) {
 }
 
 /**
- * Striped orange range tiles (the official look), re-projected every frame (the camera may still move). The solid
- * orange fill is the render view's highlight group under the units; these are the light stripes on top of it.
+ * Striped orange range tiles (the official look), re-projected at ~30 Hz (see useTileScreen: the camera may still
+ * move, and a per-frame re-projection of every polygon is not worth a high-refresh main thread). The solid orange fill
+ * is the render view's highlight group under the units; these are the light stripes on top of it.
  */
 function Stripes({ tiles, view, row, col }) {
   const [, setN] = useState(0);
@@ -396,7 +445,11 @@ function Stripes({ tiles, view, row, col }) {
     svg.innerHTML = `<defs><pattern id="${id}" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`
       + '<rect width="3.5" height="10" fill="rgba(255,178,70,.5)" /></pattern></defs><g></g>';
     const g = svg.lastChild;
-    mount.host.insertBefore(svg, mount.before);
+    try {
+      // the canvas must still be a direct child of the host (the render layer can rebuild between effect and run)
+      if (mount.before && mount.before.parentElement === mount.host) mount.host.insertBefore(svg, mount.before);
+      else mount.host.appendChild(svg);
+    } catch { return undefined; }
     let raf = 0;
     let last = '';
     const tick = () => {
@@ -414,10 +467,12 @@ function Stripes({ tiles, view, row, col }) {
           return el;
         }));
       }
-      raf = requestAnimationFrame(tick);
     };
-    tick();
-    return () => { cancelAnimationFrame(raf); svg.remove(); };
+    // ~30 Hz (see useTileScreen): full rAF here re-projected every polygon on each frame of a high-refresh display
+    const FOLLOW_MS = 1000 / 30;
+    const loop = () => { tick(); raf = setTimeout(loop, FOLLOW_MS); };
+    loop();
+    return () => { clearTimeout(raf); svg.remove(); };
   }, [key, view, !!mount]);
   // overlay (2D board / fallback): never over the piece's own tile, so the unit being placed stays visible
   const over = mount ? [] : tiles.filter(([r, c]) => r !== row || c !== col);
@@ -430,10 +485,12 @@ function Stripes({ tiles, view, row, col }) {
       const t = tileScreen(view, over[0][0], over[0][1]);
       const k = t ? `${t.x.toFixed(1)},${t.y.toFixed(1)}` : '';
       if (k !== last) { last = k; setN((n) => n + 1); }
-      raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // ~30 Hz (see useTileScreen)
+    const FOLLOW_MS = 1000 / 30;
+    const loop = () => { tick(); raf = setTimeout(loop, FOLLOW_MS); };
+    loop();
+    return () => clearTimeout(raf);
   }, [overKey, view]);
   if (!over.length) return null;
   const polys = stripePolys(view, over);

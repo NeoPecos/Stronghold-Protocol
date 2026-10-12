@@ -513,7 +513,8 @@ button.bpop__harmony:hover { border-style: solid; color: #fff; }
 }
 .spcard__icon img, .dhead__icon img, .scard__itemart img, .effect img { max-width: 100%; max-height: 100%; }
 
-/* ---- direction wheel (ui/facingWheel.js, research 09 §1.2): white diamond, 4 chevrons, "✕ 点击取消", orange range ---- */
+/* ---- direction wheel (ui/facingWheel.js, research 09 §1.2): circular joystick — outer ring, 4 sectors, dashed
+   sub-ring, 4 chevrons, knob + beam, "✕ 点击取消", orange range ---- */
 .fwheel { position: fixed; inset: 0; z-index: 6; touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
 /* the wheel takes the keyboard focus when it opens (Enter confirms there, GitHub #394): no ring around the whole screen */
 .fwheel:focus-visible { outline: none; }
@@ -521,14 +522,21 @@ button.bpop__harmony:hover { border-style: solid; color: #fff; }
 .fwheel__dia { position: absolute; transform: translate(-50%, -50%); pointer-events: none; animation: fwheel-in 160ms var(--ease-out); }
 @keyframes fwheel-in { from { opacity: 0; transform: translate(-50%, -50%) scale(.82); } }
 .fwheel__svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 .05rem rgba(0, 0, 0, .75)); }
-.fwheel__outer { fill: rgba(8, 12, 10, .1); stroke: #fff; stroke-width: 2.4px; vector-effect: non-scaling-stroke; }
+.fwheel__outer { fill: rgba(8, 14, 12, .35); stroke: rgba(255, 255, 255, .85); stroke-width: 2.2px; vector-effect: non-scaling-stroke; }
+/* the dashed sub-ring and the two diagonal dividers are what make the circular wheel read as four sectors */
+.fwheel__subring { fill: none; stroke: rgba(255, 255, 255, .2); stroke-dasharray: 4 6; stroke-width: 1.2px; }
+.fwheel__axis { stroke: rgba(255, 255, 255, .25); stroke-width: 1.2px; stroke-dasharray: 2 4; }
 .fwheel__quad { fill: transparent; transition: fill var(--t-fast); }
-/* upstream keeps the lit quadrant untinted so it does not wash out the units standing under the diamond (research 09
+/* upstream keeps the lit quadrant untinted so it does not wash out the units standing under the wheel (research 09
    §1.2). W2 wants a clearer tap target, so it is tinted — but at a LOW alpha, i.e. a hint rather than a wash: the chevron
    still carries the state, the quadrant only says "this side". */
 .fwheel__quad.is-on { fill: rgba(255, 174, 61, .18); }
 .fwheel__inner { fill: rgba(255, 255, 255, .06); stroke: rgba(255, 255, 255, .9); stroke-width: 1.6px; vector-effect: non-scaling-stroke; }
 .fwheel.is-pressed .fwheel__inner { fill: rgba(255, 255, 255, .1); }
+/* the joystick knob and its beam (ui/facingWheel.js choose()): pure drag feedback, drawn only while a pointer is down */
+.fwheel__stick { stroke: rgba(255, 174, 61, .85); stroke-width: 3.5px; stroke-linecap: round; filter: drop-shadow(0 0 4px rgba(255, 156, 51, .9)); }
+.fwheel__knob { fill: #ffae3d; stroke: #fff; stroke-width: 2.5px; filter: drop-shadow(0 0 6px rgba(255, 156, 51, 1)); }
+.fwheel__knobdot { fill: #fff; opacity: .9; }
 /* a chevron is a tap target of its own (W2): an invisible hit circle + `touch-action: none`, without which the browser
    cancels the pointer sequence on the first move and the release never commits. */
 .fwheel__chev { touch-action: none; cursor: pointer; }
