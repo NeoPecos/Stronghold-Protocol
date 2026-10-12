@@ -11,15 +11,30 @@ rooms) and a deterministic battle sim shared by the server and the browser. It a
 
 ## Read first
 
-1. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — the code map: where things live, data flow, golden results,
+1. [PROJECT-STATUS.md](PROJECT-STATUS.md) — the single current-state entry point: production versions, active task,
+   dirty-worktree risks and the next verified action. Read it before interpreting historical handoff notes.
+2. [docs/WORKFLOW.md](docs/WORKFLOW.md) — mandatory task ownership, checkpoint, logging, review and release workflow
+   for every coding agent working in this repository.
+3. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — the code map: where things live, data flow, golden results,
    import boundaries, where common changes start.
-2. [docs/DESIGN.md](docs/DESIGN.md) — the index of the rules: current rules in `docs/design/`, each release's
+4. [docs/DESIGN.md](docs/DESIGN.md) — the index of the rules: current rules in `docs/design/`, each release's
    revisions and their evidence in `docs/history/`.
-3. The reference for the part you touch: [docs/SIM.md](docs/SIM.md) (battle engine API, hooks, test harness),
+5. The reference for the part you touch: [docs/SIM.md](docs/SIM.md) (battle engine API, hooks, test harness),
    [docs/META.md](docs/META.md) (match flow, shop, protocol), [docs/DATA.md](docs/DATA.md) (generated data),
    [docs/I18N.md](docs/I18N.md) (interface strings), `server/sim/content/kits/README.md` (operator kits).
 
 ## Hard rules
+
+- **Work from a task file.** Any change beyond a trivial typo needs an active `docs/tasks/TASK-*.md` with scope,
+  protected areas, acceptance checks and rollback notes. Update its checkpoint before ending a session.
+- **Keep one current truth.** `PROJECT-STATUS.md` is concise and current. Append factual actions to the monthly file
+  under `docs/ops/`; historical handoff documents are evidence, never the source of current production state.
+- **No mixed-source releases.** Do not combine unreviewed local edits, another agent's partial work, upstream changes
+  and production hotfixes in one package. Reconcile provenance first and record the frozen commit in the release file.
+- **Deployment is a separate step.** Implementing or building does not authorize deployment. A release task must list
+  artifacts, hashes, backups, validation and rollback. Never infer that a server or client is current from source alone.
+- **Checkpoint early.** Leave the worktree understandable before a context or quota boundary: completed work, exact
+  remaining work, tests run, failures and the next command belong in the active task and operations log.
 
 - **Official first.** Rules come from the official data tables (`.cache/gamedata/excel/` after setup) and
   [PRTS](https://prts.wiki/). A detail no source settles is implemented the simplest way and marked `[ASSUMED]` in the
