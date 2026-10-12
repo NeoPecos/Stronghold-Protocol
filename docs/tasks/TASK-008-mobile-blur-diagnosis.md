@@ -1,10 +1,10 @@
 # TASK-008 — Mobile adaptation and blur: diagnosis before change
 
-Status: `planned` (diagnosis only — no CSS, no asset, no quality-parameter change)
+Status: `in_progress` (device measurements pending from the maintainer)
 
 Lead: Codex
 
-Implementer: unassigned (proposed: DeepSeek)
+Implementer: DeepSeek
 
 Starting commit: `fee08aff`
 
@@ -91,7 +91,27 @@ affects the client **before** changing anything.
 
 ## Current checkpoint
 
-- Not started. No file changed. Plan and reconnaissance only.
+### 2026-10-12 18:55 — started; device measurements handed to the maintainer
+
+- Written for the maintainer: `docs/analysis/mobile-probe-instructions.md` — a read-only, ready-to-paste
+  `javascript:` probe that dumps the CSS viewport, `visualViewport`, resolved `--sa-*`, `devicePixelRatio`, screen
+  size/orientation, **every canvas's backing store vs its CSS box**, image `currentSrc` + natural size vs CSS size,
+  the app's own `--sp-vh`/`--t`, and the active display options. Plus the four screenshots that separate
+  "whole frame soft" from "board only" from "HUD text only".
+- Why the maintainer and not the implementation: the safe-area insets, the real device pixel ratio and the wrapper's
+  own viewport can only be read on the device. A workstation can render 568×320 all day and still never see the
+  wrapper's chrome.
+- Partly measurable here, still to do in this task: the 568×320 / 640×360 / 756×366 / 812×375 / 844×390 metrics in a
+  headless browser, the canvas backing-store caps per 分辨率 mode (`canvasPixelRatio`, `boardPixelRatioCap`), and the
+  `data/local-assets.json` vs `data/assets.json` resolution for the same asset.
+- Not started: the report itself. **No CSS, asset or quality parameter has been touched** — and none will be until a
+  cause is proven.
+- Next: collect the device probe output, then run the local measurements and write `docs/analysis/` report.
+
+## Handoff — what the maintainer does
+
+Run `docs/analysis/mobile-probe-instructions.md` on the phone, once in the browser and once in the app, and send back
+the alert text plus the four screenshots. Nothing else is needed; do not change 分辨率 / 质量 between runs.
 
 ## Rollback
 
