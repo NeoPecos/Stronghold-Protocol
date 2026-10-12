@@ -1,6 +1,6 @@
 # TASK-009 — Deterministic native local assets and mobile rendering fallback
 
-Status: `review_ready` (offline batch 1 + correction batch on `task-009-native-local-assets`)
+Status: `in_progress` (offline batch 1 accepted; runtime/device batches remain)
 
 Lead: Codex
 
@@ -224,9 +224,10 @@ Freeze recheck v2 (`.local/task009/freeze-recheck2.mjs`, same 42-file TASK-018 m
 expectedFiles=42+1 / identical=40 edited=2/2 drift=0 missing=0 extra=0` → `FREEZE MATCH (仅两个校验脚本改写 + 计划内新增)`.
 Only `scripts/verify-bundle.cjs` (955 → 12 454 B) and `scripts/verify-client-rules.mjs` (9 223 → 11 993 B) were edited;
 the single addition under the walked roots is `scripts/lib/source-provenance.cjs` (6 033 B, sha256 `e877b9ae…`), and
-`test/validators/` holds exactly the three planned files. `git diff --stat 7ec87b40 -- windows android assets test
-scripts/build-*.ps1` is empty — no runtime, asset or build-script drift. `package.json` (567 B, sha256 `8122539e…`) only
-adds the `test:validators` script.
+`test/validators/` holds exactly the three planned files. `git diff --name-only 7ec87b40 -- windows android assets
+scripts/build-windows.ps1 scripts/build-android.ps1` is empty — no runtime, asset or build-script drift; the separate
+`test/` diff contains only those three planned validator files. `package.json` (567 B, sha256 `8122539e…`) only adds
+the `test:validators` script.
 
 Other evidence at the committed revision: `node scripts/verify-bundle.cjs` exit 0 →
 `✅ 素材包可用（已武装）：13642 文件 / 797.2 MiB / 本地命中证明 13642 条 / ETag 13642 条` with the historical
@@ -236,6 +237,23 @@ failures / unarmed fail-fast); worktree clean on both branches. Not changed (out
 the gate-3 drift, runtime scope items 4–7 and the on-device acceptance evidence.
 
 - **Next action**: Codex re-reviews `b6b2030` on `task-009-native-local-assets` (with `a0f0da4`) and this checkpoint.
+
+### 2026-10-13 — Codex re-review of `b6b2030`: offline batch 1 accepted
+
+- Confirmed wrapper branch separation: `main` remains accepted baseline `7ec87b40`; task branch contains preserved
+  `a0f0da4` plus correction `b6b2030`, with no remote, tag, push or dirty file.
+- Re-ran committed validator tests: 21/21 pass. The real armed bundle passes both harnesses; the original Codex
+  zero-ETag fixture now exits 1 with four named full-coverage failures.
+- Confirmed the hand-maintained material baseline constants are gone. Source provenance now validates the commit
+  shape, checks commit existence when the game repository is available and binds `manifest.localAssets` to the
+  generated build input; unavailable repository/git cases degrade with an explicit warning rather than a false claim.
+- Audited the seven-file correction diff. Only validators, their shared provenance helper, deterministic tests and
+  the validator npm script changed; Windows/Android runtime, assets and build scripts remain unchanged.
+- Corrected one checkpoint wording error: its quoted diff command included `test/` and therefore was not empty; the
+  runtime-only path check is empty, while `test/` intentionally contains the three new regression files.
+
+Offline batch 1 is accepted. TASK-009 itself remains `in_progress`: clean/upgrade installation, offline launch,
+missing/corrupt recovery, startup progress/diagnostics and Windows/two-Android device evidence are still outstanding.
 
 ## Rollback
 

@@ -81,11 +81,10 @@ handoff files. Update this page whenever production state, the active task, a re
 ## Immediate next action
 
 Push the accepted main-repository checkpoint chain to `origin/integrate-upstream-0.2.3` only when explicitly
-authorised. TASK-009 offline batch 1 is back `in_progress`: wrapper commit `a0f0da4` must reject zero-ETag indexes,
-remove the hand-maintained source-commit pin, commit deterministic negative tests and restore the task-branch boundary.
-TASK-023 waits behind TASK-009. TASK-015 receives its final main-repository baseline only after the checkpoint is
-remote-backed, and TASK-016 remains blocked on TASK-015 acceptance. Nothing is merged to `master`, and no wrapper
-remote is created yet.
+authorised. TASK-009 offline batch 1 is accepted on wrapper task branch through `b6b2030`; continue with the remaining
+runtime/recovery/device batches without merging into wrapper `main` or publishing a client. TASK-023 waits behind
+TASK-009. TASK-015 receives its final main-repository baseline only after the checkpoint is remote-backed, and
+TASK-016 remains blocked on TASK-015 acceptance. Nothing is merged to `master`, and no wrapper remote is created yet.
 
 ## Stop conditions
 
