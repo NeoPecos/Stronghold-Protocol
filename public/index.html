@@ -69,11 +69,12 @@
   <section id="distribution-notice" hidden role="dialog" aria-modal="true" aria-labelledby="distribution-notice-title">
     <div class="notice-panel">
       <h2 id="distribution-notice-title">公告</h2>
+      <p><strong>由于服务器带宽限制，网页版暂时关闭；带宽问题解决后会重新开放。</strong></p>
+      <p>请加入 QQ 群 <strong id="distribution-group-number">1124360673</strong> 下载客户端，并在群内实时了解更新详情。</p>
       <p>客户端更新请使用客户端右上角的“检查更新”，更新器会自动下载并安装适用的小补丁。</p>
-      <p>需要获取完整客户端时，请加入 QQ 群 <strong id="distribution-group-number">1124360673</strong>，从群文件获取。</p>
       <button type="button" onclick="copyDistributionGroup()">复制 QQ 群号 1124360673</button>
       <p id="distribution-copy-status" role="status" aria-live="polite"></p>
-      <button type="button" onclick="document.getElementById('distribution-notice').hidden=true">关闭</button>
+      <button type="button" data-notice-dismiss>我知道了</button>
     </div>
   </section>
   <!-- 「公告」按钮只在标题页渲染（js/main.js 按路由输出），否则它会跟着进对局 -->

@@ -49,6 +49,8 @@ import { installAudio } from './audio.js';
 import { settingsStore } from './ui/settings.js';
 import { GuideHost } from './ui/guide.js';
 import { installDeviceSupport } from './ui/device.js';
+// 浏览器公告：只给浏览器用户看（原生客户端由 isNativeClient() 排除），见 ui/notice.js
+import { installBrowserNotice } from './ui/notice.js';
 import { LoadoutHost } from './screens/loadout.js';
 import { StatsHost } from './screens/stats.js';
 import { recordResult, installStatsRecorder } from './ui/stats.js';
@@ -367,6 +369,10 @@ async function boot() {
   installGlobalErrorHandlers();
   // touch / hover / fullscreen classes, zoom-gesture blocking, rotation re-layout (ui/device.js, css/devices.css)
   installDeviceSupport();
+  // 浏览器公告（ui/notice.js）：带宽所限不再支持网页游玩，引导进群下载客户端。
+  // 原生客户端（SPClient/Windows|Android、WebView 宿主）不弹 —— 绝不能让它看到「浏览器版停用」。
+  // 关过一次就记住版本，不再打扰；换公告版本会再弹一次。
+  installBrowserNotice();
   // A page restored from the back/forward cache has a dead socket and a stale token choice: start over.
   window.addEventListener('pageshow', (ev) => { if (ev.persisted) location.reload(); });
   // Pick this tab's reconnect token (asks other live tabs; ≤150 ms) while fonts load.

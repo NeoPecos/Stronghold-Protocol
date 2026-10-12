@@ -11,6 +11,7 @@ import { Network, SessionRegistry, NET_DEFAULTS } from '../net.js';
 import { Lobby } from '../lobby.js';
 import { splitUrl } from './common.js';
 import { netOptionsFrom, lobbyOptionsFrom } from './config.js';
+import { isNativeClient } from './clientOnly.js';
 
 /** Inbound WebSocket frame limit (DESIGN §8). */
 export const WS_MAX_PAYLOAD = 64 * 1024;
@@ -36,7 +37,7 @@ export function createSessionStack(opts, { data, log }) {
  * @param {{ network: Network, log: object }} deps
  * @returns {WebSocketServer}
  */
-export function attachWebSocket(server, { network, log }) {
+export function attachWebSocket(server, { network, log, clientOnly = false }) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: WS_MAX_PAYLOAD, perMessageDeflate: false, clientTracking: false });
   wss.on('connection', (ws, req) => network.handleConnection(ws, req));
   wss.on('error', (e) => log.error('[ws] server error', e));
@@ -48,6 +49,7 @@ export function attachWebSocket(server, { network, log }) {
       try { socket.end(`HTTP/1.1 ${status} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`); } catch { socket.destroy(); }
     };
     if (!parts || parts.rawPath !== '/ws') { reject(404, 'Not Found'); return; }
+    if (clientOnly && !isNativeClient(req)) { reject(403, 'Forbidden'); return; }
     const refused = network.admission(req);
     if (refused === 'per-address') { reject(429, 'Too Many Requests'); return; }
     if (refused) { reject(503, 'Service Unavailable'); return; }

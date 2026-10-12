@@ -786,7 +786,7 @@ export class UnitView {
     this._chipTileSize = s;
     const w = this.chip.texture.width || 64;
     const h = this.chip.texture.height || 44;
-    const cs = Math.min(Math.min(s * 0.38, 28) / w, Math.min(s * 0.26, 20) / h);
+    const cs = Math.min(Math.min(s * 0.65, 40) / w, Math.min(s * 0.45, 28) / h);
     this.chip.scale.set(cs);
   }
 
