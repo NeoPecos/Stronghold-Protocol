@@ -51,6 +51,12 @@ handoff files. Update this page whenever production state, the active task, a re
   official client as the dependency root. Nothing existing was overwritten (the only new files are the 92 under
   `local/scene`); the previous manifest is backed up at `/root/sp2-backups/local-assets-20261013-040810.json`. Native
   clients still need this pack inside their package/bundle before the scenes render offline.
+- The scene pack is also packaged for out-of-band distribution (2026-10-13 04:25 +08, TASK-026):
+  `dist/scene-patch/Stronghold-scenes-1.2.9.zip` is 17 497 681 B (16.69 MiB) sha256 `cb141645…`, carrying the 57
+  manifest-referenced scene files plus the re-armed `bundle/index.json` (`03617f59…` → `594c45dc…`, 13 699 entries)
+  and a self-contained installer (`apply-scenes-patch.ps1` / `.cmd`). It is NOT uploaded to the server — the maintainer
+  posts it in the QQ group; applying it to an extracted real 1.2.9 install tree added 57 files / replaced 1 (exit 0),
+  a second run is a no-op, and a 1.2.8 tree is refused with `当前版本与补丁不匹配`.
 - Browser-only gate: TASK-020 reports `SP_CLIENT_ONLY=1` is live; browsers receive the bandwidth notice while native
   clients still receive the game. Recheck directly before release work.
 - Media caching: TASK-021's nginx immutable-cache headers are live. TASK-022's Node/nginx ETag alignment is committed
@@ -138,8 +144,9 @@ The server half of the 0.2.5 integration is **live** (`0.2.5`, build `c13af814d7
 `/root/sp2-backups/sp2-pre-025-20261013-015200.tgz`), the top-HUD fix and the 0.2.5 battlefield scenes are deployed for
 browser clients (TASK-024 / TASK-026), and the `1.2.8 → 1.2.9` incremental client update is published and signed
 (TASK-025). Next: the maintainer verifies the in-client update on installed Windows and Android clients and the new maps
-in a browser; the scene pack (61.44 MiB) still has to ride a package or incremental patch before native clients render
-them offline; then Codex review of TASK-014/TASK-015/TASK-016/TASK-024/TASK-025/TASK-026, keeping
+in a browser; the scene pack is available out-of-band as `dist/scene-patch/Stronghold-scenes-1.2.9.zip` (16.69 MiB,
+TASK-026) for 1.2.9 Windows clients, while Android needs the in-app update or a new APK; then Codex review of
+TASK-014/TASK-015/TASK-016/TASK-024/TASK-025/TASK-026, keeping
 `PROJECT-STATUS.md` and `docs/tasks/README.md` for the reviewer.
 
 ## Stop conditions

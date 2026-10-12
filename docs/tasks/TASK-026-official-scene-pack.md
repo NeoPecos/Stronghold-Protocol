@@ -69,3 +69,27 @@ https://github.com/sganggs/Stronghold-Protocol，但是你千万别覆盖我的�
   （TASK-025 的更新链路已就绪）。
 - Production/GitHub: 场景素材与清单已上线生产（静态文件、无重启、有备份）；客户端包、服务端代码、`data/assets.json`、
   nginx 未改；GitHub 未发布。
+
+### 2026-10-13 04:25 — TASK-026 — DeepSeek（QQ 群独立场景补丁：不走服务器更新器）
+
+- Action: 按维护者要求（「能不能发个补丁，就是不走服务器的更新器，单独做个更新补丁，我放QQ群里，60m还是太大了」）
+  制作独立补丁：只取清单真正引用的 57 个文件（11 个 `scene.bin` 27.53 MiB + 35 个 `lm*.webp` 7.38 MiB + 11 个
+  `scene.json` 0.14 MiB = 35.06 MiB）；同目录那 35 个 `lm*.png` 没有任何代码路径引用（加载器按清单条目解析 URL），
+  不进补丁。补丁内容 = 这 57 个文件 + 重新武装的 `bundle/index.json`（`03617f59…` → `594c45dc…`，13 699 条，
+  两个来源各 13 699 条内容证明），并自带安装器（不依赖服务器更新器，`windows/update-windows.ps1` 的校验语义被
+  复刻进 `apply-scenes-patch.ps1`）。
+- Result: `dist/scene-patch/Stronghold-scenes-1.2.9.zip` 17 497 681 B（**16.69 MiB**，原包 61.44 MiB），
+  sha256 `cb1416451dda7576e078d896cb8c8c3b9f3af600fd77c0499e171bb45369110e`；压缩包 62 个文件：
+  `manifest.json`（58 条：`bundle/index.json` 带 `oldSha256`，57 个场景文件只带 `newSha256`）、`bundle/index.json`、
+  `bundle/payload/assets/local/scene/**`、`apply-scenes-patch.ps1`、`apply-scenes-patch.cmd`、`README.txt`。
+  生成脚本与安装器源文件在本机 `.local/task026/`（`make-scene-patch.mjs` 组装 stage 并打包，`patch/` 是安装器与说明的
+  源文件），`.local/` 不入库。
+- Verification（全部在 7z 解出的真实 1.2.9 安装树上实测，安装包索引确为 `03617f59…`）：① 打补丁 exit 0，
+  `校验通过：新增 57 个文件，替换 1 个文件`，之后索引 `594c45dc…`（13 699 条、57 条场景在两个来源都有内容证明）、
+  场景文件 57 个 / 36 763 429 B；② 重复运行 exit 0 并提示「已经安装过了」（幂等）；③ 对 1.2.8 安装树 exit 1，
+  `当前版本与补丁不匹配：bundle/index.json`（拒绝且不改文件）；④ 客户端进程在运行时安装器拒绝执行（本机实测命中：
+  维护者客户端正在运行）。服务器侧不需要任何改动。
+- Next: 维护者把压缩包发到 QQ 群；群成员解压后双击 `apply-scenes-patch.cmd`（先确认客户端是 1.2.9 且已退出客户端）。
+  Android 不能用散文件补丁（素材在 APK 内），需要应用内更新或新版 APK。
+- Production/GitHub: 未上传服务器（该包走 QQ 群分发；nginx `/client/` 只放行 `latest.json`/`latest.sig`/`*.patch.gz`/
+  `windows-*.zip`）；`dist/` 与补丁本体不入库；GitHub 未发布。
