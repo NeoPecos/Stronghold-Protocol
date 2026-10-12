@@ -113,3 +113,22 @@ measurement.
 repeat analysis on the next day's log; the metric to watch is "distinct (device, path) pairs repeated"
 (was 9,013 pairs / 3,904.7 MB of redundant 200s) and the `/media/` 200:304 ratio (was 43,278:3,972).
 Waiting for Codex review of the snippet change and this record.
+
+2026-10-12 21:10 — **monitoring pass done (read-only, nothing changed).** Full record in
+`docs/ops/2026-10.md` under "monitoring only (no task, no change)".
+
+- The header layer is confirmed **live and correct**: `GET /media/bgm/m_bat_act1autochess_loop` returns
+  `audio/mpeg`, `content-length: 1997679`, `accept-ranges: bytes`, `etag: "1e7b6f-1a116b6a130"`,
+  `expires: Thu, 31 Dec 2037`, the nginx `immutable` line, and **`If-None-Match` → `304` / 0 bytes**,
+  `If-Modified-Since` → `304` / 0 bytes. (Conditional handling itself is not new — `/media/` already had
+  3,972 all-time 304s before the change — but the one-year immutable grant plus `inline` is now
+  verifiably present on both hosts.)
+- But the client is still not using it: BGM's 304 rate is **4.8 %**, i.e. 83.3 % of the BGM bytes served
+  today (4,416 MB of 5,300 MB) were **repeat fetches of a file the same client had already downloaded**.
+  All four asset classes: 11,269 MB served, 4,935 MB first-fetch, **6,334 MB redundant (56.2 %)** across
+  88,942 extra requests.
+- This does **not** reopen the fix; it confirms the "signal strengthening, not root-cause" limitation
+  written above, and puts a number on it: the remaining lever is worth ~4.4 GB/day on BGM alone.
+- Live link: 2.1–2.3 Mbps 60 s mean, 10 s peaks 0.77–**6.42 Mbps**, 90 sockets; projects to 21.6–23 GiB/day.
+- Next day's comparison should use the same definition: bytes past the first `(client, path)` fetch, per class.
+  Rerun script kept at `.local/bw-redundant.sh` (local, not part of any release).
