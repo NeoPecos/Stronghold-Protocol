@@ -1,6 +1,6 @@
 # TASK-006 — Push TASK-003 and deploy the wheel to production
 
-Status: `in_progress`
+Status: `review_ready`
 
 Lead: Codex (review pending)
 
@@ -52,14 +52,37 @@ Scope of the grant, as confirmed before execution:
 
 ## Current checkpoint
 
-- Completed: TASK-003 implementation (see that file); both authorisation points recorded above.
-- Changed files and provenance: the three wheel files come from this fork's own checkout at baseline `e0231293`, whose
-  pre-change hashes were proven **byte-identical** to `/opt/sp2` before deploying. No other agent's work, no upstream
-  or Paper-Yuan tree, and no production hotfix is mixed in.
-- Tests run: see TASK-003's checkpoint (golden 287/287; targeted units 148; E2E 30; eslint 0 errors; the single
-  `assets-env-proxy` failure is pre-existing and reproduced on the clean baseline).
-- Exact next action: execute the deployment steps in order, then append the result to `docs/ops/2026-10.md`.
-- GitHub/production state: recorded after execution below.
+### 2026-10-12 18:13 — executed
+
+- Commit: `198d5542` (TASK-003 implementation, 10 files). Pushed as a **new branch** on origin:
+  `integrate-upstream-0.2.3` → `https://github.com/NeoPecos/Stronghold-Protocol`. Not merged into `master`.
+- Backup: `/opt/sp2/backups/wheel-20261012-181314/`, holding the three pre-change files in their original directory
+  shape plus `PRE-CHANGE.sha256`. Pre-change hashes were `85583b18…`, `bff8a0f3…`, `bfc1532b…` — byte-identical to the
+  local baseline `e0231293`, confirming a clean single-source deploy.
+- Deployed hashes now on JING (each equals the local working-tree file):
+
+  | File | SHA-256 |
+  |---|---|
+  | `public/js/ui/facing.js` | `93cca5945e1b0fad9046a3e9c6fcb44f6c0b2462c74b16ab715c6a2ac21871d2` |
+  | `public/js/ui/facingWheel.js` | `0d5ebe9469f77b50ca4ade6ad986d9e632e718fb4e848a315384dd7364cf0183` |
+  | `public/css/screens/game-panels.css` | `9a31bf33e5172d9e51d69faf94118740ab97320721addbb4c3247e10db4a5252` |
+
+- Service untouched: `MainPID=189578` and `ExecMainStartTimestamp=2026-10-12 02:57:14 CST` are unchanged before and
+  after, `NRestarts=0`. No restart, no SIGHUP: `/js/ui/facingWheel.js`, `/js/ui/facing.js` and
+  `/css/screens/game-panels.css` are all served from disk, so players pick the change up on reload. 14 matches were
+  live during the deploy.
+- Served content checked: the deployed `facingWheel.js` contains `fwheel__subring` and `fwheel__knob` and **no** longer
+  contains the old diamond path `M0 -100 L100 0 L0 100 L-100 0 Z`; `facing.js` contains the `Math.atan2(dy, dx)`
+  sector logic. All confirmed both on `127.0.0.1:3810` and through `https://sp.bs.leio.fun`.
+- Live browser end-to-end: loaded `https://sp.bs.leio.fun`, imported the **deployed** `facingWheel.js`, rendered the
+  wheel and dragged: circle `r=100`, 4 sectors, sub-ring, 2 axes, 4 chevron hit circles, dead-zone `r=33.333`; the
+  drag showed the knob + beam, lit one sector and committed `RIGHT`. **No console or page errors.**
+- Manifest untouched as authorised: `/opt/sp2/public/client/latest.json` sha256
+  `efe977150b5487a48f886ba477bd22017555e8e50351cf4ac6655e71048bdf66`, `versionCode` still 11. No client was built or
+  published.
+- Next action: Codex review of TASK-003 (and of this deploy record). No further production action is pending.
+- GitHub/production state: branch pushed; three files live on `sp.bs.leio.fun`; `latest.json`, accounts, records and
+  the service process untouched.
 
 ## Rollback
 
