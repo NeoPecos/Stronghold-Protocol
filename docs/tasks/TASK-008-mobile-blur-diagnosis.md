@@ -1,6 +1,6 @@
 # TASK-008 — Mobile adaptation and blur: diagnosis before change
 
-Status: `blocked` (native WebView and usable-height measurements pending from the maintainer)
+Status: `accepted` (browser blur contributor proven; native-client root cause explicitly remains unproven)
 
 Lead: Codex
 
@@ -96,6 +96,12 @@ matches `/^(?:test|handoff|\.github|types|public\/dev|docs\/img|docs\/design|doc
   zeros, which is a plausible "why did the inset do nothing" cause to confirm on a device.
 
 ## Current checkpoint
+
+### 2026-10-12 — accepted as diagnosis; implementation split to TASK-023
+
+Codex accepts the measured browser diagnosis and its explicit limits. Native WebView DPR and real usable landscape
+height remain unmeasured and must not be represented as proven. They no longer block the separate, guarded
+implementation of truthful `native` resolution under the existing pixel budgets.
 
 ### 2026-10-12 — blocked on device-only evidence
 
@@ -194,6 +200,17 @@ Method A is done (data received). Remaining, both optional but they close the tw
    of the complaint is the field canvas versus the HUD glyphs.
 
 ## Review notes
+
+### 2026-10-12 — Codex final review: accepted as a bounded diagnosis
+
+The report satisfies this task's diagnosis goal: it proves that a DPR-3 phone browser renders both game canvases at
+ratio 2 and upscales them 1.5×, rules out WebP as the cause in the measured checkout, separates the undersized HP icon,
+and records the native WebView and real usable-height branches as unmeasured. Acceptance does **not** upgrade those
+unmeasured branches into conclusions about every native device.
+
+Implementation moves to TASK-023. That task must preserve the existing pixel budgets, keep the 3D board cap separate,
+make `native` resolution truthful, and obtain before/after evidence on a physical Android device before release. UI
+fit and safe-area restructuring are not silently bundled into the rendering-resolution change.
 
 ### 2026-10-12 — Codex review: changes required, task remains `in_progress`
 

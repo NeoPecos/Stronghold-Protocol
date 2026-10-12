@@ -9,7 +9,7 @@
 | [TASK-005](TASK-005-room-communications.md) | planned | unassigned | Room text chat plus announcement/admin tools; no voice |
 | [TASK-006](TASK-006-deploy-wheel.md) | accepted | DeepSeek (maintainer-authorised) | Push TASK-003 and deploy the wheel to production |
 | [TASK-007](TASK-007-native-fullscreen-button.md) | accepted | DeepSeek | Native clients hide the browser fullscreen button; shared detection accepted |
-| [TASK-008](TASK-008-mobile-blur-diagnosis.md) | blocked | DeepSeek | Browser contributor proven; native WebView and usable-height evidence pending |
+| [TASK-008](TASK-008-mobile-blur-diagnosis.md) | accepted | DeepSeek | Browser DPR-cap contributor proven; native-client conclusion explicitly excluded |
 | [TASK-009](TASK-009-native-local-assets.md) | planned | unassigned | Deterministic native local assets and mobile rendering fallback |
 | [TASK-010](TASK-010-bounded-resource-preload.md) | planned | unassigned | Bounded manifest-driven resource preload and cache |
 | [TASK-011](TASK-011-live-combat-statistics.md) | planned | unassigned | Live per-operator combat statistics using existing record truth |
@@ -23,6 +23,7 @@
 | [TASK-020](TASK-020-close-browser-entry.md) | review_ready | DeepSeek | Production browser gate is live; Codex review pending |
 | [TASK-021](TASK-021-nginx-media-cache.md) | review_ready | DeepSeek | Immutable `/media/` cache headers are live; Codex review pending |
 | [TASK-022](TASK-022-media-etag-validator.md) | review_ready | DeepSeek | Align Node media ETags with nginx; implemented locally, not deployed |
+| [TASK-023](TASK-023-mobile-rendering-resolution.md) | planned | DeepSeek | Make native resolution follow device DPR under the existing pixel budgets |
 
 Only one task should be the repository-wide active implementation task unless tasks use isolated worktrees and do not
 touch overlapping files.

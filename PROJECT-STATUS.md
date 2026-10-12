@@ -1,6 +1,6 @@
 # Project Status
 
-Updated: 2026-10-12 23:27 (Asia/Singapore)
+Updated: 2026-10-12 23:35 (Asia/Singapore)
 
 This is the repository's single current-state entry point. Historical details belong in `docs/ops/` and archived
 handoff files. Update this page whenever production state, the active task, a release decision or a blocker changes.
@@ -46,8 +46,8 @@ handoff files. Update this page whenever production state, the active task, a re
 - The only review finding was in TASK-006's rollback command (bare filenames instead of the backup's `public/...`
   paths). Corrected in `bd68fe17`; documentation only.
 - TASK-003 was **deployed before review**, at the maintainer's explicit direction on 2026-10-12.
-- TASK-008 is `blocked`: the browser-side DPR cap contributor is proven, but native WebView and real usable-landscape
-  measurements require maintainer device access. This does not authorise rendering changes or TASK-009.
+- TASK-008 is accepted as a bounded diagnosis: browser DPR-cap upscaling is proven, while native WebView and real
+  usable-landscape conclusions remain explicitly unproven. TASK-023 owns the rendering-resolution implementation.
 - TASK-014 is accepted locally: the supplied top-frame and literal `休息一下` art replace the two existing ignored
   manifest assets, with phase-gated markup, CSS transparent-margin positioning and a focused regression test. It is
   not built, deployed or pushed.
@@ -75,15 +75,17 @@ handoff files. Update this page whenever production state, the active task, a re
 - TASK-013 records a future TeamSpeak/WebSpeak temporary-channel integration, but the maintainer explicitly deferred
   it. Do not implement it or include voice in a release. WebSpeak secret-bearing startup logs must be redacted and the
   affected TeamSpeak/WebQuery credentials rotated before that task can ever resume.
-- TASK-008 proves a DPR-3 browser field canvas is capped at ratio 2 and enlarged 1.5×, but remains blocked on native
-  WebView and usable-height evidence. Do not change rendering quality until its implementation plan is accepted.
+- TASK-023 is planned for DeepSeek: make `native` resolution follow the real device DPR under the existing field and
+  board pixel budgets, preserve all fixed modes, and require physical Android evidence before any default changes.
 
 ## Immediate next action
 
 Push the accepted TASK-017 checkpoint chain to `origin/integrate-upstream-0.2.3` only when explicitly authorised,
 then execute TASK-018's safe local client-wrapper Git initialisation. TASK-015 receives its final main-repository
 baseline only after that checkpoint is remote-backed; TASK-016 remains blocked on TASK-015 acceptance. TASK-008/009
-rendering work remains blocked. Nothing is merged to `master`, and no wrapper remote is created yet.
+rendering work is replaced by TASK-023, which may begin from the remote-backed accepted baseline in a dedicated
+branch/worktree. TASK-009 remains blocked on the wrapper Git baseline. Nothing is merged to `master`, and no wrapper
+remote is created yet.
 
 ## Stop conditions
 
