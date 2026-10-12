@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mobile probe · TASK-008</title>
+<!--
+  TASK-008 mobile/adaptation probe (dev only, never packaged — tools/package.mjs excludes public/dev/).
+
+  Why this page exists: a `javascript:` URL pasted into a phone's address bar is treated as a search query by every
+  modern mobile browser, so the earlier "paste this script" instruction could not work. This page does the same
+  measurement with zero typing on the device — it renders the REAL game in an iframe at this device's own size and
+  reads the frame's live geometry from inside.
+
+  Read-only: it measures and displays. It changes no CSS, no asset, no setting, and sends nothing anywhere.
+-->
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #0b0f0d; color: #e6ede9; font: 13px/1.5 ui-monospace, Consolas, monospace; }
+  header { position: sticky; top: 0; z-index: 9; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    padding: 8px 10px; background: #121a16; border-bottom: 1px solid #24322b; }
+  header b { font-size: 14px; letter-spacing: .06em; }
+  button { padding: 8px 12px; min-height: 40px; background: #16211c; color: #e6ede9; border: 1px solid #2f4a3e;
+    border-radius: 4px; font: inherit; cursor: pointer; }
+  button:hover { border-color: #4ed8af; }
+  button.primary { background: #14503f; border-color: #4ed8af; }
+  #status { margin-left: auto; color: #7fd8bb; }
+  #panel { padding: 10px; }
+  .row { display: grid; grid-template-columns: 210px 1fr; gap: 6px; padding: 3px 0; border-bottom: 1px dotted #22302a; }
+  .k { color: #7fd8bb; }
+  .v { color: #fff; word-break: break-all; }
+  .v.bad { color: #ffb454; }
+  .v.ok { color: #4ed8af; }
+  h3 { margin: 14px 0 4px; color: #ffc27a; font-size: 13px; letter-spacing: .08em; }
+  #stage { position: relative; margin: 10px; border: 1px solid #2f4a3e; background: #000; }
+  #stage.wide { height: 320px; }
+  #stage.tall { height: 420px; }
+  iframe { width: 100%; height: 100%; border: 0; display: block; }
+  textarea { width: 100%; height: 130px; background: #0f1512; color: #cfe8dd; border: 1px solid #2f4a3e; padding: 6px; font: inherit; }
+  .hint { color: #8fa79c; padding: 0 10px 16px; }
+</style>
+</head>
+<body>
+<header>
+  <b>手机适配探查 · TASK-008</b>
+  <button id="btnLoad" class="primary" type="button">① 载入游戏（iframe）</button>
+  <button id="btnMeasure" class="primary" type="button">② 测量</button>
+  <button id="btnMatch" type="button">③ 载入对局页（COMBAT）</button>
+  <button id="btnCopy" type="button">④ 复制结果</button>
+  <span id="status">就绪</span>
+</header>
+
+<div id="stage" class="wide"><div style="padding:20px;color:#8fa79c">点「载入游戏」后，真实游戏会渲染在这个框里（尺寸=这台设备的实际视口）。</div></div>
+
+<div id="panel">
+  <h3>本机（探针页自身）</h3><div id="self"></div>
+  <h3>游戏 iframe（真实应用，同源可读）</h3><div id="inner"></div>
+  <h3>原始 JSON（复制这段发回）</h3>
+  <textarea id="raw" readonly placeholder="点「测量」后出现在这里"></textarea>
+</div>
+<div class="hint">
+  只做测量：不改 CSS、不改素材、不改任何设置，也不向外发送数据。测完把 textarea 里的 JSON 复制发回即可。
+</div>
+
+<script type="module">
+const S = (id) => document.getElementById(id);
+const frame = () => S('stage').querySelector('iframe');
+let last = null;
+
+/** env(safe-area-inset-*) resolves against a real element, so read it there. */
+function safeAreas(win) {
+  const d = win.document;
+  const p = d.createElement('i');
+  p.style.cssText = 'position:absolute;left:-9999px;top:0;width:10px;height:10px';
+  d.body.appendChild(p);
+  const cs = win.getComputedStyle(p);
+  const get = (n) => cs.getPropertyValue(n).trim() || '-';
+  const out = { t: get('--sa-t'), r: get('--sa-r'), b: get('--sa-b'), l: get('--sa-l') };
+  p.remove();
+  // the app defines --sa-* on :root (css/devices.css); fall back to that when the probe element has none
+  if (out.t === '-') {
+    const root = win.getComputedStyle(d.documentElement);
+    for (const k of Object.keys(out)) out[k] = root.getPropertyValue(`--sa-${k}`).trim() || '-';
+  }
+  return out;
+}
+
+function canvasInfo(win) {
+  return [...win.document.querySelectorAll('canvas')].map((c) => {
+    const r = c.getBoundingClientRect();
+    const cs = win.getComputedStyle(c);
+    return {
+      id: c.id || c.className || '(canvas)',
+      back: [c.width, c.height],
+      css: [Math.round(r.width), Math.round(r.height)],
+      attr: [c.getAttribute('width'), c.getAttribute('height')],
+      transform: cs.transform,
+      imageRendering: cs.imageRendering,
+      // the number that matters: backing store vs what the screen is asked to show
+      ratio: r.width > 0 ? +(c.width / (r.width * win.devicePixelRatio)).toFixed(3) : null,
+    };
+  });
+}
+
+function measureWindow(win, label) {
+  const d = win.document;
+  const vv = win.visualViewport;
+  let prefs = {};
+  try { prefs = JSON.parse(win.localStorage.getItem('sp.pref.settings') || '{}'); } catch { /* ignore */ }
+  const t = win.getComputedStyle(d.documentElement).getPropertyValue('--t').trim() || '-';
+  const vh = win.getComputedStyle(d.documentElement).getPropertyValue('--sp-vh').trim() || '-';
+  return {
+    label,
+    inner: [win.innerWidth, win.innerHeight],
+    outer: [win.outerWidth, win.outerHeight],
+    doc: [d.documentElement.clientWidth, d.documentElement.clientHeight],
+    visualViewport: vv ? { w: Math.round(vv.width), h: Math.round(vv.height), scale: vv.scale, offsetTop: Math.round(vv.offsetTop) } : null,
+    dpr: win.devicePixelRatio,
+    screen: [win.screen.width, win.screen.height],
+    orient: win.screen.orientation ? win.screen.orientation.type : String(win.orientation),
+    safeArea: safeAreas(win),
+    htmlClasses: d.documentElement.className,
+    cssVars: { '--sp-vh': vh, '--t': t },
+    fullscreen: !!d.fullscreenElement,
+    canvases: canvasInfo(win),
+    images: [...d.images].slice(0, 20).map((i) => ({
+      src: (i.currentSrc || i.src || '').replace(win.location.origin, ''),
+      natural: [i.naturalWidth, i.naturalHeight],
+      css: [Math.round(i.getBoundingClientRect().width), Math.round(i.getBoundingClientRect().height)],
+    })),
+    prefs: { textSize: prefs.textSize, resolution: prefs.resolution, quality: prefs.quality },
+    ua: win.navigator.userAgent,
+    nativeClient: win.chrome && win.chrome.webview ? 'chrome.webview' : (/SPClient\/(Windows|Android)/.test(win.navigator.userAgent) ? 'SPClient UA' : 'browser'),
+  };
+}
+
+function rows(container, obj) {
+  container.innerHTML = '';
+  const add = (k, v, cls = '') => {
+    const div = document.createElement('div');
+    div.className = 'row';
+    div.innerHTML = `<span class="k">${k}</span><span class="v ${cls}">${v}</span>`;
+    container.appendChild(div);
+  };
+  for (const [k, v] of Object.entries(obj)) add(k, typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v));
+  return add;
+}
+
+function loadGame(url) {
+  S('status').textContent = '载入中…';
+  const f = document.createElement('iframe');
+  f.src = url;
+  f.setAttribute('allow', 'fullscreen');
+  S('stage').replaceChildren(f);
+  f.addEventListener('load', () => { S('status').textContent = '已载入，点「测量」'; });
+}
+
+S('btnLoad').onclick = () => loadGame('/');
+
+S('btnMatch').onclick = () => loadGame('/dev/game-mock.html?phase=COMBAT&render=engine');
+
+S('btnMeasure').onclick = () => {
+  const self = measureWindow(window, 'probe page');
+  const f = frame();
+  let inner = null;
+  try { inner = f && f.contentWindow ? measureWindow(f.contentWindow, 'game iframe') : null; }
+  catch (e) { inner = { label: 'game iframe', error: 'same-origin read failed: ' + e.message }; }
+  last = { when: new Date().toISOString(), self, game: inner };
+
+  rows(S('self'), { inner: self.inner, visualViewport: self.visualViewport, dpr: self.dpr, screen: self.screen, orient: self.orient, safeArea: self.safeArea, nativeClient: self.nativeClient });
+  if (inner && !inner.error) {
+    const c = rows(S('inner'), {
+      inner: inner.inner, doc: inner.doc, visualViewport: inner.visualViewport, dpr: inner.dpr,
+      safeArea: inner.safeArea, cssVars: inner.cssVars, htmlClasses: inner.htmlClasses,
+      prefs: inner.prefs, nativeClient: inner.nativeClient, fullscreen: inner.fullscreen,
+    });
+    for (const cv of inner.canvases) {
+      const cls = cv.ratio == null ? '' : (cv.ratio < 0.95 ? 'bad' : 'ok');
+      c(`canvas ${cv.id}`, `back=${cv.back} css=${cv.css} dpr=${inner.dpr} → 后备/CSS·dpr = ${cv.ratio}${cv.ratio != null && cv.ratio < 0.95 ? '  ← 被放大，会发虚' : ''}`, cls);
+    }
+    for (const im of inner.images.slice(0, 8)) c(`img ${im.src}`, `natural=${im.natural} css=${im.css}`);
+  } else {
+    rows(S('inner'), inner || { note: '还没有 iframe：先点「载入游戏」' });
+  }
+  S('raw').value = JSON.stringify(last, null, 1);
+  S('status').textContent = '测量完成';
+};
+
+S('btnCopy').onclick = async () => {
+  const text = S('raw').value || '(还没测量)';
+  try { await navigator.clipboard.writeText(text); S('status').textContent = '已复制'; }
+  catch { S('raw').select(); S('status').textContent = '请长按上面文本手动复制'; }
+};
+</script>
+</body>
+</html>

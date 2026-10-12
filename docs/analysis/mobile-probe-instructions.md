@@ -1,63 +1,98 @@
-# Mobile blur / adaptation — device probe (TASK-008)
+# Mobile blur / adaptation — how to collect the device measurements (TASK-008)
 
-This file exists so the maintainer can collect the measurements the implementer cannot produce from a workstation.
-Everything here is **read-only**: it measures, it changes nothing, and it does not send anything anywhere.
+## Why the earlier instruction was wrong
 
-## How to run
+I first told you to paste a `javascript:` snippet into the phone's address bar. **That cannot work.** Every current
+mobile browser (Chrome, Safari) strips the `javascript:` scheme when it is pasted and treats the text as a search
+query — the address bar only runs it if you type it by hand, which is not something anyone should have to do.
 
-1. Open the game on the phone — **once in the browser** (`https://sp.bs.leio.fun`) and **once in the app**
-   (Windows or Android client). Run it in both: the comparison is half the diagnosis.
-2. Get to the screen that looks blurry (a match in progress is the interesting one) and **stay there**.
-3. Paste the whole `javascript:` snippet below into the address bar and press Enter.
-4. Copy the alert text back (or screenshot it). If the address bar strips `javascript:`, type it manually — the
-   browser usually restores it once you start typing `javascript`.
-5. Repeat at the exact moment it looks *most* wrong, and again after rotating the device once.
+The replacement below needs **no typing on the device at all**.
 
-> Note: in the **native client** the address bar usually does not exist. Run the probe from the browser for the
-> numbers, and use the app for the **screenshots** (below) — those two together still separate "the page thinks it is
-> 844×390" from "the wrapper is showing it at a different size".
+## Method A — the probe page (recommended, no typing)
 
-## What it collects, and why each field matters
+I added `public/dev/mobile-probe.html`: a dev-only page that renders the **real game in an iframe** at this device's
+own viewport and reads the live geometry from inside it. It measures without changing anything: no CSS, no asset, no
+setting, and it sends nothing anywhere.
 
-| Field | Question it answers |
-|---|---|
-| `inner`, `outer`, `doc` | Which CSS viewport does the page actually have? |
-| `vv` | Does `visualViewport` disagree with `innerHeight` (URL bar, keyboard, wrapper chrome)? |
-| `sa` | What are the **resolved** `env(safe-area-inset-*)` values — `0px` everywhere means the inset rules never engage. |
-| `dpr` | What does the hardware claim (2× / 2.625× / 3×)? |
-| `screen`, `orient` | Real screen pixels and orientation. |
-| `canvas` | **The blur number**: `canvas.width/height` (backing store) vs its CSS box. If backing < CSS × dpr, the canvas is being upscaled. |
-| `--sp-vh`, `--sa-*`, `--t` | The app's own computed variables, as the CSS sees them. |
-| `textSize`, `resolution` | Which display options this user has selected (both feed the pixel ratio cap). |
-| `srcs` | The actual URLs the images came from — this is how we tell local art from mirror art, and PNG from WebP. |
-| `fs` | Whether the page is inside fullscreen (the wrapper may be, the page may not know it). |
+### Steps
 
-## The snippet
+1. **On the PC**, from the repository root, start the local server (it is already running as I write this):
 
-```js
-javascript:(()=>{const px=el=>{const s=getComputedStyle(el);return[Math.round(el.getBoundingClientRect().width),Math.round(el.getBoundingClientRect().height),s.transform]};const probe=document.createElement('i');probe.style.cssText='position:absolute;left:-9999px;top:0;width:10px;height:10px';document.body.appendChild(probe);const gv=n=>getComputedStyle(probe).getPropertyValue(n).trim()||'-';const cs=[...document.querySelectorAll('canvas')].map(c=>({cls:c.className||c.id||'(canvas)',back:[c.width,c.height],css:[Math.round(c.getBoundingClientRect().width),Math.round(c.getBoundingClientRect().height)],tf:getComputedStyle(c).transform}));const imgs=[...document.images].slice(0,25).map(i=>({src:i.currentSrc||i.src,nat:[i.naturalWidth,i.naturalHeight],css:[Math.round(i.getBoundingClientRect().width),Math.round(i.getBoundingClientRect().height)]}));let ls={};try{ls=JSON.parse(localStorage.getItem('sp.pref.settings')||'{}')}catch{};alert(JSON.stringify({inner:[innerWidth,innerHeight],outer:[outerWidth,outerHeight],doc:[document.documentElement.clientWidth,document.documentElement.clientHeight],vv:visualViewport?{w:Math.round(visualViewport.width),h:Math.round(visualViewport.height),scale:visualViewport.scale,top:Math.round(visualViewport.offsetTop)}:null,dpr:devicePixelRatio,screen:[screen.width,screen.height],orient:screen.orientation&&screen.orientation.type,sa:[gv('--sa-t'),gv('--sa-r'),gv('--sa-b'),gv('--sa-l')],vars:{vh:gv('--sp-vh'),t:gv('--t')},fs:!!document.fullscreenElement,html:document.documentElement.className,canvases:cs,images:imgs,prefs:{textSize:ls.textSize,resolution:ls.resolution,quality:ls.quality},ua:navigator.userAgent.slice(-60)},null,1))})()
+   ```powershell
+   node server/index.js
+   ```
+
+   It listens on port 3000 on all interfaces and prints the LAN URLs. If Windows asks whether to allow Node.js on
+   **private networks**, click **Allow** — without it your phone cannot reach the PC.
+
+2. **On the phone**, open this URL in the browser (same Wi-Fi as the PC):
+
+   ```
+   http://192.168.0.100:3000/dev/mobile-probe.html
+   ```
+
+   Replace `192.168.0.100` with the PC's address if it changes; the server prints the right one at boot.
+
+3. On the page, tap in this order:
+   - **① 载入游戏** — the real app renders in the frame
+   - **② 测量** — the numbers appear, including one line per `<canvas>`
+   - **③ 载入对局页（COMBAT）** then **② 测量** again — the in-match screen, which is where the board canvas and
+     the HUD exist. **This is the measurement that matters for blur.**
+4. Tap **④ 复制结果** and send me the JSON (or just screenshot the page — it fits on one screen).
+
+### What to look for yourself
+
+Each canvas line ends with a ratio:
+
+```
+后备/CSS·dpr = 1.000        → the canvas is drawn at full device resolution: not the cause
+后备/CSS·dpr = 0.667  ← 被放大，会发虚
+                            → the backing store is smaller than the screen asks for: THIS is blur
 ```
 
-## The screenshots that make the numbers actionable
+If the number is below ~0.95 the picture is being upscaled, and the fix is in the resolution cap, not in the assets.
+If it is 1.0 and the picture still looks soft, the cause is elsewhere (asset resolution, CSS transform, or the board's
+own lower cap) and the other fields say which.
 
-Take these on the device, and say for each whether it looked wrong:
+### Also worth capturing on the phone
 
-1. A **full-screen shot of the blurry match** — this shows whether the whole frame is soft, only the board, or only
-   the HUD text. Those have different causes and I must not guess between them.
-2. The same view **with the app's 设置 open**, so the chosen 分辨率 / 文字大小 are visible in the picture.
-3. A shot **right after rotating** the device once (the rotation path rebuilds the field view).
-4. If the Windows client is the one that blurs: the same screen in the **browser on that PC**, for comparison.
+- A **screenshot of the whole blurry screen** — this separates "the whole frame is soft" from "only the board" from
+  "only the HUD text". Those have different causes and I must not guess between them.
+- The same screenshot **with 设置 open**, so the selected 分辨率 / 文字大小 are visible in the picture.
+- One **after rotating the device once** (rotation rebuilds the field view).
+- Do **not** change 分辨率 or 质量 between runs — that invalidates the comparison.
 
-## What I will do with it
+## Method B — the native client itself (the one that actually blurs)
 
-- Compare `canvas.back` against `css × dpr` to decide whether this is a **backing-store cap** (`resolution`
-  setting / `canvasPixelRatio`) or an **upscale**, and separate the board (its own lower cap) from the sprites.
-- Compare `sa` across browser and app to decide whether the safe-area path is even active on that device.
-- Compare `vv` against `inner`/`doc` to decide whether the visible-height variable is the one being used.
-- Compare `srcs` `.png` vs `.webp` and `/assets/local/` vs `/assets/` to settle the PNG→WebP question **before** any
-  asset or quality parameter is touched.
+The probe page runs in the phone's **browser**, which shares the device but **not** the app's WebView viewport. If the
+blur is specific to the Windows or Android client, its own viewport has to be read from inside the app:
 
-## What NOT to change while measuring
+1. Android: enable **USB debugging** in developer options, connect the phone, and confirm the client is debuggable at
+   `chrome://inspect/#devices` on the PC. If the app does not appear, the wrapper has not enabled WebView debugging
+   (`WebView.setWebContentsDebuggingEnabled(true)`) — tell me and I will note it as a wrapper gap rather than guess.
+2. Windows client: it is a WebView2 host, so the same idea applies through WebView2's remote debugging, which the
+   wrapper has to enable.
+3. Once attached, open the **console** and paste the snippet from `docs/analysis/mobile-probe-instructions.md`
+   (Method B section) — in the console, unlike an address bar, `javascript:` is **not** needed and pasting works.
+   Or simply re-run the measurement there once the probe page is loaded in that WebView.
 
-Do not change the 分辨率 or 质量 settings between runs — a moving setting invalidates the comparison. If you must try
-a different one, say which, and take a fresh full set.
+If the wrapper does not expose either, say so: the honest outcome is then "client-side viewport could not be measured",
+and the report will say that instead of inventing a cause.
+
+## What I do with the results
+
+| Measurement | Question it settles |
+|---|---|
+| canvas `back` vs `css × dpr` | Is the frame upscaled (a cap/resolution issue) or drawn 1:1 (an asset or transform issue)? |
+| board canvas vs HUD canvas, separately | Board blur and sprite/HUD blur may have **different** causes; the 3D board has its own lower cap. |
+| `safeArea` all `0px` | The `env(safe-area-inset-*)` rules never engage on that device — so any inset-dependent layout did nothing. |
+| `visualViewport` vs `inner` vs `doc` | Which of the three the visible-height logic (`--sp-vh`) is actually following. |
+| `transform` on a canvas | A CSS `scale()` on a full-resolution canvas still looks soft — a different fix from a low backing store. |
+| image `natural` vs `css` | Is a small source being stretched? (e.g. a 102×100 bond icon shown at 14 px is fine; the reverse is not.) |
+| image `currentSrc` `.png` vs `.webp`, `/assets/local/` vs `/assets/` | Settles the PNG→WebP question **before** any asset or quality parameter is touched. |
+| `prefs.textSize` / `resolution` | Whether the reported blur happens at a non-default display setting. |
+
+## Rule still in force
+
+**No CSS, no asset, no image-quality parameter changes** until a cause is proven from these numbers. That is TASK-008's
+whole point, and the reason this document exists instead of a patch.
