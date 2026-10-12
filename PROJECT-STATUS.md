@@ -1,6 +1,6 @@
 # Project Status
 
-Updated: 2026-10-12 23:52 (Asia/Singapore)
+Updated: 2026-10-13 (Asia/Singapore)
 
 This is the repository's single current-state entry point. Historical details belong in `docs/ops/` and archived
 handoff files. Update this page whenever production state, the active task, a release decision or a blocker changes.
@@ -81,9 +81,11 @@ handoff files. Update this page whenever production state, the active task, a re
 ## Immediate next action
 
 Push the accepted main-repository checkpoint chain to `origin/integrate-upstream-0.2.3` only when explicitly
-authorised. TASK-009 may now begin against wrapper baseline `7ec87b40`; it precedes TASK-023. TASK-015 receives its
-final main-repository baseline only after that checkpoint is remote-backed, and TASK-016 remains blocked on TASK-015
-acceptance. Nothing is merged to `master`, and no wrapper remote is created yet.
+authorised. TASK-009 offline batch 1 is back `in_progress`: wrapper commit `a0f0da4` must reject zero-ETag indexes,
+remove the hand-maintained source-commit pin, commit deterministic negative tests and restore the task-branch boundary.
+TASK-023 waits behind TASK-009. TASK-015 receives its final main-repository baseline only after the checkpoint is
+remote-backed, and TASK-016 remains blocked on TASK-015 acceptance. Nothing is merged to `master`, and no wrapper
+remote is created yet.
 
 ## Stop conditions
 

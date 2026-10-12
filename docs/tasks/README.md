@@ -10,7 +10,7 @@
 | [TASK-006](TASK-006-deploy-wheel.md) | accepted | DeepSeek (maintainer-authorised) | Push TASK-003 and deploy the wheel to production |
 | [TASK-007](TASK-007-native-fullscreen-button.md) | accepted | DeepSeek | Native clients hide the browser fullscreen button; shared detection accepted |
 | [TASK-008](TASK-008-mobile-blur-diagnosis.md) | accepted | DeepSeek | Browser DPR-cap contributor proven; native-client conclusion explicitly excluded |
-| [TASK-009](TASK-009-native-local-assets.md) | planned | unassigned | Deterministic native local assets and mobile rendering fallback |
+| [TASK-009](TASK-009-native-local-assets.md) | in_progress | DeepSeek | Offline bundle gate batch returned for ETag/source-pin/test fixes |
 | [TASK-010](TASK-010-bounded-resource-preload.md) | planned | unassigned | Bounded manifest-driven resource preload and cache |
 | [TASK-011](TASK-011-live-combat-statistics.md) | planned | unassigned | Live per-operator combat statistics using existing record truth |
 | [TASK-012](TASK-012-quick-matchmaking.md) | planned | unassigned | Instrumented quick matchmaking; AI fill disabled by default |

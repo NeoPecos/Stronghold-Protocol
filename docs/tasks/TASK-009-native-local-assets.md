@@ -1,6 +1,6 @@
 # TASK-009 — Deterministic native local assets and mobile rendering fallback
 
-Status: `review_ready` (offline batch 1)
+Status: `in_progress` (offline batch 1 returned by Codex review)
 
 Lead: Codex
 
@@ -151,6 +151,31 @@ progress while the package is prepared, and fall back safely on devices without 
 
 - Reviewer must map every imported concept or code block to a Paper source path and confirm excluded infrastructure
   was not copied with it.
+
+### 2026-10-13 — Codex review of `a0f0da4`: changes required
+
+The two-file scope is correct and no runtime/build script changed, but the approved hard gate is not yet complete:
+
+1. **Missing ETags still pass.** Codex created an ignored temporary copy of the real armed index, removed every
+   per-file `etag`/`etags`, set both origin `etagCount` values to zero and retained the valid full `verified` proof.
+   `node scripts/verify-bundle.cjs --bundle <fixture>` exited 0 and printed `ETag 0 条`. The maintainer explicitly
+   required missing `etags` to fail. Require each trusted origin's `etagCount` and per-file ETag coverage to equal the
+   package file count, then add a committed regression test for this exact case.
+2. **The stale source pin was replaced by another source pin.** `verify-client-rules.mjs` now hard-codes
+   `MATERIAL_BASELINE=d460f77f...`, so the next legitimate snapshot will fail until source code is edited again. The
+   instruction was to read and validate the current index, not replace one expected commit constant with another.
+   Validate `sourceCommit` structurally and, where available, prove it exists in the game repository or bind it to a
+   separately generated build input; do not require equality with a hand-maintained current-commit constant.
+3. **Negative tests are not part of Git.** The four fixture generator/results under `.local/task009/` are useful
+   review evidence but are ignored and unavailable on another checkout or in CI. Commit deterministic tests covering
+   armed success, no proof, missing local manifest, lying origin facts, stale/missing ETags and the withdrawn/unarmed
+   shape. Tests must exercise the same validator used by both build scripts.
+4. **Branch boundary.** The implementation was committed directly on wrapper `main` despite the approved instruction
+   to use `task-009-native-local-assets`. Preserve `a0f0da4` by creating/switching to that task branch, then repoint the
+   local `main` branch to accepted baseline `7ec87b40`; do not rewrite or discard the implementation commit.
+
+Keep the batch limited to validators/tests. Do not modify wrapper runtime code, build a package, publish or push.
+Return with the correction commit hash, full test command/output summary and clean status for both branches.
 
 ## Rollback
 
