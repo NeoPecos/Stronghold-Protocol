@@ -10,7 +10,8 @@ handoff files. Update this page whenever production state, the active task, a re
 - Public service: `sp2.service` on JING is active. It serves **both** `sp.bs.leio.fun` (production) and
   `sp2.bs.leio.fun` (preview) from one process on `127.0.0.1:3810` — nginx cut production over from the home server
   (WG `10.0.0.2:3800`) on 2026-10-09. The unit's name and its "0.2.1 staging line" description are stale labels.
-- Game/server application: `0.2.4`; `/healthz` reports build `7699325bd657`.
+- Game/server application: `0.2.5`; `/healthz` reports build `c13af814d77f` (server-only deploy 2026-10-13 01:52 +08 from
+  `9497533d`; client packages and the update manifest remain `1.2.8`).
 - Client update manifest: Windows `1.2.8` (`versionCode` 11), Android `1.2.8` (`versionCode` 11).
 - Deployed web assets now include the TASK-003 circular deployment wheel: `public/js/ui/facing.js` sha256 `93cca594…`,
   `public/js/ui/facingWheel.js` `0d5ebe94…`, `public/css/screens/game-panels.css` `9a31bf33…` (deployed 2026-10-12
@@ -26,7 +27,12 @@ handoff files. Update this page whenever production state, the active task, a re
 - Working repository: `F:\DSH-workspace\stronghold-base-0.2.1`.
 - Current branch: `integrate-upstream-0.2.3` (historical branch name). Official v0.2.5 and the Paper-Yuan feature batch
   are committed in `9497533d` and pushed to the same origin branch. The previous checkpoint chain was included.
-- Game source version: `0.2.5`; no merge into `master`, client packaging or production deployment was performed.
+- Game source version: `0.2.5`; no merge into `master` and no client packaging. The public server was deployed to `0.2.5`
+  on 2026-10-13 01:52 +08 (TASK-016, server-only, at the maintainer's explicit direction); client packages and the
+  update manifest remain `1.2.8`.
+- Known CI failures on `9497533d` (the deployed revision): `test/version.test.js` requires the newest `CHANGELOG.md`
+  entry to be `0.2.5` (it is `0.2.4`) and a style assertion rejects
+  `public/css/room-chat.css: .quick-match p { font-size:.11rem }`. `npm run ci` therefore stops at the test step.
 - Production-hotfix and browser-gate files are now tracked in the frozen baseline and match JING byte-for-byte.
 - `/opt/sp2` was deployed from this same checkout by file copy, not by `git pull`: its `.git` is a leftover gitfile
   pointing at a Windows worktree, so it cannot be treated as a Git-based install.
@@ -56,8 +62,10 @@ handoff files. Update this page whenever production state, the active task, a re
   not built, deployed or pushed.
 - TASK-015's official `v0.2.5` code/data integration is committed/pushed in `9497533d`; focused checks pass.
   The maintainer will perform gameplay/device testing before packaging or deployment.
-- TASK-016 is the separate planned release task. It packages the accepted TASK-015 result together with TASK-014's
-  art, proves a real deployed-baseline increment, then backs up and deploys; it is not yet authorised to run.
+- TASK-016 is the separate release task. Its **server-only** half ran on 2026-10-13 by direct maintainer order: the
+  pushed `9497533d` code/data is live on `/opt/sp2` (`0.2.5`, build `c13af814d77f`) after a full backup (174 paths:
+  125 replaced, 48 added; no `npm install` needed). Client packages (Windows/Android `1.2.9`), the update manifest,
+  TASK-014's art in a package and the durable release file remain open, and TASK-014/TASK-015 still await Codex review.
 - TASK-017 is accepted locally. It split the former dirty tree into a TASK-014 runtime/test commit, a
   governance/roadmap commit and a documentation-only execution record; ignored art remains outside Git with verified
   hashes. No TASK-017 commit has been pushed.
@@ -83,8 +91,11 @@ handoff files. Update this page whenever production state, the active task, a re
 
 ## Immediate next action
 
-The integration batch is pushed. The maintainer tests gameplay/device behavior before packaging or production release.
-Native wrapper work remains separate.
+The integration batch is pushed and its server half is **live** (`0.2.5`, build `c13af814d77f`, server-only; backup
+`/root/sp2-backups/sp2-pre-025-20261013-015200.tgz`). Next: the maintainer's gameplay/device acceptance, then client
+packaging (Windows/Android `1.2.9`) with the update manifest and Codex review of TASK-014/TASK-015/TASK-016. Fix the two
+known CI failures on `9497533d` (CHANGELOG newest entry `0.2.4` vs `0.2.5`; `public/css/room-chat.css` font-size
+assertion) together with that packaging work. Native wrapper work remains separate.
 
 ## Stop conditions
 

@@ -1,6 +1,7 @@
 # TASK-016 — Build and deploy the reviewed v0.2.5 increment
 
-Status: `planned`
+Status: `in_progress` (server half deployed 2026-10-13 by direct maintainer order; client packages, update manifest and
+Codex review still open)
 
 Lead/reviewer: Codex
 
@@ -64,6 +65,29 @@ then deploy the matching server build with backups and rollback evidence.
   re-read those values from production rather than trust this planning snapshot.
 - Exact next action after TASK-015 acceptance: create/update the durable release file under `docs/releases/`, freeze
   hashes, then perform clean full/incremental build validation before requesting deployment approval.
+
+### 2026-10-13 01:52 — TASK-016 — DeepSeek (server-only 0.2.5 deployment, direct maintainer order)
+
+- The maintainer ordered the pushed integration (`9497533d`, origin `17e1f92a`) live immediately, waiving this task's own
+  prerequisites (TASK-014/TASK-015 Codex acceptance, release-manifest file, client packages).
+- Deployed the **server half only**: 174 paths (125 replaced + 48 added) copied over `/opt/sp2` from the local checkout
+  after a hash comparison against production (`data/config.json` byte-identical and left alone; `test/`, `docs/`,
+  `public/assets/`, `data/local-assets.json` untouched). `package.json` differs only in the version string, so
+  `npm install` was unnecessary.
+- Backup before extraction: `/root/sp2-backups/sp2-pre-025-20261013-015200.tgz` (1 211 576 496 B). Evidence directory:
+  `/root/sp2-backups/deploy-025-20261013-015200/` (`deploy-paths.txt`, `pre-deploy-sha.txt`, `replaced-files.txt`,
+  `added-files.txt`, `notes.txt`).
+- Verified: 117 changed JS files pass `node --check`; `sp2.service` active; `/healthz` on 127.0.0.1:3810 and
+  `https://sp.bs.leio.fun/healthz` both `{"app":"0.2.5","build":"c13af814d77f"}`; native UA (`SPClient/Windows`,
+  `SPClient/Android`) receives the game page (200, 9 598 B, references `room-chat.css`) while browsers still receive the
+  bandwidth notice; the six new static files return 200; journal has no error/exception.
+- Not done here (still TASK-016 work): Windows/Android `1.2.9` packages, the update manifest, TASK-014 art in a package,
+  the durable release file, and clean full/incremental build validation.
+- Rollback: `systemctl stop sp2` → `tar xzf /root/sp2-backups/sp2-pre-025-20261013-015200.tgz -C /opt/sp2` → delete the
+  paths in `added-files.txt` → `systemctl start sp2`.
+- Known CI failures on the deployed revision `9497533d` (pre-existing, not introduced by the deployment):
+  `test/version.test.js` expects the newest `CHANGELOG.md` entry to be `0.2.5` (it is `0.2.4`) and a style assertion
+  rejects `public/css/room-chat.css: .quick-match p { font-size:.11rem }`.
 
 ## Review notes
 
