@@ -45,6 +45,7 @@ architecture; AI fill remains optional and disabled until the queue is validated
 - 2026-10-13: implemented the quick-match behavior against this fork's existing lobby. Queue by difficulty, prefer public recruiting rooms, otherwise create a normal four-human room. The host starts through the existing ready/start controls.
 - Explicit cancellation, disconnect/manual-room-action cleanup, ten-minute expiry, bounded queue, rate limiting and change-only status broadcasts are implemented. No automatic AI fill.
 - Membership/recruitment/privacy/grouping/expiry checks pass in `test/paper-integration.test.js`; live multiplayer interaction remains for the maintainer.
+- 2026-10-13 (post-deployment CI repair): the quick-match panel's stylesheet had two gate failures from this batch — `.quick-match p` sized text with a plain `rem` (outside the `--t` text-scale system) and `public/index.html` loaded `/css/room-chat.css` after the must-be-last `/css/devices.css`. Fixed in `07c3fce5` and `399c5bbf`; `npm run ci` is green and both files are live on the server (details in `docs/ops/2026-10.md`, entry 02:25).
 
 
 ## Review notes

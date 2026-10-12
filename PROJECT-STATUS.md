@@ -30,9 +30,13 @@ handoff files. Update this page whenever production state, the active task, a re
 - Game source version: `0.2.5`; no merge into `master` and no client packaging. The public server was deployed to `0.2.5`
   on 2026-10-13 01:52 +08 (TASK-016, server-only, at the maintainer's explicit direction); client packages and the
   update manifest remain `1.2.8`.
-- Known CI failures on `9497533d` (the deployed revision): `test/version.test.js` requires the newest `CHANGELOG.md`
-  entry to be `0.2.5` (it is `0.2.4`) and a style assertion rejects
-  `public/css/room-chat.css: .quick-match p { font-size:.11rem }`. `npm run ci` therefore stops at the test step.
+- `npm run ci` is **green** on this line (last verified 2026-10-13 02:19; setup / test / smoke / lint / imports / typecheck
+  all pass) after repairing three batch-carried gate failures: `CHANGELOG.md` dates the `0.2.5` entry, the quick-match
+  text in `public/css/room-chat.css` sizes through `--t`, and `public/index.html` loads `room-chat.css` before
+  `devices.css`. Both front-end files are live on the server (`room-chat.css` sha256 `89e4a06d…`, `index.html`
+  `8464fd34…`). The one remaining test failure is environmental: `test/assets-env-proxy.test.js` assumes the process was
+  not started with `NODE_USE_ENV_PROXY=1` (this workstation sets it plus `HTTP(S)_PROXY`); it passes 9/9 with those
+  variables cleared.
 - Production-hotfix and browser-gate files are now tracked in the frozen baseline and match JING byte-for-byte.
 - `/opt/sp2` was deployed from this same checkout by file copy, not by `git pull`: its `.git` is a leftover gitfile
   pointing at a Windows worktree, so it cannot be treated as a Git-based install.
