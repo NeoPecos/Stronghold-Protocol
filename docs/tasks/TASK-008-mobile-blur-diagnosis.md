@@ -1,6 +1,6 @@
 # TASK-008 — Mobile adaptation and blur: diagnosis before change
 
-Status: `in_progress` (device measurements pending from the maintainer)
+Status: `blocked` (native WebView and usable-height measurements pending from the maintainer)
 
 Lead: Codex
 
@@ -96,6 +96,13 @@ matches `/^(?:test|handoff|\.github|types|public\/dev|docs\/img|docs\/design|doc
   zeros, which is a plausible "why did the inset do nothing" cause to confirm on a device.
 
 ## Current checkpoint
+
+### 2026-10-12 — blocked on device-only evidence
+
+The browser-side contributor is proven, but the task's own native-client and real usable-landscape-height acceptance
+evidence cannot be produced from this workstation. The report remains useful but is not accepted as a native-client
+root-cause conclusion. TASK-008 is blocked until those measurements are available; this frees unrelated, non-overlap
+UI work without authorising TASK-009 or any DPR/rendering change.
 
 ### 2026-10-12 20:10 — Codex review round 1 addressed (task stays `in_progress`)
 

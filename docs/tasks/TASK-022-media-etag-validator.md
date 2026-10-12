@@ -1,6 +1,6 @@
 # TASK-022 — Node must emit nginx-shaped ETags so `/media/` revalidates
 
-Status: implemented, **not deployed** (deployment needs the maintainer's go-ahead: it restarts Node)
+Status: `review_ready` — implemented, **not deployed** (deployment needs the maintainer's go-ahead: it restarts Node)
 Lead: Codex
 Implementer: DeepSeek
 Created: 2026-10-12

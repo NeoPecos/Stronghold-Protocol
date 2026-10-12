@@ -1,6 +1,6 @@
 # TASK-007 — Hide the fullscreen button inside the native clients
 
-Status: `review_ready`
+Status: `accepted`
 
 Lead: Codex
 
@@ -109,6 +109,24 @@ browser keeps the button it has today. The clients must never call the browser F
 - Files changed: `public/js/ui/device.js`, `public/js/screens/title.js`, `public/js/ui/notice.js`,
   `test/ui/devices.test.js`, new `test/ui/fullscreen-button.e2e.test.js`.
 - Next: Codex review. No deployment and no client build is part of this task.
+
+## Review notes
+
+### 2026-10-12 19:12 — Codex review accepted
+
+- No blocking finding. The runtime diff is limited to the shared native-client detector, the fullscreen component and
+  its two existing consumers; no CSS, server gate, HUD layout, Fullscreen API implementation or native runtime changed.
+- `FullscreenButton` remains present for browsers and returns `null` for the Windows/Android client markers and the
+  WebView host path. Native clients do not register either fullscreen event listener and have no rendered click path
+  to `requestFullscreen`, `webkitRequestFullscreen` or orientation lock.
+- The existing broad Android `; wv` match is deliberately preserved. It can classify another Android WebView as a
+  native host, but that was the pre-task behavior and is consistent with the recorded scope.
+- Verification repeated by Codex: targeted unit/docs tests 63/63; browser E2E 3/3 using installed Edge; typecheck
+  clean; changed-file eslint 0 errors / one pre-existing `device.js` warning; import check unchanged with three
+  allowed `server/sim/nodeData.js` notes; golden 287/287 (49+46+22+20+10+140) unchanged.
+- The implementer's written `npx tsc --noEmit --checkJs` command is incomplete without `-p jsconfig.json`; Codex ran
+  the repository command `npm run typecheck`, which passed. This is a documentation correction, not a code finding.
+- Accepted commit: `fe54953c`. No deployment, client package or production change is authorised by this acceptance.
 
 ## Rollback
 
