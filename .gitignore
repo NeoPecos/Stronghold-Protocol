@@ -56,3 +56,6 @@ desktop.ini
 
 # tools/snapshot-state.mjs 的交接快照（含逐文件哈希，体积大，不入库）
 .snapshot/
+
+# 本地暂存（维护者的 APK、部署辅助脚本、验证脚本）：不进仓库，也不算工作树改动
+.local/

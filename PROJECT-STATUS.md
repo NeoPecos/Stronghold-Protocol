@@ -1,6 +1,6 @@
 # Project Status
 
-Updated: 2026-10-12 18:13 (Asia/Singapore)
+Updated: 2026-10-12 18:26 (Asia/Singapore)
 
 This is the repository's single current-state entry point. Historical details belong in `docs/ops/` and archived
 handoff files. Update this page whenever production state, the active task, a release decision or a blocker changes.
@@ -34,8 +34,14 @@ handoff files. Update this page whenever production state, the active task, a re
 
 ## Active work
 
-- Active tasks: `docs/tasks/TASK-003-mobile-deployment-ui.md` and its deploy record
-  `docs/tasks/TASK-006-deploy-wheel.md` — both `review_ready`, awaiting Codex review.
+- Active tasks: `docs/tasks/TASK-003-mobile-deployment-ui.md` (`review_ready`) and its deploy record
+  `docs/tasks/TASK-006-deploy-wheel.md` (`in_progress` — Codex review fix applied, awaiting re-review).
+- TASK-003 **passed** Codex review on 2026-10-12 with no runtime-code problems; `server/`, the placement protocol, the
+  simulation logic, the combat HUD, room voice and the Android runtime were confirmed unmodified, and the fork-only
+  chevron tap, `r=22` hit circle, audio blip, keyboard operation, `boardDir` mirroring and range preview were
+  confirmed preserved.
+- The only review finding was in TASK-006's rollback command (bare filenames instead of the backup's `public/...`
+  paths). Corrected in `bd68fe17`; documentation only.
 - TASK-003 was **deployed before review**, at the maintainer's explicit direction on 2026-10-12.
 - Shelved at the maintainer's direction: the mobile result-exit / native-wrapper item. It still needs an APK and
   on-device safe-area measurements to reproduce.
@@ -46,9 +52,10 @@ handoff files. Update this page whenever production state, the active task, a re
 
 ## Immediate next action
 
-Codex reviews TASK-003 and the TASK-006 deploy record. If the wheel port is accepted, close both tasks; if it is
-rejected, restore the three files from `/opt/sp2/backups/wheel-20261012-181314/` and return TASK-003 to
-`in_progress`. Keep the result-exit item shelved until wrapper reproduction is possible.
+Codex re-reviews the TASK-006 rollback-documentation fix (`bd68fe17`): TASK-003 already passed review with no runtime
+problems. Once that fix is accepted, close both tasks. If the wheel port were instead rejected, restore the three files
+from `/opt/sp2/backups/wheel-20261012-181314/` using the corrected paths in TASK-006 and return TASK-003 to
+`in_progress`. Keep the result-exit item shelved until wrapper reproduction is possible. Nothing is merged to `master`.
 
 ## Stop conditions
 
