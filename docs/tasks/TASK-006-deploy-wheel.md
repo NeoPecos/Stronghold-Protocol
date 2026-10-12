@@ -1,6 +1,6 @@
 # TASK-006 — Push TASK-003 and deploy the wheel to production
 
-Status: `review_ready`
+Status: `in_progress` (review fix — awaiting Codex re-review)
 
 Lead: Codex (review pending)
 
@@ -84,19 +84,62 @@ Scope of the grant, as confirmed before execution:
 - GitHub/production state: branch pushed; three files live on `sp.bs.leio.fun`; `latest.json`, accounts, records and
   the service process untouched.
 
+### 2026-10-12 18:24 — review fix (documentation only)
+
+- Trigger: Codex review found the rollback command wrong — it named bare source filenames in the backup root while the
+  backup stores the files under `public/...`.
+- Applied: rollback rewritten with the full relative paths (see the Rollback section). Verified on JING that the
+  `public/...` paths exist in the backup and the bare names do not, so the old command would have failed.
+- Scope respected: **no runtime file changed, nothing redeployed, no service restart, `latest.json` untouched, no merge
+  to `master`.** The live files still hash `93cca594…` / `0d5ebe94…` / `9a31bf33…`, and `sp2.service` still shows
+  `MainPID=189578`, `NRestarts=0`, started `2026-10-12 02:57:14 CST`.
+- Docs check: `node --test test/docs-consistency.test.js test/docs-paths.test.js` 31/31 pass.
+- Commit: the fix and this review note are the single commit whose message begins `TASK-006: 按 Codex 审核修正回滚命令
+  路径（仅文档）`, directly on top of `1de69217` on `integrate-upstream-0.2.3`; pushed to
+  `origin/integrate-upstream-0.2.3` and recorded in `docs/ops/2026-10.md`. Resolve it with
+  `git log -1 --format=%H --grep='按 Codex 审核修正回滚命令路径'`. (A commit cannot carry its own hash: writing one in
+  and amending changes the hash again, so the durable identifiers are the message and its parent.)
+- Next action: Codex re-review of the corrected rollback documentation.
+
 ## Rollback
+
+The backup holds the three files **under their original directory structure**, so restore from the backup root with
+the full relative paths:
 
 ```bash
 systemctl status sp2.service            # confirm it is still the same PID (no restart was performed)
-cd /opt/sp2/backups/wheel-<timestamp>/
-cp -a facing.js        /opt/sp2/public/js/ui/facing.js
-cp -a facingWheel.js   /opt/sp2/public/js/ui/facingWheel.js
-cp -a game-panels.css  /opt/sp2/public/css/screens/game-panels.css
+cd /opt/sp2/backups/wheel-20261012-181314/
+cp -a public/js/ui/facing.js /opt/sp2/public/js/ui/facing.js
+cp -a public/js/ui/facingWheel.js /opt/sp2/public/js/ui/facingWheel.js
+cp -a public/css/screens/game-panels.css /opt/sp2/public/css/screens/game-panels.css
 ```
 
 Then verify each restored file against the hashes recorded in this file. No server restart and no data migration are
 involved, so rollback is a plain file restore. Players pick the restored build up on their next page load.
 
+> Correction (2026-10-12, Codex review): this section previously wrote `cp -a facing.js /opt/sp2/public/...` from the
+> backup root. The backup keeps the `public/...` directory shape, so those bare source filenames do **not** exist and
+> the command would have failed. Verified on JING: `public/js/ui/facing.js`, `public/js/ui/facingWheel.js` and
+> `public/css/screens/game-panels.css` are present under the backup root; `facing.js`, `facingWheel.js` and
+> `game-panels.css` are absent there. Only this documentation was changed — no runtime file, no redeploy, no restart.
+
 ## Review notes
 
-(Codex: TASK-003 was deployed **before** review, at the maintainer's explicit direction. Review accordingly.)
+### 2026-10-12 18:24 — Codex review (relayed by the maintainer)
+
+- **TASK-003: passed.** Codex reported no runtime-code problems.
+- Confirmed unmodified: `server/`, the placement protocol, the simulation logic, the custom combat HUD, room voice and
+  the native Android runtime.
+- Confirmed preserved (fork-only controls): the chevron tap, the `r=22` hit circle, the audio blip, keyboard operation,
+  `boardDir` mirroring and the range preview.
+- `assets-env-proxy`: Codex reports the test file matches the baseline and that base and implementation branch both
+  pass, so the historical failure is not from this task. Note for the record: the implementer saw that test fail
+  **identically on the stashed clean baseline** in this session (Node v24.16.0). Both observations agree on the
+  conclusion that matters — pre-existing and unrelated to this change; they differ only on whether it passes on the
+  baseline, and the cause sits in the runtime's `nodeHonoursEnvProxy` branch rather than in any file here. Nothing in
+  TASK-003 or TASK-006 touches that test or the asset proxy code.
+- **TASK-006: one correction required, applied** — the rollback section used bare source filenames from the backup
+  root; the backup keeps the `public/...` structure, so those paths did not exist. Corrected to the full relative paths
+  and annotated with the reason. **Documentation only**: no runtime file changed, nothing redeployed, no restart.
+- Status: awaiting Codex re-review of this documentation fix. Not merged to `master`.
+- Earlier note kept: TASK-003 was deployed **before** review, at the maintainer's explicit direction.
