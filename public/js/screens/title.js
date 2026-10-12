@@ -86,10 +86,9 @@ export function enterSession(rawName, password, auth) {
   return true;
 }
 
-export function isNativeClient() {
-  const agent = globalThis.navigator?.userAgent || '';
-  return /SPClient\/(?:Windows|Android)|; wv[);]/i.test(agent) || !!globalThis.chrome?.webview;
-}
+// Native-client detection lives in ui/device.js (the public device module) so the whole client side shares one
+// implementation; re-exported here because this module has been its public home (ui/notice.js, tests).
+export { isNativeClient } from '../ui/device.js';
 
 // data/assets.json `ui` keys are 'group/key' (docs/ASSETS.md).
 const BACKDROP_KEYS = ['titleBackdrop', 'entry/bkg_01', 'entry/bkg_02'];

@@ -1,10 +1,10 @@
 # TASK-007 — Hide the fullscreen button inside the native clients
 
-Status: `planned`
+Status: `review_ready`
 
 Lead: Codex
 
-Implementer: unassigned (proposed: DeepSeek)
+Implementer: DeepSeek
 
 Starting commit: `fee08aff`
 
@@ -74,7 +74,41 @@ browser keeps the button it has today. The clients must never call the browser F
 
 ## Current checkpoint
 
-- Not started. No file changed. Plan and reconnaissance only.
+### 2026-10-12 18:45 — implemented
+
+- Done:
+  - `public/js/ui/device.js` gained `isNativeClient(win = globalThis)` — the one place the client identifiers live:
+    `SPClient/Windows|Android`, the Android `; wv[);]` WebView token, and the `chrome.webview` host object. It takes a
+    window for testability, matching `detectFeatures(win)`.
+  - `public/js/screens/title.js` no longer defines a second copy: it re-exports the device module's function (its
+    public home, and what `notice.js` and the tests used). `public/js/ui/notice.js` now imports it from `./device.js`,
+    which also removes the only `ui/ → screens/` import edge.
+  - `FullscreenButton` reads the fact once in a state initialiser and returns `null` on a client; it also skips
+    subscribing to `fullscreenchange` / `webkitfullscreenchange` there. A browser keeps both listeners and the button.
+- Not done / deliberately unchanged: no CSS touched, `FullscreenButton` not removed, `fullscreen.enter/exit/toggle`
+  untouched (including the Android orientation lock), `server/http/clientOnly.js` untouched.
+- Tests added:
+  - `test/ui/devices.test.js`: `isNativeClient` over the two client markers, the bare `wv` token, the
+    `chrome.webview` host, a plain desktop browser, and the no-navigator cases.
+  - `test/ui/fullscreen-button.e2e.test.js` (new, 3 tests): in a real browser with the three user agents —
+    browser shows exactly one `.title-fs` labelled 全屏, subscribes to both fullscreenchange spellings and calls no
+    API; Windows and Android clients render none, call no Fullscreen API **and no orientation lock**, and register no
+    listener.
+- One thing the tests had to work around, recorded so it is not mistaken for a feature: the title screen's **settings**
+  button reuses the `fsbtn` class for its look (`title.js:309`), so a `.fsbtn` selector matches two buttons. The real
+  control is identified by its own `title-fs` class and confirmed through its `aria-label`. The class sharing is
+  pre-existing and was **not** changed here.
+- Tests run: `node --test test/ui/devices.test.js` 17/17; `fullscreen-button.e2e.test.js` 3/3 with `SP_E2E=1`;
+  `browser-notice.test.js` + `devices.test.js` + notice suites 36/37 — the one failure is
+  `browser-notice.e2e.test.js` "浏览器用户：看到公告", reproduced **identically on the stashed clean baseline**, so it is
+  pre-existing and unrelated (the notice shows for a browser; the assertion that fails is its text/visibility).
+  `npm run golden` 287/287 unchanged; `npx tsc --noEmit --checkJs` clean; `check-imports` unchanged (same three
+  `server/sim/nodeData.js` notes as before this task).
+- eslint: 0 errors. `device.js` carries one pre-existing warning (`importMaps`, line 83) that this task did not touch —
+  verified by the diff hunks (33–51, 165–184).
+- Files changed: `public/js/ui/device.js`, `public/js/screens/title.js`, `public/js/ui/notice.js`,
+  `test/ui/devices.test.js`, new `test/ui/fullscreen-button.e2e.test.js`.
+- Next: Codex review. No deployment and no client build is part of this task.
 
 ## Rollback
 

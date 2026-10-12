@@ -1,10 +1,10 @@
 # TASK-003 — Hybrid deployment wheel and mobile result exit
 
-Status: `review_ready`
+Status: `accepted`
 
 Lead: Codex
 
-Implementer: DeepSeek (implementation complete; awaiting lead review)
+Implementer: DeepSeek (reviewed and accepted 2026-10-12; deployed the same day)
 
 Starting baseline: `e0231293`
 

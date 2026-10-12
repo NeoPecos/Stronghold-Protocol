@@ -6,7 +6,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { installCompat } from '../../public/js/ui/compat.js';
-import { detectFeatures, featureClasses, fullscreen, installDeviceSupport, LONG_PRESS_MS, screenLandscape } from '../../public/js/ui/device.js';
+import { detectFeatures, featureClasses, fullscreen, installDeviceSupport, isNativeClient, LONG_PRESS_MS, screenLandscape } from '../../public/js/ui/device.js';
 import { checkButtons } from '../../public/js/ui/hud.js';
 import { penPlacement, penZoneTiles, previewEnemyKey, PEN } from '../../public/js/ui/gameLogic.js';
 import { bannerVisible } from '../../public/js/ui/connBanner.js';
@@ -127,6 +127,22 @@ describe('ui/device.js feature detection', () => {
     const none = fakeWindow({ fs: false });
     assert.equal(fullscreen.supported(none.win), false);
     assert.equal(await fullscreen.enter(none.win), false);
+  });
+  // TASK-007: the native clients must be recognised in exactly one place, and the button they must not show depends
+  // on it. These agents are the ones the wrappers actually send.
+  test('isNativeClient: the two client markers, the Android WebView token, and the webview host object', () => {
+    const win = (ua, extra = {}) => ({ navigator: { userAgent: ua }, ...extra });
+    const DESKTOP = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36 Edg/154.0.0.0';
+    const ANDROID_WV = 'Mozilla/5.0 (Linux; Android 16; XT2601-1 Build/W1WR36.39-101-1; wv) AppleWebKit/537.36 '
+      + '(KHTML, like Gecko) Version/4.0 Chrome/153.0.8010.39 Mobile Safari/537.36 SPClient/Android';
+    assert.equal(isNativeClient(win(DESKTOP)), false, 'a desktop browser is not a client');
+    assert.equal(isNativeClient(win(DESKTOP + ' SPClient/Windows')), true, 'the Windows wrapper');
+    assert.equal(isNativeClient(win(ANDROID_WV)), true, 'the Android wrapper (marker + wv token)');
+    assert.equal(isNativeClient(win(DESKTOP + ' SPClient/Android')), true, 'the marker alone is enough');
+    assert.equal(isNativeClient(win('Mozilla/5.0 (Linux; Android 13; wv) AppleWebKit/537.36')), true, 'a bare Android WebView token');
+    assert.equal(isNativeClient(win(DESKTOP, { chrome: { webview: {} } })), true, 'a wrapper that strips its UA is still caught by the host object');
+    assert.equal(isNativeClient({}), false, 'no navigator: not a client');
+    assert.equal(isNativeClient(undefined), false, 'undefined window: not a client');
   });
 });
 

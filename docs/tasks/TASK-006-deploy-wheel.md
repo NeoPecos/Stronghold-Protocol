@@ -1,6 +1,6 @@
 # TASK-006 — Push TASK-003 and deploy the wheel to production
 
-Status: `in_progress` (review fix — awaiting Codex re-review)
+Status: `accepted` (Codex re-review passed 2026-10-12)
 
 Lead: Codex (review pending)
 
@@ -143,3 +143,9 @@ involved, so rollback is a plain file restore. Players pick the restored build u
   and annotated with the reason. **Documentation only**: no runtime file changed, nothing redeployed, no restart.
 - Status: awaiting Codex re-review of this documentation fix. Not merged to `master`.
 - Earlier note kept: TASK-003 was deployed **before** review, at the maintainer's explicit direction.
+
+### 2026-10-12 18:37 — re-review passed
+
+- Codex re-review passed. TASK-006 is `accepted` and TASK-003 with it; production stays as deployed.
+- Nothing further was changed on the server for this: the live files still hash `93cca594…` / `0d5ebe94…` /
+  `9a31bf33…`, and `sp2.service` still runs the same process that was never restarted.

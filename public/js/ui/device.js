@@ -31,6 +31,25 @@ const LONG_PRESS_SLOP = 10;
 const mq = (win, q) => { try { return !!win.matchMedia?.(q)?.matches; } catch { return false; } };
 
 /**
+ * Whether this page runs inside one of the project's native clients rather than a browser.
+ *
+ * Single source of truth for the whole client side — `screens/title.js` and `ui/notice.js` both take it from here, so
+ * the three identifiers live in exactly one place:
+ *   • `SPClient/Windows` / `SPClient/Android` — the marker the wrappers append to their user agent
+ *     (`windows/Program.cs`, `android/MainActivity.java`);
+ *   • `; wv[);]` — the Android WebView token, which the Android client's agent also carries;
+ *   • `chrome.webview` — the host object an Android/Windows WebView exposes, which catches a wrapper that strips the UA.
+ *
+ * Deliberately NOT a feature-detection question: this is about the host application, so it is read once from the
+ * environment rather than derived from what the browser can do.
+ * @param {any} [win]
+ */
+export function isNativeClient(win = globalThis) {
+  const agent = win?.navigator?.userAgent || '';
+  return /SPClient\/(?:Windows|Android)|; wv[);]/i.test(agent) || !!win?.chrome?.webview;
+}
+
+/**
  * Whether the SCREEN (not the viewport) is in landscape: a split-view iPad or a narrow desktop window has a portrait
  * viewport on a landscape screen — rotating would not help there. screen.orientation (Chrome, Firefox, Safari 16.4+),
  * else window.orientation (older iOS); iOS reports screen.width/height in portrait always, so no size guess there.
@@ -143,19 +162,27 @@ export const fullscreen = {
   toggle(win = globalThis) { return this.active(win) ? this.exit(win) : this.enter(win); },
 };
 
-/** Fullscreen toggle (hidden where the browser has no element fullscreen, e.g. iPhone Safari). */
+/**
+ * Fullscreen toggle (hidden where the browser has no element fullscreen, e.g. iPhone Safari).
+ *
+ * Also hidden inside the native clients (`isNativeClient`): those windows are already the whole screen, the wrapper
+ * owns fullscreen, and a page-initiated Fullscreen API request there is at best a no-op — so the clients neither show
+ * the control nor touch the API. The check is a stable per-page fact read once in the state initialiser, so a client
+ * never registers a `fullscreenchange` listener and never re-renders; a browser keeps both.
+ */
 export function FullscreenButton({ class: cls = '' }) {
+  const [native] = useState(() => isNativeClient());
   const [on, setOn] = useState(() => fullscreen.active());
   const [ok] = useState(() => fullscreen.supported());
   useEffect(() => {
     const d = globalThis.document;
-    if (!d) return undefined;
+    if (!d || native) return undefined;
     const upd = () => setOn(fullscreen.active());
     d.addEventListener('fullscreenchange', upd);
     d.addEventListener('webkitfullscreenchange', upd);
     return () => { d.removeEventListener('fullscreenchange', upd); d.removeEventListener('webkitfullscreenchange', upd); };
-  }, []);
-  if (!ok) return null;
+  }, [native]);
+  if (native || !ok) return null;
   const label = on ? t('退出全屏') : t('全屏');
   return html`<button type="button" class=${`fsbtn tapx ${cls}`} aria-label=${label} title=${label} aria-pressed=${on ? 'true' : 'false'}
       onClick=${() => fullscreen.toggle()}>

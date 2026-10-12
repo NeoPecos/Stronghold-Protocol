@@ -4,7 +4,7 @@
 //   • 客户端绝不能看到「浏览器版停止支持」（他还得用客户端，看到会以为客户端也完了）
 //   • 浏览器漏看到只是少个提示，可以接受
 // 所以「该不该弹」这个判断必须能脱离浏览器被测试（见 test/ui/browser-notice.test.js）。
-import { isNativeClient } from '../screens/title.js';
+import { isNativeClient } from './device.js';
 
 /**
  * 公告版本。改了公告内容就把它 +1 —— 已关闭过旧版本的用户会再看到一次。
