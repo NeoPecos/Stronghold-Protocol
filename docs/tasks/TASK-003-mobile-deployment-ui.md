@@ -1,8 +1,12 @@
 # TASK-003 — Hybrid deployment wheel and mobile result exit
 
-Status: `planned`
+Status: `in_progress`
 
-Owner: unassigned
+Lead: Codex
+
+Implementer: unassigned
+
+Starting baseline: `e0231293`
 
 ## Goal
 
@@ -46,3 +50,8 @@ Revert the wheel/component and responsive result-screen changes as one task; no 
 - Current result-exit E2E passes at 1366x768, 844x390, 640x360 and 844x320 with md/lg/xl text, Android client UA and
   no fullscreen (12/12). The earlier real-device complaint therefore needs wrapper/viewport reproduction rather than
   an assumed CSS rewrite.
+
+## Next action
+
+Diff the two wheel implementations at function and style-rule level, then port the circular interaction behind focused
+mouse/touch tests without changing protocol behavior.

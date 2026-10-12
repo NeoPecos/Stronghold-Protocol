@@ -1,6 +1,6 @@
 # TASK-002 — Reconcile and freeze the next release baseline
 
-Status: `in_progress`
+Status: `accepted`
 
 Lead: Codex
 
@@ -49,6 +49,9 @@ client update are packaged.
 - Smoke, lint, import-boundary and type checks pass. The full unit/integration run reports one remaining candidate
   failure: packaging intentionally ignores the three untracked imported production-hotfix modules until they are
   formally added to the frozen Git baseline. Do not hide this by weakening the package test.
+- Workflow documentation was committed as `324cda89`; the reviewed runtime/test baseline was committed as `e0231293`.
+- Full `npm run ci` passes from the tracked baseline: setup, tests, smoke, lint, import boundaries and typecheck all
+  completed successfully. Existing lint findings remain warnings only.
 
 ## Acceptance checks
 
@@ -60,8 +63,7 @@ client update are packaged.
 
 ## Next action
 
-Review the remaining browser-gate tests and historical documents, then create a reviewed Git checkpoint containing the
-retained production hotfixes. Re-run full CI from that checkpoint; do not import Paper-Yuan code before it passes.
+Baseline accepted. Continue with `TASK-003` from `e0231293`; keep each feature isolated from release packaging.
 
 ## Rollback
 

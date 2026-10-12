@@ -16,30 +16,29 @@ handoff files. Update this page whenever production state, the active task, a re
 ## Repository truth
 
 - Working repository: `F:\DSH-workspace\stronghold-base-0.2.1`.
-- Current branch/commit: `integrate-upstream-0.2.3` at `2cadc618` (`origin/master`).
+- Current branch: `integrate-upstream-0.2.3`; frozen runtime baseline: `e0231293`.
 - Upstream game baseline included locally: `0.2.4`.
-- The working tree contains uncommitted production-hotfix and browser-gate files plus test/measurement changes.
-  Their provenance must be reconciled before feature work is packaged.
+- Production-hotfix and browser-gate files are now tracked in the frozen baseline and match JING byte-for-byte.
 - `docs/MAINTENANCE-HANDOFF.md` is a historical incident record. It contains later and earlier states and must not be
   treated as current without verification.
 - `docs/RELEASE-1.2.9.md` is an older preparation snapshot and is superseded by `docs/releases/1.2.9.md`.
 
 ## Active work
 
-- Active task: `docs/tasks/TASK-002-release-baseline.md`.
-- Next feature queue: hybrid deployment wheel and mobile result exit; selectable account avatar; room text chat and
+- Active task: `docs/tasks/TASK-003-mobile-deployment-ui.md`.
+- Next feature queue: selectable account avatar; room text chat and
   announcement/admin tools.
 - Explicitly excluded from the next update: room voice, wholesale Paper-Yuan merge, unreviewed native Android runtime,
   and CDN activation.
 
 ## Immediate next action
 
-Review and checkpoint the retained production hotfixes in Git, then rerun full CI so the package test sees the imported
-modules as shipped files. Golden, smoke, lint, import boundaries, type checks and targeted mobile/browser tests already
-pass. Freeze that baseline before porting the hybrid Paper-Yuan deployment wheel.
+Implement the hybrid Paper-Yuan deployment wheel on top of baseline `e0231293`, preserving this fork's direct
+direction-tap behavior and custom combat HUD. Reproduce the mobile-wrapper result-screen issue before further layout
+changes.
 
 ## Stop conditions
 
-- Do not build or publish a client from the current dirty tree.
+- Do not build or publish a client until the active feature tasks and release gates are accepted.
 - Do not overwrite the custom room directory, accounts/passwords, records/cards or custom combat HUD.
 - Do not deploy merely because implementation tests pass; follow the release task and verify production backups.
