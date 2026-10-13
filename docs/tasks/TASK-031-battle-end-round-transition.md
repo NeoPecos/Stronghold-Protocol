@@ -16,4 +16,4 @@ Rollback: 撤销本任务在 `public/js/ui/components.js`、`public/js/screens/g
 
 Checkpoint: 已只读抽取原版视频关键帧：约 0.5–3.3 秒为“作战结束／完美作战！”绿框，约 4.8–7.4 秒为三栏“回合 04→05／获得 +12”，顶部于后段从联防进度切到休息胶囊。现有 `ui/roundStartDialog` 表情、背景纹理与资金图标已复用，且这些文件存在于 1.2.9 客户端资源包。已完成两段展示、战斗起始资金差额计算、结算文案、本地“播放作战结束→下一回合”入口；仅运行 JavaScript 语法、JSON 与素材路径检查，未运行游戏测试、截图比对或 CI。
 
-Release: 维护者明确要求完成后立即上线。2026-10-13 已将八个静态文件热更新到 JING，备份 `/opt/sp2/backups/battle-end-round-20261013-122950/old/`；目标哈希回读一致，`/healthz` HTTP 200，`sp2.service` active 且 PID `1131763` 未变。未重启或中断对局；开发预览入口未上传正式服。详情见 `docs/releases/2026-10-13-battle-end-round-transition.md`。
+Release: 维护者明确要求完成后立即上线。2026-10-13 已将八个静态文件热更新到 JING，备份 `/opt/sp2/backups/battle-end-round-20261013-122950/old/`；随后修正 `game.js` 的初始化顺序并原子替换，最终目标哈希回读一致，`/healthz` HTTP 200，`sp2.service` active 且 PID `1131763` 未变。未重启或中断对局；开发预览入口未上传正式服。详情见 `docs/releases/2026-10-13-battle-end-round-transition.md`。

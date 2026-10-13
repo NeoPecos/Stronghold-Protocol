@@ -8,7 +8,7 @@ Source baseline: `ec5787bb6d4328f3fa908dbade7198b62d0d80e3` plus the TASK-031 ed
 | --- | --- | --- |
 | `css/screens/game.css` | `3b99569c393223e57762b5f744d309d2aa8098f3ad260208abb6a495095b7fb6` | `da49b186f49c50f80ab26f9bbf0e4b558906ca0fdb491fac55a0196a51d4a4fe` |
 | `js/ui/components.js` | `ec44f8946ae9e9bb52e0c3f2df5ff14905d37fdc015c6d3bc10a347948a9565b` | `53aef27730a4dd52f55357fb9adc5cfdec08c8933351bc0f4e9ef5aea3f59fad` |
-| `js/screens/game.js` | `2bd48613ff03c290af0e3a8eb07b3d1fb74b5398df6cceaa027c7e67a264e1ec` | `d49efbc864dbe339d30bc891560ef19bf59a04c4d2c3746f448b04423474db5c` |
+| `js/screens/game.js` | `2bd48613ff03c290af0e3a8eb07b3d1fb74b5398df6cceaa027c7e67a264e1ec` | `cb072a451cbc5983349859cca7993bbc96a65271b188a9722b92f596f06588cf` |
 | `js/ui/gameLogic/phases.js` | `8657e5d084489a2862ad6a5cb07a8f79869caaab485483b4c98d2f870c98b27b` | `26a1ea439f1ae7f37e34778432fe2261fd8d746f6ae9a6185aa05902042fee5c` |
 | `i18n/en.json` | `29667d7057825f875bf7b4c800e32980416ea2b40252a1c99cd63a13295ad49d` | `8a68db03d96ee3110a905bd1cb557e5ad53ee3725916163e7420d462122b9943` |
 | `i18n/ja.json` | `5ed7d9e6576d20f9f301232ad171e94a0ba16bb7c02c759a8e368ad6b185a6bb` | `9fb37ac67c147abd4dd7ad7df0d010a0f2ec9d6394657af17a4633c29d77dbc8` |
@@ -25,4 +25,4 @@ Verification: changed JavaScript syntax, JSON parsing and referenced asset paths
 
 Rollback: restore the eight files from `old/` to their original paths with atomic rename; do not restart `sp2.service` solely for this static rollback.
 
-Status: deployed 2026-10-13; repository commit/push recorded separately after the production read-back.
+Status: deployed 2026-10-13; a post-deploy runtime-order correction for `game.js` was applied atomically without restart, with the intermediate file saved as `/opt/sp2/backups/battle-end-round-20261013-122950/broken-intermediate-game.js`. Repository commit/push recorded separately after the production read-back.

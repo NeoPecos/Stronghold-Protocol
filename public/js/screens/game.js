@@ -215,10 +215,6 @@ function MatchScreen() {
   const battleState = useStore((s) => s.match.battle, shallowEqual); // local battle runner (client-side combat)
 
   const phase = pub?.phase;
-  if (isCombatPhase(phase) && alive && Number.isFinite(priv?.funds)
-      && fundsAtCombatStart.current?.round !== pub?.round) {
-    fundsAtCombatStart.current = { round: pub?.round, funds: priv.funds };
-  }
   const mode = phaseMode(phase);
   const combat = isCombatPhase(phase);
   const solo = roomSolo || String(pub?.modeId || '').includes('single');
@@ -226,6 +222,10 @@ function MatchScreen() {
   const meP = players.find((p) => p.playerId === myId) || null;
   // a spectator seat watches like an eliminated player (it has no m.private and no row in m.public)
   const alive = spectator ? false : priv ? priv.alive !== false : meP?.alive !== false;
+  if (isCombatPhase(phase) && alive && Number.isFinite(priv?.funds)
+      && fundsAtCombatStart.current?.round !== pub?.round) {
+    fundsAtCombatStart.current = { round: pub?.round, funds: priv.funds };
+  }
   const home = homeFieldId(pub, myId);
   const watchingOther = !!watching && watching !== home && watching !== ownFieldId(myId);
   // watching a teammate's prep board: the 本局信息 drawer shows THEIR 策略 in place of one's own (user playtest #2 item 2)
