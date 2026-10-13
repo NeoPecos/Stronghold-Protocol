@@ -52,13 +52,20 @@ describe('tier chips', () => {
 
   test('operators show level and equipment only during preparation', () => {
     const p = view({ kind: 'chess', tier: 4 }, { prep: true });
-    p.setItems(['/item/one.png']);
+    p.setItems([{ url: '/item/one.png', golden: false }]);
     p.update(1 / 60, cam(), 0);
     assert.ok(p.chip && p.chip.visible);
     assert.equal(p.hud.parent, p.ctx.layers.bars);
     assert.equal(p.equipTrack.visible, true);
-    assert.equal(p.equipSlots[0].tint, 0xffcf45);
-    assert.equal(p.equipSlots[1].tint, 0xe4e8e6);
+    assert.equal(p.equipSlots[0].tint, 0xe4e8e6);
+    assert.equal(p.equipSlots[1].visible, false);
+    const g = view({ kind: 'chess', tier: 4 }, { prep: true });
+    g.setItems([{ url: '/item/golden.png', golden: true }]);
+    g.update(1 / 60, cam(), 0);
+    assert.equal(g.equipSlots[0].tint, 0xffcf45);
+    const empty = view({ kind: 'chess', tier: 4 }, { prep: true });
+    empty.update(1 / 60, cam(), 0);
+    assert.equal(empty.equipTrack.visible, false);
     assert.ok(p.chip.height >= 27, 'the Roman numeral is readable at normal board scale');
     assert.equal(p.equipTrack.constructor.name, 'Graphics', 'the equipment capsule has rounded ends');
     const b = view({ kind: 'chess', tier: 2 });

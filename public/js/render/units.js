@@ -812,6 +812,7 @@ export class UnitView {
     this.ctx.layers.groundFx.addChild(this.blockIcon);
     this.countText = null;
     this.equipCount = 0;
+    this.equipItems = [];
     this.itemPips = [];
   }
 
@@ -854,8 +855,13 @@ export class UnitView {
     this.countText.visible = true;
   }
 
-  setItems(urls) {
-    this.equipCount = Array.isArray(urls) ? Math.min(urls.length, 2) : 0;
+  setItems(entries) {
+    const list = Array.isArray(entries) ? entries.slice(0, 2).map((entry) => {
+      if (entry && typeof entry === 'object') return { url: entry.url ?? null, golden: !!entry.golden };
+      return { url: entry ?? null, golden: false };
+    }) : [];
+    this.equipItems = list;
+    this.equipCount = list.length;
     this.itemPips = Array.from({ length: this.equipCount }, () => null);
   }
 
@@ -1483,7 +1489,7 @@ export class UnitView {
       this.chip.visible = prep && this.alive;
       if (this.chip.visible) this.chip.position.set(x - bw / 2 - this.chip.width / 2, y - 4);
     }
-    const showEquip = prep && this.alive && !!this.chip;
+    const showEquip = prep && this.alive && !!this.chip && this.equipCount > 0;
     this.equipTrack.visible = showEquip;
     if (showEquip) {
       const trackX = x - bw / 2 + 1;
@@ -1497,9 +1503,9 @@ export class UnitView {
     }
     for (let i = 0; i < this.equipSlots.length; i++) {
       const slot = this.equipSlots[i];
-      slot.visible = showEquip;
+      slot.visible = showEquip && i < this.equipCount;
       if (!showEquip) continue;
-      slot.tint = i < (this.equipCount || 0) ? 0xffcf45 : 0xe4e8e6;
+      slot.tint = this.equipItems[i]?.golden ? 0xffcf45 : 0xe4e8e6;
       slot.position.set(this.equipTrack.position.x + 3 + i * (bw - 4) / 2, y - 4);
     }
     // status icons row above the bars
