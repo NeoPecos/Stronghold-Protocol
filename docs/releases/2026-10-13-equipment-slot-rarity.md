@@ -1,6 +1,6 @@
 # 2026-10-13 装备槽普通/金色状态静态热修
 
-Status: `ready`
+Status: `deployed`
 
 Release scope: TASK-032. 修正干员头顶装备槽读取装备 `isGolden` 的显示逻辑；普通装备显示白色，金色装备显示金色，空装备不显示槽位。未安装 `ui-hub-package-20261013.zip`。
 
@@ -24,8 +24,8 @@ Protected: 服务端、战斗模拟、账号/房间、原生客户端、CDN、�
 
 ## Verification
 
-- Pre-deploy `/healthz` and service state must be readable; active matches are allowed because no process restart occurs.
-- Post-deploy read back both SHA256 values, `/healthz`, and service PID.
+- Pre-deploy `/healthz` returned `200` with `matches: 6`, `humans: 9`; `sp2.service` was active.
+- Post-deploy both SHA256 values matched the target, public HTTPS read-back matched too, `/healthz` returned `200` with `matches: 6`, `humans: 8`, and the service PID stayed `1131763`.
 - No gameplay tests, screenshot comparisons or CI are run by the agent; visual acceptance belongs to the maintainer.
 
 ## Rollback

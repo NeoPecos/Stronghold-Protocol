@@ -29,6 +29,7 @@
 | [TASK-029](TASK-029-browser-cdn-foundation.md) | planned | DeepSeekharness | Upload only missing public art and prepare an opt-in browser CDN path; no browser reopening or deployment |
 | [TASK-030](TASK-030-unite-phase-intro.md) | released | Codex | Unite-phase center banner and top cue hot-deployed at maintainer request; visual follow-up pending |
 | [TASK-031](TASK-031-battle-end-round-transition.md) | released | Codex | Battle-over result panel, next-round transition, real funds delta and “完美作战！” wording; static hotfix live |
+| [TASK-032](TASK-032-equipment-slot-rarity.md) | released | Codex | Equipment slots preserve ordinary/golden rarity and hide when empty; static hotfix live |
 
 Only one task should be the repository-wide active implementation task unless tasks use isolated worktrees and do not
 touch overlapping files.

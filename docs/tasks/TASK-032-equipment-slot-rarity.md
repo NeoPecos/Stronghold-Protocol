@@ -1,6 +1,6 @@
 # TASK-032 — 装备槽普通/金色状态显示
 
-Status: `in_progress`
+Status: `released`
 
 Lead: Codex
 
@@ -36,12 +36,12 @@ Starting commit: `20d726f09c42e605e846f1964ef457208f938f21`
 - 已完成渲染层字段传递与槽位显示修复，并补充针对性单测。
 - UI 美化包尚未安装、未改动仓库内容。
 - Tests: 未运行（维护者要求由其自行测试）。
-- Next: 提交本任务，按发布记录静态部署到 JING，再记录回读哈希和服务状态。
-- GitHub/production: 尚未因本任务更新。
+- Next: 维护者刷新正式服确认普通/金色/空装备三种显示；无额外发布动作。
+- GitHub/production: 本地提交 `a7b6df3b`；静态文件已部署到 JING，未推送 GitHub。
 
 ## Review notes
 
-待部署后维护者视觉确认。
+静态发布完成；待维护者刷新正式服进行视觉确认。`ui-hub-package-20261013.zip` 未安装。
 
 ## Rollback
 
