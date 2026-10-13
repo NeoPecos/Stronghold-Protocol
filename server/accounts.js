@@ -1,4 +1,4 @@
-import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -6,6 +6,12 @@ import { promisify } from 'node:util';
 const scrypt = promisify(scryptCallback);
 const KEY_LENGTH = 32;
 const PARAMS = { N: 16384, r: 8, p: 1, maxmem: 32 * 1024 * 1024 };
+/** 记住登录的有效期（30 天，维护者 2026-10-13 确认；每次用令牌登录都会顺延）。 */
+export const REMEMBER_MS = 30 * 24 * 60 * 60 * 1000;
+/** 令牌是 256 位随机串，用确定性哈希存库即可（它不是口令，无需 scrypt；也避免每次连接都跑一遍昂贵派生）。 */
+const rememberHash = (token) => createHash('sha256').update(token).digest('hex');
+/** 账号画像里持久保存的局外选择（与 server/net.js 的 session 字段同名；avatar = 玩家头像 TASK-004）。 */
+export const PROFILE_KEYS = Object.freeze(['loadout', 'ops', 'skins', 'notOwned', 'diy', 'avatar']);
 
 export const accountKey = (name) => name.normalize('NFC').toLowerCase();
 export const validPassword = (password) => typeof password === 'string'
@@ -79,10 +85,120 @@ export class AccountStore {
     const salt = randomBytes(16);
     const hash = await scrypt(newPassword, salt, KEY_LENGTH, PARAMS);
     const updated = { ...existing, salt: salt.toString('hex'), hash: hash.toString('hex') };
+    // 改密码 = 撤销所有「记住登录」令牌：旧设备必须重新输一次新密码（安全语义，也是维护者要的效果）。
+    delete updated.remember;
     this.byName.set(key, updated);
     try { this.save(); }
     catch (error) { this.byName.set(key, existing); throw error; }
     return { account: updated };
+  }
+
+  /**
+   * 发放「记住登录」令牌（维护者 2026-10-13：方案 A）。
+   *
+   * 语义：登录/注册成功后服务器生成一个 256 位随机串，**只在这一次 welcome 里明文下发**（WSS/本机），库里只存它的
+   * sha256 与过期时间。客户端下次连接把它放进 `hello.remember`，校验通过就直接认这个账号，不必再输密码。
+   * 每次重新输密码登录都会换发新令牌（旧的自然作废）；改密码会清空（见 changePassword）。
+   * @param {string} name
+   * @returns {string | null} 明文令牌（64 位十六进制），账号不存在时 null
+   */
+  issueRemember(name) {
+    const account = this.byName.get(accountKey(name));
+    if (!account) return null;
+    const token = randomBytes(32).toString('hex');
+    const updated = { ...account, remember: { hash: rememberHash(token), expiresAt: Date.now() + REMEMBER_MS } };
+    this.byName.set(accountKey(name), updated);
+    this.save();
+    return token;
+  }
+
+  /**
+   * 校验「记住登录」令牌：命中且未过期时返回账号，并把有效期顺延 30 天（滑动过期）。
+   *
+   * 过期的令牌会被清掉（顺手写盘），令牌格式不对/找不到都返回 null —— 调用方随后走正常密码流程。
+   * @param {string} token
+   * @returns {object | null}
+   */
+  verifyRemember(token) {
+    if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token)) return null;
+    const hash = rememberHash(token);
+    const now = Date.now();
+    for (const [key, account] of this.byName) {
+      const remember = account.remember;
+      if (!remember || typeof remember.hash !== 'string' || typeof remember.expiresAt !== 'number') continue;
+      const a = Buffer.from(remember.hash, 'hex');
+      const b = Buffer.from(hash, 'hex');
+      if (a.length !== b.length || !timingSafeEqual(a, b)) continue;
+      if (remember.expiresAt <= now) {
+        const cleared = { ...account };
+        delete cleared.remember;
+        this.byName.set(key, cleared);
+        try { this.save(); } catch { /* 过期清理写盘失败不影响本次登录判定 */ }
+        return null;
+      }
+      if (remember.expiresAt - now < REMEMBER_MS - 24 * 60 * 60 * 1000) {
+        this.byName.set(key, { ...account, remember: { ...remember, expiresAt: now + REMEMBER_MS } });
+        try { this.save(); } catch { /* 顺延写盘失败不影响本次登录 */ }
+      }
+      return account;
+    }
+    return null;
+  }
+
+  /** 撤销某个账号的「记住登录」令牌（客户端关掉保持登录时用；账号不存在时静默）。 */
+  forgetRemember(name) {
+    const key = accountKey(name);
+    const account = this.byName.get(key);
+    if (!account || !account.remember) return false;
+    const cleared = { ...account };
+    delete cleared.remember;
+    this.byName.set(key, cleared);
+    this.save();
+    return true;
+  }
+
+  /**
+   * 账号画像（局外选择）：`{ loadout, skins, notOwned, diy, updatedAt }`。
+   *
+   * 这四项原先只活在内存里的 session 上 —— 会话一过期、一换设备就没了（维护者 2026-10-13 报告）。现在随账号
+   * 存在同一个库文件里（维护者选择），登录/恢复时回灌给 session，改一次写一次。
+   * @param {string} name
+   * @returns {object | null}
+   */
+  getProfile(name) {
+    const account = this.byName.get(accountKey(name));
+    const profile = account && account.profile;
+    return profile && typeof profile === 'object' ? profile : null;
+  }
+
+  /**
+   * 写入账号画像的一部分（只覆盖传进来的键，且**忽略空值**：客户端在空设备上连上时会推一次空状态，不能因此把
+   * 已有画像抹掉）。内容不变时不写盘。
+   * @param {string} name
+   * @param {Record<string, any>} patch
+   * @returns {boolean} 是否真的写入了
+   */
+  setProfile(name, patch) {
+    const key = accountKey(name);
+    const account = this.byName.get(key);
+    if (!account || !patch || typeof patch !== 'object') return false;
+    const current = account.profile && typeof account.profile === 'object' ? account.profile : {};
+    const next = { ...current };
+    let changed = false;
+    for (const field of PROFILE_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(patch, field)) continue;
+      const value = patch[field];
+      if (value == null) continue;
+      if (typeof value === 'object' && Object.keys(value).length === 0 && current[field] != null) continue;
+      if (JSON.stringify(next[field] ?? null) === JSON.stringify(value)) continue;
+      next[field] = value;
+      changed = true;
+    }
+    if (!changed) return false;
+    next.updatedAt = Date.now();
+    this.byName.set(key, { ...account, profile: next });
+    this.save();
+    return true;
   }
 
   save() {

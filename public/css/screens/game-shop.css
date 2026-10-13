@@ -169,7 +169,7 @@
 .funds__hex {
   position: absolute; z-index: 2; top: -.2rem; left: 50%; transform: translateX(-50%); width: 1.1rem; height: .37rem;
   display: flex; align-items: center; justify-content: flex-end; padding-right: .13rem;
-  background: #100f08 url('/assets/ui/shopPanel/bg_money.png') center / 100% 100% no-repeat; color: var(--gold);
+  background: url('/assets/ui/shopPanel/bg_money.png') center / 100% 100% no-repeat; color: var(--gold);
 }
 .funds__num { font-size: .27rem; line-height: 1; font-weight: 700; color: var(--gold); }
 .funds__collapse { position: absolute; z-index: 2; left: 50%; bottom: .03rem; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; gap: .03rem;

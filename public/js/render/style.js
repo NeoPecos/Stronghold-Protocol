@@ -46,7 +46,7 @@ export const COLORS = Object.freeze({
   mint: 0x4ed8af,
   mintHi: 0x59f4ca,
   gold: 0xffc600,
-  gateRed: 0xff3b30,
+  gateRed: 0xc4170a,
   gateRedDeep: 0xd0453b,
   objBlue: 0x39a7ff,
   objBlueDeep: 0x2d7fd6,

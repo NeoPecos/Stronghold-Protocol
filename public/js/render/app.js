@@ -1523,7 +1523,7 @@ export async function createFieldView(host, options = {}) {
         fx.leak();
         break;
       }
-      case 'status': { const v = views.get(e[1]); if (v) v.onStatus?.(e[2], !!e[3]); break; }
+      case 'status': { const v = views.get(e[1]) || battleView(e[1]); if (v) v.onStatus?.(e[2], !!e[3]); break; }
       case 'fx': {
         if (e[4] && typeof e[4] === 'object' && e[4].consumed && e[4].id != null) {
           consumedIds.add(e[4].id);

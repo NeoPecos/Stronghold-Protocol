@@ -70,6 +70,7 @@ import { SpineActor } from './spine.js';
 import { diamondTexture, shadowTexture, fxAtlas, tierChip, statusTexture, itemTexture, hudRings, ringArc, downLabel, HUD_DISC, ELEMENT_RING } from './textures.js';
 import { COLORS, TIER_COLORS, ENEMY_FRAME, UNIT, PROJ, statusIconKey, statusIconSuppressed } from './style.js';
 import { drawCrate, rowDepthKey, ROW_KEY, deviceBoxOf, DEVICE_BOX } from './tiles.js';
+import { StatusAura } from './statusAura.js';
 
 const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 const DIRS = ['UP', 'RIGHT', 'DOWN', 'LEFT'];
@@ -558,6 +559,7 @@ export class UnitView {
     }
     this.body = new P.Container();
     this.root.addChild(this.body);
+    this.statusAura = null;
     this.fallback = new P.Sprite(P.Texture.EMPTY);
     this.fallback.anchor.set(0.5, 1);
     this.body.addChild(this.fallback);
@@ -1383,6 +1385,16 @@ export class UnitView {
       modelK: this.modelK, modelKY: this.modelKY,
     });
     this.screen.top = by - headTiles * s;
+    const stealthAura = this.isEnemy && !this.prep && this.alive && !!(this.flags & UF.STEALTH);
+    const refractionAura = this.isEnemy && !this.prep && this.alive
+      && (this.statuses.has('ab:refraction') || this.statuses.has('refraction'))
+      && !statusIconSuppressed('ab:refraction', this.statuses);
+    if (stealthAura || refractionAura) this.statusAura ??= new StatusAura(P, this.root, this.hud);
+    if (this.statusAura) {
+      this.statusAura.root.alpha = stealthAura ? 1.5 : 1;
+      this.statusAura.update(t, s, headTiles * s, stealthAura, refractionAura,
+        this.ctx.settings?.quality, this.ctx.loadLevel?.() || 0);
+    }
     this._updateHud(dt, s, bx, by - headTiles * s, alpha, t);
   }
 
@@ -1479,7 +1491,8 @@ export class UnitView {
       if (this._equipWidth !== bw) {
         this._equipWidth = bw;
         this.equipTrack.clear().lineStyle(1, 0xd3d9d7, 0.9).beginFill(0x111514, 0.96).drawRoundedRect(0, -4, bw, 8, 4).endFill();
-        for (const slot of this.equipSlots) slot.clear().beginFill(0xffffff).drawRoundedRect(0, -1.5, (bw - 10) / 2, 3, 1.5).endFill();
+        // 两个装备格左右留边一致（各 3px，中间 2px）：原来是左 3 右 4，右侧多出一条黑边
+        for (const slot of this.equipSlots) slot.clear().beginFill(0xffffff).drawRoundedRect(0, -1.5, (bw - 8) / 2, 3, 1.5).endFill();
       }
     }
     for (let i = 0; i < this.equipSlots.length; i++) {
@@ -1487,7 +1500,7 @@ export class UnitView {
       slot.visible = showEquip;
       if (!showEquip) continue;
       slot.tint = i < (this.equipCount || 0) ? 0xffcf45 : 0xe4e8e6;
-      slot.position.set(this.equipTrack.position.x + 3 + i * (bw - 6) / 2, y - 4);
+      slot.position.set(this.equipTrack.position.x + 3 + i * (bw - 4) / 2, y - 4);
     }
     // status icons row above the bars
     const icons = this._iconKeys();

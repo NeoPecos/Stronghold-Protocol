@@ -24,6 +24,11 @@
 | [TASK-021](TASK-021-nginx-media-cache.md) | review_ready | DeepSeek | Immutable `/media/` cache headers are live; Codex review pending |
 | [TASK-022](TASK-022-media-etag-validator.md) | review_ready | DeepSeek | Align Node media ETags with nginx; implemented locally, not deployed |
 | [TASK-023](TASK-023-mobile-rendering-resolution.md) | planned | DeepSeek | Make native resolution follow device DPR under the existing pixel budgets |
+| [TASK-027](TASK-027-enemy-status-vfx.md) | released | Codex | Stealth smoke, refraction hexagons, and funds badge transparency; static hotfix on JING |
+| [TASK-028](TASK-028-top-hud-proportions.md) | released | Codex | Top HUD brackets, frame proportions, rest tint and unite capsule alignment; visual follow-up pending |
+| [TASK-029](TASK-029-browser-cdn-foundation.md) | planned | DeepSeekharness | Upload only missing public art and prepare an opt-in browser CDN path; no browser reopening or deployment |
+| [TASK-030](TASK-030-unite-phase-intro.md) | released | Codex | Unite-phase center banner and top cue hot-deployed at maintainer request; visual follow-up pending |
+| [TASK-031](TASK-031-battle-end-round-transition.md) | released | Codex | Battle-over result panel, next-round transition, real funds delta and “完美作战！” wording; static hotfix live |
 
 Only one task should be the repository-wide active implementation task unless tasks use isolated worktrees and do not
 touch overlapping files.

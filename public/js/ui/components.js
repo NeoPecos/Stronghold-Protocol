@@ -781,6 +781,31 @@ export function PhaseBanner({ title, sub, micro, tone = 'mint', mode = 'inline',
   </div>`;
 }
 
+export function UniteIntro({ title, sub, duration = 3400, onDone }) {
+  const [leaving, setLeaving] = useState(false);
+  const [gone, setGone] = useState(false);
+  useEffect(() => {
+    const hideTimer = setTimeout(() => setLeaving(true), duration);
+    const doneTimer = setTimeout(() => { setGone(true); onDone?.(); }, duration + 360);
+    return () => { clearTimeout(hideTimer); clearTimeout(doneTimer); };
+  }, [duration]);
+  if (gone) return null;
+  const smile = '/assets/ui/hudPanel/trans_coop1.png';
+  const frown = '/assets/ui/hudPanel/trans_coop3.png';
+  return html`<div class=${cx('unite-intro', leaving && 'is-leaving')} style=${`--unite-intro-ms:${duration + 360}ms`}
+    role="status" aria-live="polite" aria-label=${sub ? `${title}，${sub}` : title}>
+    <div class="unite-intro__top" aria-hidden="true">
+      <span class="unite-intro__top-icons"><img src=${smile} alt="" /><img src=${frown} alt="" /></span>
+      <span class="unite-intro__top-label">${t('联防')} ${t('开始')}</span>
+    </div>
+    <div class="unite-intro__plate">
+      <span class="unite-intro__faces" aria-hidden="true"><img src=${smile} alt="" /><img src=${frown} alt="" /></span>
+      <strong class="unite-intro__title">${title}</strong>
+      <span class="unite-intro__arrows" aria-hidden="true"><i></i><i></i></span>
+    </div>
+  </div>`;
+}
+
 /**
  * The round's result box (the official round result dialog, shown at settlement; GitHub #235, PR #112 by @Convey123):
  * a centred framed plate — tone-coloured frame and corner ticks, chevrons either side of the title — that opens, holds
@@ -799,17 +824,45 @@ export function ResultDialog({ title, sub, micro, tone = 'mint', duration = 2800
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [duration]);
   if (gone) return null;
-  return html`<div class=${cx('rdialog', `rdialog--${tone}`, leaving && 'is-leaving')} role="status" aria-live="polite">
+  return html`<div class=${cx('rdialog', 'rdialog--battle-end', `rdialog--${tone}`, leaving && 'is-leaving')} role="status" aria-live="polite">
     <div class="rdialog__box">
-      <span class="rdialog__tick rdialog__tick--tl"></span><span class="rdialog__tick rdialog__tick--tr"></span>
-      <span class="rdialog__tick rdialog__tick--bl"></span><span class="rdialog__tick rdialog__tick--br"></span>
       ${micro ? html`<span class="rdialog__micro">${micro}</span>` : null}
       <div class="rdialog__row">
-        <${Chevrons} count=${3} tone=${tone} class="rdialog__chev" />
-        <span class="rdialog__title">${title}</span>
-        <${Chevrons} count=${3} tone=${tone} dir="left" class="rdialog__chev" />
+        <img class="rdialog__icon" src="/assets/ui/hudPanel/icon_battle.png" alt="" />
+        <span class="rdialog__words"><span class="rdialog__title">${title}</span>
+          ${sub ? html`<span class="rdialog__sub">${sub}</span>` : null}</span>
       </div>
-      ${sub ? html`<span class="rdialog__sub">${sub}</span>` : null}
+    </div>
+  </div>`;
+}
+
+export function RoundStartIntro({ round, gain, duration = 2400, onDone }) {
+  const [leaving, setLeaving] = useState(false);
+  const [gone, setGone] = useState(false);
+  useEffect(() => {
+    const hideTimer = setTimeout(() => setLeaving(true), duration);
+    const doneTimer = setTimeout(() => { setGone(true); onDone?.(); }, duration + 300);
+    return () => { clearTimeout(hideTimer); clearTimeout(doneTimer); };
+  }, [duration]);
+  if (gone) return null;
+  const asset = (name) => `/assets/ui/roundStartDialog/${name}.png`;
+  return html`<div class=${cx('round-intro', leaving && 'is-leaving')} role="status" aria-live="polite">
+    <div class="round-intro__top" aria-hidden="true">
+      <span class="round-intro__top-icons"><img src=${asset('round_emoji_head')} alt="" /><img src=${asset('round_emoji_body')} alt="" /></span>
+    </div>
+    <div class="round-intro__plate">
+      <div class="round-intro__figure" aria-hidden="true">
+        <img class="round-intro__figure-head" src=${asset('round_emoji_head')} alt="" />
+        <img class="round-intro__figure-body" src=${asset('round_emoji_body')} alt="" />
+        <img class="round-intro__figure-book" src=${asset('round_emoji_book')} alt="" />
+        <img class="round-intro__figure-hand" src=${asset('round_emoji_hand')} alt="" />
+      </div>
+      <div class="round-intro__round"><span>${t('回合')}</span>
+        <strong class="round-intro__old">${String(Math.max(0, round - 1)).padStart(2, '0')}</strong>
+        <i aria-hidden="true">›</i><strong class="round-intro__new">${String(round).padStart(2, '0')}</strong>
+      </div>
+      <div class="round-intro__gain">${gain == null ? null : html`<span>${t('获得')}</span>
+        <img src=${asset('round_sources_icon')} alt="" /><strong>+${gain}</strong>`}</div>
     </div>
   </div>`;
 }

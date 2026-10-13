@@ -163,6 +163,8 @@ export class PlayerState {
     if (!this.isBot && (seat.loadout || seat.ops)) this.setLoadout(seat.loadout ?? null, seat.ops ?? null);
     this.skins = Object.freeze({});
     if (!this.isBot && seat.skins) this.setSkins(seat.skins);
+    /** 玩家头像 (TASK-004): the account's avatar (an operator id = an `assets.chars` key), or null (band icon / initial) */
+    this.avatar = !this.isBot && seat.avatar ? seat.avatar : null;
     /**
      * 补位 (0.2.0): the base chess ids this player fields as their stand-ins — the seat's not-owned list when the match
      * started, re-checked against this match's data; frozen, sorted; [] = every operator owned (bots always)

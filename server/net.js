@@ -41,6 +41,7 @@ import { randomBytes } from 'node:crypto';
 import { isIP } from 'node:net';
 import { C2S, validateC2S } from '../shared/protocol.js';
 import { ERR, ERR_TEXT, NAME_MAX_LEN, PROTOCOL_VERSION } from '../shared/constants.js';
+import { accountKey, PROFILE_KEYS } from './accounts.js';
 
 /** Tunables (all overridable through the Network / SessionRegistry constructors). */
 export const NET_DEFAULTS = Object.freeze({
@@ -68,6 +69,17 @@ export const NET_DEFAULTS = Object.freeze({
  * (taking a spectator seat in a running match resends its state like a watcher's g.watch — server/lobby.js spectate).
  */
 export const HEAVY_TYPES = new Set(['g.watch', 'room.list', 'room.loadout', 'room.skins', 'room.ownership', 'room.diy', 'room.spectate', 'room.chat.history', 'match.queue']);
+/**
+ * 一次 `room.*` 局外选择要写回账号画像的 session 字段（维护者 2026-10-13：换端也要保留）。
+ * `room.loadout` 带两样：选中的技能/模组（`loadout`）与每个干员的潜能/练度（`ops`）。
+ */
+const PROFILE_FIELDS = {
+  'room.loadout': ['loadout', 'ops'],
+  'room.skins': ['skins'],
+  'room.ownership': ['notOwned'],
+  'room.diy': ['diy'],
+  'account.avatar': ['avatar'],
+};
 const ACTIVITY_TYPES = new Set(['room.create', 'room.join', 'room.leave', 'room.ready', 'room.setDifficulty', 'room.addBot', 'room.removeBot', 'room.kick', 'room.start', 'room.spectate', 'room.removeSpectator']);
 
 /** Close codes (see header). */
@@ -122,6 +134,8 @@ export class Session {
     this.notOwned = null;
     /** @type {Readonly<Record<string, { charId: string, skillIndex: number, uniEquipId: string|null }>> | null} checked 自选 picks (lobby-owned, 0.2.0 自选编队) */
     this.diy = null;
+    /** @type {string | null} 玩家头像：一个干员 id，`''` = 不用头像（账号级，TASK-004；随 persistProfile 落画像） */
+    this.avatar = null;
     /** @type {string} client address of the latest connection (logging) */
     this.addr = '?';
     /** @type {string | null} per-network limit key of the latest connection (null = not limited), see clientAddress */
@@ -649,6 +663,7 @@ export class Network {
       this.log.error(`[net] handler crashed on ${msg.t}`, e);
       res = { error: ERR.INTERNAL };
     }
+    if (res && !res.error) this.persistProfile(conn.session, msg.t);
     if (res && res.error) {
       // fire-and-forget battle progress (no rid) that reached no running match — the match just ended, the room went
       // back to the lobby — is stale, not a client mistake: never answered (DESIGN §14; a rid-less error frame would
@@ -656,6 +671,23 @@ export class Network {
       if (msg.t === 'b.progress' && !validRid(rid)) return;
       this.reply(conn, errorMsg(isErrCode(res.error) ? res.error : ERR.INTERNAL, rid, res.detail));
     } else if (validRid(rid)) this.reply(conn, { t: 'ok', rid });
+  }
+
+  /**
+   * 把一次 `room.*` 局外选择写回账号画像（维护者 2026-10-13）。
+   *
+   * 这些值本来就存在 session 上（比赛用），但 session 是内存里的、会过期也会被重启清掉；写进账号库之后换设备、
+   * 隔天再上都能拿回来。写盘失败只记日志 —— 不能因为存档失败就打断玩家正在做的操作。
+   * @param {any} session
+   * @param {string} type message type
+   */
+  persistProfile(session, type) {
+    const fields = PROFILE_FIELDS[type];
+    if (!fields || !this.accounts || !session || !session.name) return;
+    const patch = {};
+    for (const field of fields) patch[field] = session[field] ?? null;
+    try { this.accounts.setProfile(session.name, patch); }
+    catch (error) { this.log.error('[net] profile save failed', error); }
   }
 
   /** @param {Connection} conn @param {any} msg @param {number} now */
@@ -670,6 +702,7 @@ export class Network {
 
     if (conn.authenticating) { this.reply(conn, errorMsg(ERR.RATE, rid)); return; }
     let account = null;
+    let issuedRemember = null;
     if (this.accounts) {
       const tokenSession = msg.token ? this.registry.byToken(msg.token) : null;
       const active = conn.session || (tokenSession && tokenSession.name === name ? tokenSession : null);
@@ -680,24 +713,32 @@ export class Network {
           return;
         }
       } else {
-        if (msg.auth !== 'login' && msg.auth !== 'register') {
-          this.reply(conn, errorMsg(ERR.AUTH_REQUIRED, rid));
-          return;
+        // 维护者 2026-10-13（方案 A）：上次登录发下的「记住登录」令牌仍然有效 → 直接认这个账号，不再要密码。
+        const remembered = typeof msg.remember === 'string' ? this.accounts.verifyRemember(msg.remember) : null;
+        if (remembered && accountKey(remembered.name) === accountKey(name)) {
+          account = remembered;
+        } else {
+          if (msg.auth !== 'login' && msg.auth !== 'register') {
+            this.reply(conn, errorMsg(ERR.AUTH_REQUIRED, rid));
+            return;
+          }
+          const authKey = conn.key || conn.ip;
+          let authBucket = this.authBuckets.get(authKey);
+          if (!authBucket) {
+            authBucket = new TokenBucket(0.1, 8, now);
+            this.authBuckets.set(authKey, authBucket);
+          }
+          if (!authBucket.take(now)) { this.reply(conn, errorMsg(ERR.RATE, rid)); return; }
+          conn.authenticating = true;
+          let result;
+          try { result = await this.accounts.authenticate(name, msg.password, msg.auth); }
+          finally { conn.authenticating = false; }
+          if (conn.closing || this.closed || !this.conns.has(conn.ws)) return;
+          if (result.error) { this.reply(conn, errorMsg(ERR[result.error], rid)); return; }
+          account = result.account;
+          // 密码登录成功：换发一枚新的长期令牌，随 welcome 明文下发这一次（库里只存 sha256 与 30 天有效期）。
+          issuedRemember = this.accounts.issueRemember(account.name);
         }
-        const authKey = conn.key || conn.ip;
-        let authBucket = this.authBuckets.get(authKey);
-        if (!authBucket) {
-          authBucket = new TokenBucket(0.1, 8, now);
-          this.authBuckets.set(authKey, authBucket);
-        }
-        if (!authBucket.take(now)) { this.reply(conn, errorMsg(ERR.RATE, rid)); return; }
-        conn.authenticating = true;
-        let result;
-        try { result = await this.accounts.authenticate(name, msg.password, msg.auth); }
-        finally { conn.authenticating = false; }
-        if (conn.closing || this.closed || !this.conns.has(conn.ws)) return;
-        if (result.error) { this.reply(conn, errorMsg(ERR[result.error], rid)); return; }
-        account = result.account;
       }
     }
 
@@ -729,9 +770,17 @@ export class Network {
     session.addr = conn.ip;
     session.limitKey = conn.key;
 
+    // 账号画像（干员调配 / 潜能练度 / 皮肤 / 持有 / 自选编队，维护者 2026-10-13）：本次会话还没有值（新连接、换设备）时
+    // 用账号里存的回灌，再随 welcome 下发；会话里已有的值更新，优先保留。
+    let profile = null;
+    if (this.accounts && account) {
+      profile = this.accounts.getProfile(session.name);
+      if (profile) for (const field of PROFILE_KEYS) if (session[field] == null && profile[field] != null) session[field] = profile[field];
+    }
     let extra = null;
     try { extra = this.handler.welcomeInfo?.() ?? null; } catch (e) { this.log.error('[net] welcomeInfo crashed', e); }
-    const welcome = { ...(extra && typeof extra === 'object' ? extra : null), t: 'welcome', playerId: session.playerId, token: session.token, name: session.name, serverNow: now, version: PROTOCOL_VERSION, resumed };
+    const welcome = { ...(extra && typeof extra === 'object' ? extra : null), t: 'welcome', playerId: session.playerId, token: session.token, name: session.name, serverNow: now, version: PROTOCOL_VERSION, resumed,
+      ...(profile ? { profile } : null), ...(issuedRemember ? { remember: issuedRemember } : null) };
     if (validRid(rid)) welcome.rid = rid;
     this.reply(conn, welcome);
     try {

@@ -658,7 +658,7 @@ export class TileField {
         case 'i': add('infect', 'glow', P.BLEND_MODES.ADD, ORIGINIUM.glow, 1); break;
         case 'm': add('mire', 'dot', P.BLEND_MODES.ADD, 0xc8d890, 2); break;
         case 'I': case 'O': add('tel', 'ring', P.BLEND_MODES.ADD, 0xb36bff, 1); break;
-        case 'S': if (r <= 12) add('gateGlow', 'glow', P.BLEND_MODES.ADD, COLORS.gateRed, 1); break;
+        case 'S': if (r <= 12) add('gateGlow', 'glow', P.BLEND_MODES.NORMAL, COLORS.gateRed, 1); break;
         case 'E': if (r <= 12) add('objGlow', 'glow', P.BLEND_MODES.ADD, COLORS.objBlue, 1); break;
         default: break;
       }
@@ -706,7 +706,7 @@ export class TileField {
           break;
         }
         case 'tel': s.scale.set(px / 128 * 0.9, px / 128 * 0.55); s.alpha = 0.35 + 0.25 * Math.sin(t * 2 + a.phase); s.rotation = 0; break;
-        case 'gateGlow': s.scale.set(px / 128 * 2.1, px / 128 * 1.2); s.alpha = 0.3 + 0.15 * Math.sin(t * 3.2 + a.phase); break;
+        case 'gateGlow': s.scale.set(px / 128 * 2.1, px / 128 * 1.2); s.alpha = 0.24 + 0.1 * Math.sin(t * 3.2 + a.phase); break;
         case 'objGlow': s.scale.set(px / 128 * 2.0, px / 128 * 1.15); s.alpha = 0.28 + 0.1 * Math.sin(t * 2 + a.phase); break;
         default: break;
       }
@@ -729,7 +729,8 @@ export class TileField {
       const penGate = tile.glyph === 'S' && r >= pen.r0 && r <= pen.r1 && c >= pen.c0 && c <= pen.c1;
       if ((tile.scenery || r > 12) && !penGate) continue;
       const g = new this.P.Graphics();
-      g.blendMode = this.P.BLEND_MODES.ADD;
+      // 红门用普通混合：叠加(ADD)只会往亮沙地上加光，深红会被冲淡成浅粉；普通混合才能画出真正的深红
+      g.blendMode = tile.glyph === 'S' ? this.P.BLEND_MODES.NORMAL : this.P.BLEND_MODES.ADD;
       this.layers.props.addChild(g);
       this.boxes.push({ r, c, gate: tile.glyph === 'S', g });
     }
@@ -1183,10 +1184,10 @@ function drawWireBox(g, cam, cx, cy, z0, size, height, color, pulse, gate) {
   const faceHeight = (Math.hypot(k.t0[0] - k.b0[0], k.t0[1] - k.b0[1])
     + Math.hypot(k.t1[0] - k.b1[0], k.t1[1] - k.b1[1])) / 2;
   const tri = Math.min(faceWidth * 0.2, faceHeight * 0.25);
-  g.lineStyle(lw * 1.4, gate ? 0xffd0c8 : 0xd8f0ff, 0.95 * pulse);
+  g.lineStyle(lw * 1.4, gate ? 0xff8f76 : 0xd8f0ff, 0.95 * pulse);
   g.drawPolygon([f.x, f.y - tri, f.x + tri * 1.1, f.y + tri * 0.8, f.x - tri * 1.1, f.y + tri * 0.8]);
   g.lineStyle(0);
-  g.beginFill(gate ? 0xffd0c8 : 0xd8f0ff, 0.95 * pulse);
+  g.beginFill(gate ? 0xff8f76 : 0xd8f0ff, 0.95 * pulse);
   g.drawRect(f.x - lw * 0.7, f.y - tri * 0.45, lw * 1.4, tri * 0.75);
   g.drawCircle(f.x, f.y + tri * 0.52, lw * 0.9);
   g.endFill();

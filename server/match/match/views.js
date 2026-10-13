@@ -115,6 +115,8 @@ export class MatchViews {
         status: this.statusOf(ps),
         autoplay: ps.autoplay,
         ...(Object.keys(ps.skins).length ? { skins: ps.skins } : {}),
+        // 玩家头像 (TASK-004): the account's avatar id, omitted when unset so the client falls back to band icon / initial
+        ...(ps.avatar ? { avatar: ps.avatar } : {}),
         // the LP this round's own battle will cost at settlement so far (COMBAT / 联防 only, omitted when 0)
         ...this._pendingLpView(ps),
       })),

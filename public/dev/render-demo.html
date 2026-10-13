@@ -32,6 +32,10 @@
     .rd-title { font-weight: 700; color: #f2f2f2; }
     .rd-micro { font: 11px/1 Bender, Oxanium, monospace; letter-spacing: .08em; color: #4ed8af; text-transform: uppercase; }
     .rd-stats { font: 12px/1.4 Bender, Oxanium, ui-monospace, monospace; color: #8a948f; white-space: pre; }
+    .rd-sl { display: flex; align-items: center; gap: 4px; color: #a9b3ae; }
+    .rd-panel .rd-sl input[type=range] { width: 86px; flex: none; }
+    .rd-panel .rd-sl b { min-width: 34px; font: 11px/1 ui-monospace, monospace; color: #8a948f; }
+    .rd-outtext { width: 100%; box-sizing: border-box; background: #141a17; color: #c3cbc7; border: 1px solid #3e4b45; font: 11px/1.35 ui-monospace, monospace; padding: 3px 5px; }
     .rd-log { position: fixed; left: 12px; bottom: 12px; z-index: 5; max-width: 42vw; font: 12px/1.4 ui-monospace, monospace; color: #8a948f; pointer-events: none; white-space: pre-wrap; }
   </style>
 </head>
@@ -59,6 +63,24 @@
         <option value="fa-L">最终攻势 整备 左</option><option value="fa-R">最终攻势 整备 右</option>
       </select>
     </div>
+    <div class="rd-row">
+      <span class="rd-micro">LIGHT</span>
+      <label class="rd-sl">总控 <input id="lg-master" type="range" min="20" max="300" step="1" value="100" /><b id="lg-master-v">1.00</b></label>
+      <label class="rd-sl">暖度 <input id="lg-warmth" type="range" min="0" max="100" step="1" value="33" /><b id="lg-warmth-v">33%</b></label>
+    </div>
+    <div class="rd-row">
+      <label class="rd-sl">环境 <input id="lg-ambient" type="range" min="0" max="6000" step="1" value="2240" /><b id="lg-ambient-v">2.240</b></label>
+      <label class="rd-sl">直射 <input id="lg-direct" type="range" min="0" max="6000" step="1" value="1122" /><b id="lg-direct-v">1.122</b></label>
+      <label class="rd-sl">间接 <input id="lg-indirect" type="range" min="0" max="6000" step="1" value="1584" /><b id="lg-indirect-v">1.584</b></label>
+    </div>
+    <div class="rd-row">
+      <label class="rd-sl">主光 <input id="lg-key" type="range" min="0" max="12000" step="1" value="3787" /><b id="lg-key-v">3.787</b></label>
+      <label class="rd-sl">环境光 <input id="lg-hemi" type="range" min="0" max="12000" step="1" value="2500" /><b id="lg-hemi-v">2.500</b></label>
+      <button id="lg-apply" type="button">应用</button>
+      <button id="lg-copy" type="button">复制数值</button>
+    </div>
+    <div class="rd-stats" id="lg-out"></div>
+    <input id="lg-text" class="rd-outtext" readonly spellcheck="false" aria-label="灯光数值" />
     <div class="rd-row"><input id="scrub" type="range" min="0" max="1000" value="0" aria-label="scrub" /><span id="time" class="rd-stats">0.0 s</span></div>
     <div class="rd-stats" id="stats"></div>
   </div>

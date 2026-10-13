@@ -20,6 +20,9 @@ import { data } from '../js/data.js';
 import { assets } from '../js/assets.js';
 import { GEO } from '../../shared/constants.js';
 import { FX_KINDS } from '../js/render/fx.js';
+// the two light tunings the slider panel below writes (both are mutable for exactly this dev harness)
+import { SCENE_LIGHT } from '../js/render/board3d/materials.js';
+import { LIGHTING } from '../js/render/board3d/scene.js';
 
 const $ = (id) => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -40,7 +43,7 @@ let demoHover = null;
 const STAGE_IDS = ['act2autochess_m01', 'act2autochess_m02', 'act2autochess_m03', 'act2autochess_m04', 'act1autochess_m01', 'act1autochess_m02', 'act1autochess_m03', 'act1autochess_m04'];
 
 async function main() {
-  if (q.get('panel') === '0') $('panel').classList.add('is-hidden');
+  if (q.get('panel') === '0' || (q.get('scene') === 'status' && q.get('panel') !== '1')) $('panel').classList.add('is-hidden');
   await data.loadAll('chess', 'tokens', 'items', 'enemies', 'stages', 'bonds', 'config');
   await assets.ready();
   const index = await fetch('/dev/recordings/index.json').then((r) => (r.ok ? r.json() : []), () => []);
@@ -57,7 +60,7 @@ async function main() {
 
   // ---- UI --------------------------------------------------------------------------------------------------
   const sceneSel = $('scene');
-  const scenes = [{ name: 'prep', title: '休整期 · 拖拽演示' }, ...index.map((r) => ({ name: r.name, title: r.title, rec: r })), { name: 'stress', title: '压力测试 · 120 单位' }, { name: 'fx', title: '特效图鉴 · 全部 fx' }, { name: 'numbers', title: '伤害数字 · 重叠测试' }];
+  const scenes = [{ name: 'prep', title: '休整期 · 拖拽演示' }, ...index.map((r) => ({ name: r.name, title: r.title, rec: r })), { name: 'stress', title: '压力测试 · 120 单位' }, { name: 'fx', title: '特效图鉴 · 全部 fx' }, { name: 'status', title: '敌人状态 · 折射 / 隐匿' }, { name: 'numbers', title: '伤害数字 · 重叠测试' }];
   for (const s of scenes) sceneSel.append(new Option(s.title, s.name));
   const stageSel = $('stage');
   for (const id of STAGE_IDS) { const st = data.lookup('stages', id); if (st) stageSel.append(new Option(st.name || id, id)); }
@@ -87,6 +90,73 @@ async function main() {
     else view.setCamera(kind, { side: side || 'L', half: !!side });
   };
 
+  // ---- light tuning (dev) ------------------------------------------------------------------------------------
+  // The sliders write the same mutable constants the renderer reads (`SCENE_LIGHT` in board3d/materials.js,
+  // `LIGHTING` in board3d/scene.js); 应用 rebuilds the board so every material and both lights pick the new values
+  // up; 复制数值 puts the readout on the clipboard. The defaults are the values in the code.
+  const COOL = [0.80, 0.90, 1.16], WARM = [1.16, 0.95, 0.80];
+  const LIGHT_KEYS = ['master', 'ambient', 'direct', 'indirect', 'key', 'hemi', 'warmth'];
+  const LIGHTS = {
+    master: 1, ambient: SCENE_LIGHT.ambient, direct: SCENE_LIGHT.direct, indirect: SCENE_LIGHT.indirect,
+    key: LIGHTING.key.intensity, hemi: LIGHTING.hemi.intensity, warmth: 0.5,
+  };
+  const lerp3 = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  const warmthOf = (t) => (t <= 0.5 ? lerp3(COOL, [1, 1, 1], t * 2) : lerp3([1, 1, 1], WARM, (t - 0.5) * 2));
+  const f3 = (v) => v.toFixed(3);
+  const lightText = () => {
+    const m = LIGHTS.master;
+    return `SCENE_LIGHT.ambient ${f3(LIGHTS.ambient * m)} · direct ${f3(LIGHTS.direct * m)} · indirect ${f3(LIGHTS.indirect * m)}`
+      + ` · LIGHTING.key ${f3(LIGHTS.key * m)} · hemi ${f3(LIGHTS.hemi * m)}`
+      + ` · 暖度 ${Math.round(LIGHTS.warmth * 100)}% → [${SCENE_LIGHT.warmth.map(f3).join(', ')}] · 总倍率 ${LIGHTS.master.toFixed(2)}`;
+  };
+  function readLights() {
+    for (const k of LIGHT_KEYS) {
+      const el = $(`lg-${k}`), out = $(`lg-${k}-v`);
+      if (!el) continue;
+      const v = Number(el.value);
+      LIGHTS[k] = k === 'master' || k === 'warmth' ? v / 100 : v / 1000;
+      if (out) out.textContent = k === 'warmth' ? `${v}%` : k === 'master' ? (v / 100).toFixed(2) : f3(v / 1000);
+    }
+    const m = LIGHTS.master;
+    SCENE_LIGHT.ambient = LIGHTS.ambient * m;
+    SCENE_LIGHT.direct = LIGHTS.direct * m;
+    SCENE_LIGHT.indirect = LIGHTS.indirect * m;
+    LIGHTING.key.intensity = LIGHTS.key * m;
+    LIGHTING.hemi.intensity = LIGHTS.hemi * m;
+    SCENE_LIGHT.warmth = warmthOf(LIGHTS.warmth);
+    $('lg-out').textContent = lightText();
+    const box = $('lg-text');
+    if (box) box.value = lightText();
+  }
+  async function applyLights() {
+    readLights();
+    await view.setBoardMode?.('2d');
+    await view.setBoardMode?.('3d');
+    await setScene(sceneSel.value, stageSel.value);
+    syncBoardBtn();
+    log('lights', lightText());
+  }
+  for (const k of LIGHT_KEYS) { const el = $(`lg-${k}`); if (el) el.oninput = readLights; }
+  $('lg-apply').onclick = () => { applyLights().catch((err) => log('lights failed', err.message)); };
+  $('lg-copy').onclick = async () => {
+    const text = lightText();
+    // always leave the numbers selected in the box: if the clipboard API is blocked (non-secure origin, permission
+    // denied, older WebView) the user can still hit Ctrl+C on the selection
+    const box = $('lg-text');
+    box.value = text;
+    box.focus();
+    box.select();
+    box.setSelectionRange(0, text.length);
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; } catch { /* fall through to execCommand */ }
+    if (!ok) { try { ok = document.execCommand('copy'); } catch { ok = false; } }
+    $('lg-copy').textContent = ok ? '已复制 ✓' : '已选中，按 Ctrl+C';
+    setTimeout(() => { $('lg-copy').textContent = '复制数值'; }, 2500);
+    log(ok ? '已复制：' : '剪贴板不可用，已选中数值：', text);
+  };
+  readLights();
+  demo.lights = { LIGHTS, values: lightText, apply: applyLights };
+
   async function setScene(name, stageId) {
     try { current?.stop?.(); } catch { /* ignore */ }
     const s = scenes.find((x) => x.name === name) || scenes[0];
@@ -96,6 +166,7 @@ async function main() {
     else if (s.name === 'numbers') current = numbersScene(view, stageId || q.get('stage') || 'act2autochess_m02');
     else if (s.name === 'stress') current = stressScene(view, stageId || q.get('stage') || 'act2autochess_m01');
     else if (s.name === 'fx') current = fxScene(view, stageId || q.get('stage') || 'act2autochess_m03');
+    else if (s.name === 'status') current = statusScene(view, stageId || q.get('stage') || 'act2autochess_m03');
     else current = await recordingScene(view, s.rec);
     if (current.stageId) stageSel.value = current.stageId;
     demo.scene = current;
@@ -427,6 +498,41 @@ function stressScene(view, stageId) {
 
 // =============================================================================================================
 // fx gallery: every fx kind, projectile kind and status on a small static field
+
+function statusScene(view, stageId) {
+  const stage = data.lookup('stages', stageId);
+  view.setStage(stage);
+  const rect = { ...GEO.NORMAL_RECT };
+  const keys = ['enemy_1170_dushld', 'enemy_1170_dushld_2'];
+  const units = keys.map((key, index) => {
+    const enemy = data.lookup('enemies', key);
+    return { id: 20 + index, kind: 'enemy', side: 'enemy', defId: key, name: enemy?.name || key,
+      spine: enemy?.spine || key, avatar: enemy?.iconId || key, tier: 1, x: 7 + index * 2, y: 9,
+      maxHp: 4000, facing: -1 };
+  });
+  view.enterBattle({ fieldId: 'status', kind: 'normal', rect, stageId, units });
+  view.setCamera('normal', { rect });
+  let time = 0, accumulator = 0, started = false;
+  return {
+    stageId, duration: 0, time: 0,
+    tick(dt) {
+      if (dt <= 0) return;
+      accumulator += dt * 2;
+      while (accumulator >= 0.1) {
+        accumulator -= 0.1;
+        time += 0.1;
+        if (!started) {
+          started = true;
+          view.pushEvents({ t: 'b.ev', fieldId: 'status', gt: time, ev: [['status', 20, 'ab:refraction', 1]] });
+        }
+        view.pushSnapshot({ t: 'b.snap', fieldId: 'status', gt: time,
+          units: units.map((unit) => [unit.id, unit.x, unit.y, 4000, 4000, 0, 0, unit.id === 21 ? 8 : 0, 2]),
+          dp: 10, killed: 0, total: 2 });
+      }
+    },
+    stop() {},
+  };
+}
 
 function fxScene(view, stageId) {
   const stage = data.lookup('stages', stageId);

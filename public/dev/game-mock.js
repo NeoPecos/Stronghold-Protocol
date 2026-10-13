@@ -6,7 +6,7 @@
 import '/js/ui/compat.js';
 import { render } from '/vendor/preact.module.js';
 import { installDeviceSupport } from '/js/ui/device.js';
-import { html, UiHosts } from '/js/ui/components.js';
+import { html, UiHosts, UniteIntro } from '/js/ui/components.js';
 import { ToastHost, toast } from '/js/ui/toasts.js';
 import { ConnectionBanner } from '/js/ui/connBanner.js';
 import { GuideHost } from '/js/ui/guide.js';
@@ -19,6 +19,7 @@ import { settingsStore } from '/js/ui/settings.js';
 import { awayStore } from '/js/ui/matchChrome.js';
 import { GAME_FILES } from '/js/ui/gameComponents.js';
 import { PHASE, GEO } from '/shared/constants.js';
+import { phaseBanner } from '/js/ui/gameLogic/phases.js';
 
 const params = new URLSearchParams(location.search);
 const SHOT = params.get('shot') === '1';
@@ -398,9 +399,9 @@ function startCombat(phase) {
     if (leakMock) { leftOf('p1', 13); leftOf('p4', 3); pub.players[0].status = 'done'; pub.players[2].status = 'helping'; } else leftOf('p3', 12);
   }
   // the result box after a 联防 (server settle → m.public.uniteResult, ui/gameLogic/phases.js uniteResultBox; GitHub #235):
-  // ?phase=SETTLE&variant=unite — you (p1) leaked and the helpers stopped every enemy: nobody paid → 全员无伤！;
+  // ?phase=SETTLE&variant=unite — you (p1) leaked and the helpers stopped every enemy: nobody paid → 完美作战！;
   // `unite,through` — 3 got through and you were charged 3 → 生命值减少 −3; `unite,through,helper` — you HELPED, a
-  // teammate leaked and paid → the official title alone (全员无伤！ would be false for that teammate); `unite,dead` — you
+  // teammate leaked and paid → the official title alone (完美作战！ would be false for that teammate); `unite,dead` — you
   // were eliminated before the round, so `losses` (alive players only, like the server) does not list you → no box.
   // Without `unite` the SETTLE view has no uniteResult: the round's own battle result box takes over (battleResultBox).
   if (phase === PHASE.SETTLE && VARIANTS.has('unite')) {
@@ -804,9 +805,45 @@ const SWITCH = [
   ['HIDDEN_CORE', PHASE.HIDDEN_CORE, ''], ['COMBAT solo (pause)', PHASE.COMBAT, 'solo'], ['FA solo paused', PHASE.FINAL_ASSAULT, 'solo,paused'],
   ['RESULT win', PHASE.RESULT, ''], ['RESULT lose', PHASE.RESULT, 'defeat'],
 ];
+const introPreviewHost = document.createElement('div');
+document.body.append(introPreviewHost);
+let roundReplay = 0;
+function replayUniteIntro() {
+  const banner = phaseBanner(PHASE.UNITE, S.pub);
+  document.body.classList.add('force-unite-motion');
+  render(html`<${UniteIntro} key=${Date.now()} title=${banner.title} sub=${banner.sub}
+    onDone=${() => { render(null, introPreviewHost); document.body.classList.remove('force-unite-motion'); }} />`, introPreviewHost);
+}
+function replayRoundTransition() {
+  const replay = ++roundReplay;
+  document.body.classList.add('force-round-motion');
+  setPhase(PHASE.SETTLE, 'unite');
+  pushPublic();
+  setTimeout(() => {
+    if (roundReplay !== replay) return;
+    stopBattle();
+    S.pub.round += 1;
+    S.pub.phase = PHASE.ROUND_START;
+    S.priv.funds += 12;
+    refreshPrivate();
+    pushPublic();
+  }, 3000);
+  setTimeout(() => {
+    if (roundReplay !== replay) return;
+    S.pub.phase = PHASE.PREP;
+    refreshPrivate();
+    pushPublic();
+  }, 5000);
+  setTimeout(() => { if (roundReplay === replay) document.body.classList.remove('force-round-motion'); }, 6100);
+}
 function Switcher() {
   const cur = store.get().match.public?.phase;
-  return html`<h4>PHASE</h4>${SWITCH.map(([label, ph, v]) => html`<button class=${cur === ph ? 'on' : ''} onClick=${() => { VARIANTS.clear(); setPhase(ph, v); renderBar(); }}>${label}</button>`)}
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return html`<h4>PHASE</h4>${SWITCH.map(([label, ph, v]) => html`<button class=${cur === ph ? 'on' : ''} onClick=${() => { roundReplay++; document.body.classList.remove('force-round-motion'); VARIANTS.clear(); setPhase(ph, v); renderBar(); }}>${label}</button>
+    ${cur === PHASE.UNITE && ph === PHASE.UNITE && !v ? html`<button onClick=${replayUniteIntro}>重播联防动画</button>
+      ${reducedMotion ? html`<small>系统已开启“减少动画”；点重播可在本页临时播放</small>` : null}` : null}`)}
+    <button onClick=${replayRoundTransition}>播放作战结束→下一回合</button>
+    ${reducedMotion ? html`<small>此预览临时显示完整动画</small>` : null}
     <h4>EVENTS</h4>
     <button onClick=${() => { const now = Date.now(); store.set((s) => ({ emotes: [...s.emotes, { seq: now, playerId: pick(['p3', 'ai_2', 'p4']), id: pick(['autochess_battle_happy', 'slug_autochess_battle_thanks', 'autochess_battle_call', 'autochess_battle_fooldoctor_05', 'autochess_battle_foolamiya_03', 'autochess_battle_foolwisdel_01']), at: now }] })); }}>teammate emote</button>
     <button onClick=${() => store.set((s) => ({ ticker: [...s.ticker, { id: Date.now(), text: `<@ba.vup>${pick(['Doctor·B', '灰烬'])}博士</>将调度中心等级提升为5级`, at: Date.now() }] }))}>ticker</button>

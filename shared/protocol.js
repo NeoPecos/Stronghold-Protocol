@@ -81,6 +81,17 @@ export const isSkinId = (v) => typeof v === 'string' && v.length > 0 && v.length
 /** Structural check of `room.skins.skins`. */
 export const isSkinSelection = (v) => isMap(v, SKIN_LIMITS.entries, isId, isSkinId);
 
+// ---- 玩家头像 (TASK-004): account.avatar { avatar } -------------------------------------------
+
+/**
+ * `account.avatar { avatar }`: 玩家头像 = 一个干员/角色的 id（`char_003_kalts`），空串 = 不用头像
+ * （显示回落到阵营图标、再回落名字首字）。局外设置，任何阶段都能改；账号级保存，换端可见。
+ */
+export const AVATAR_LIMITS = Object.freeze({ idLen: 64 });
+/** Structural check of an avatar value: `''` (clear) or one char id. */
+export const isAvatarId = (v) => v === ''
+  || (typeof v === 'string' && v.length > 0 && v.length <= AVATAR_LIMITS.idLen && /^[A-Za-z0-9_]+$/.test(v));
+
 // ---- operator loadout (DESIGN §16): room.loadout { entries } -------------------------------------------------
 
 /**
@@ -393,7 +404,8 @@ export const C2S = {
   // session & lobby
   hello: { name: (v) => isStr(v, NAME_MAX_LEN) && v.trim().length > 0, token: (v) => v == null || isStr(v, 64), version: (v) => v == null || isInt(v, 0, 1e6),
     auth: (v) => v === 'login' || v === 'register', password: (v) => isStr(v, 128),
-    noReplace: isBool, claimAt: (v) => isNum(v, 0, Number.MAX_SAFE_INTEGER), $optional: ['token', 'version', 'auth', 'password', 'noReplace', 'claimAt'] },
+    remember: (v) => v == null || isStr(v, 64),
+    noReplace: isBool, claimAt: (v) => isNum(v, 0, Number.MAX_SAFE_INTEGER), $optional: ['token', 'version', 'auth', 'password', 'remember', 'noReplace', 'claimAt'] },
   ping: { c: (v) => typeof v === 'number' && Number.isFinite(v) },
   'user.activity': {},
   'room.create': { mode: (v) => v === 'solo' || v === 'coop', difficulty: (v) => DIFFICULTIES.includes(v) },
@@ -432,6 +444,8 @@ export const C2S = {
   // 自选编队 (0.2.0 DIY): the player's DIY slot picks; stored per session / seat like room.ownership (a match takes the
   // picks its seat had when it started; during a match they are stored for the next one: ROOM_STARTED)
   'room.diy': { picks: isDiyPicks },
+  // 玩家头像 (TASK-004)：账号级局外选择（存账号画像，换端同步）；空串 = 不用头像
+  'account.avatar': { avatar: isAvatarId },
   // spectator seats (remake feature, community report #26; MAX_SPECTATORS): take one of a co-op room's spectator seats —
   // in its lobby or while its match runs — never a player seat; the host frees one by playerId (the spectator gets
   // room.closed { reason: 'kicked' }). room.leave / g.leave leave a spectator seat like a player seat.

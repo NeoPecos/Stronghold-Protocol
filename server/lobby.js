@@ -257,9 +257,9 @@ export class Room {
       recruitWanted: this.recruitWanted,
       inMatch: !!this.match,
       seats: this.seats.map((s) => (s
-        ? { seat: s.seat, playerId: s.playerId, name: s.name, isBot: s.isBot, ready: s.ready, connected: s.connected && !s.left }
+        ? { seat: s.seat, playerId: s.playerId, name: s.name, avatar: s.avatar || null, isBot: s.isBot, ready: s.ready, connected: s.connected && !s.left }
         : null)),
-      spectators: this.spectators.map((s) => ({ playerId: s.playerId, name: s.name, connected: s.connected })),
+      spectators: this.spectators.map((s) => ({ playerId: s.playerId, name: s.name, avatar: s.avatar || null, connected: s.connected })),
     };
   }
 }
@@ -392,6 +392,7 @@ export class Lobby {
       case 'room.skins': return this.skins(session, msg);
       case 'room.ownership': return this.ownership(session, msg);
       case 'room.diy': return this.diy(session, msg);
+      case 'account.avatar': return this.avatar(session, msg);
       case 'room.spectate': return this.spectate(session, msg);
       case 'room.removeSpectator': return this.removeSpectator(session, msg);
       default:
@@ -470,12 +471,13 @@ export class Lobby {
         };
       })
       .sort((left, right) => {
-        // A host explicitly asking for strangers gets the strongest directory priority. Keep the existing
-        // availability/recency ordering inside each recruitment group so the list remains predictable.
+        // A room whose match already started cannot be joined, so it sinks below every room that is still open,
+        // regardless of recruitment; inside the not-started group an explicit "looking for players" host keeps priority.
+        const startedRank = Number(left.inMatch) - Number(right.inMatch);
         const recruitRank = Number(right.recruitWanted) - Number(left.recruitWanted);
-        const leftRank = left.inMatch ? 2 : left.players + left.bots >= left.capacity ? 1 : 0;
-        const rightRank = right.inMatch ? 2 : right.players + right.bots >= right.capacity ? 1 : 0;
-        return recruitRank || leftRank - rightRank || right.createdAt - left.createdAt;
+        const leftRank = left.players + left.bots >= left.capacity ? 1 : 0;
+        const rightRank = right.players + right.bots >= right.capacity ? 1 : 0;
+        return startedRank || recruitRank || leftRank - rightRank || right.createdAt - left.createdAt;
       });
     sendSession(session, { t: 'room.list', rooms });
     return OK;
@@ -780,6 +782,26 @@ export class Lobby {
    * room.skins (docs/SKINS.md): store the player's chosen operator skins on the session and the seat,
    * and hand them to a running match. No phase gate (unlike the loadout): a skin is cosmetic and public.
    */
+  /**
+   * account.avatar (TASK-004 玩家头像): 记下这个账号选的头像 —— 一个干员 id，`''` = 不用头像。
+   * 局外设置、任何阶段都能改：写 session（persistProfile 落账号画像，换端可见）+ 座位，房间成员列表立刻能看到。
+   * 不认识的干员 id 直接拒绝（不是静默留着等渲染时回落）。
+   */
+  avatar(session, { avatar }) {
+    const id = typeof avatar === 'string' ? avatar : '';
+    if (id) {
+      const data = this.safeData();
+      if (!data?.assets?.chars?.[id]) return fail(ERR.BAD_TARGET, 'unknown avatar');
+    }
+    session.avatar = id;
+    const room = this.roomOf(session);
+    if (room) {
+      const seat = room.seatOf(session.playerId);
+      if (seat) seat.avatar = id;
+    }
+    return OK;
+  }
+
   skins(session, { skins }) {
     const data = this.safeData();
     const cleaned = freezeSkins(skins, (id) => lookup('chess', id, data));
@@ -853,7 +875,7 @@ export class Lobby {
     const host = room.seatOf(room.hostId);
     if (host) host.ready = true;
     const seats = room.seats.filter(Boolean).map((s) => ({
-      seat: s.seat, playerId: s.playerId, name: s.name, isBot: s.isBot, connected: s.connected,
+      seat: s.seat, playerId: s.playerId, name: s.name, avatar: s.isBot ? null : s.avatar || null, isBot: s.isBot, connected: s.connected,
       // DESIGN §16: the human's checked operator loadout and (0.2.2) per-operator 潜能 / 练度 (bots fight with the defaults)
       loadout: s.isBot ? null : s.loadout || null,
       skins: s.isBot ? null : s.skins || null,
@@ -1121,7 +1143,7 @@ export class Lobby {
   /** @returns {Seat} */
   humanSeat(idx, session) {
     return {
-      seat: idx, playerId: session.playerId, name: session.name, isBot: false, ready: false, connected: session.connected, left: false,
+      seat: idx, playerId: session.playerId, name: session.name, avatar: session.avatar || null, isBot: false, ready: false, connected: session.connected, left: false,
       loadout: session.loadout || null,
       skins: session.skins || null,
       ops: session.ops || null,

@@ -349,9 +349,11 @@ export function smogMaterial(THREE, tex, focus) {
  * not reproduced: the albedo is lit by the baked indirect light of the scene's lightmap plus the scene's key light
  * masked by its baked shadow, in linear light (Unity's Shadowmask lighting mode). `range` — the linear light a lightmap
  * texel of 1.0 stands for when scene.json has no lightRange; [ASSUMED] `ambient` — the light of a mesh without a
- * lightmap page; `direct` / `indirect` — gains of the two terms (1 = the scene's own values).
+ * lightmap page; `direct` / `indirect` — gains of the two terms (1 = the scene's own values); `warmth` — the
+ * per-channel colour temperature of the light ([1,1,1] neutral, [0.80,0.90,1.16] cool, [1.16,0.95,0.80] warm).
  */
-export const SCENE_LIGHT = Object.freeze({ range: 8.0, ambient: 0.2, direct: 0.8, indirect: 0.4 });
+// Mutable so the dev tuning panel (public/dev/render-demo.html) can tune it live; the game never writes it.
+export const SCENE_LIGHT = { range: 8.0, ambient: 2.24, direct: 1.122, indirect: 1.584, warmth: [0.932, 0.966, 1.054] };
 
 const colorOf = (info, key, fallback = [1, 1, 1, 1]) => {
   const c = info && info.colors && Array.isArray(info.colors[key]) ? info.colors[key] : fallback;
@@ -386,6 +388,8 @@ export function sceneMaterial(THREE, o, focus) {
     uCutoff: { value: blend === 'cutout' ? floatOf(info, '_Cutoff', 0.5) : 0 },
     uLmScale: { value: o.lightMap ? (o.lightRange > 0 ? o.lightRange : SCENE_LIGHT.range) * SCENE_LIGHT.indirect : 0 },
     uAmbient: { value: o.lightMap ? 0 : SCENE_LIGHT.ambient },
+    // the scene's colour temperature (SCENE_LIGHT.warmth): neutral [1,1,1] leaves the light untouched
+    uWarmth: { value: new THREE.Vector3(SCENE_LIGHT.warmth[0], SCENE_LIGHT.warmth[1], SCENE_LIGHT.warmth[2]) },
     uShadow: { value: floatOf(info, '_ShadowStrength', 1) },
     uLightDir: { value: new THREE.Vector3(...L.dir).normalize() },
     uLightColor: { value: new THREE.Vector3(lin(L.color[0]) * k, lin(L.color[1]) * k, lin(L.color[2]) * k) },
@@ -407,7 +411,7 @@ export function sceneMaterial(THREE, o, focus) {
     ].join('\n'),
     fragmentShader: [
       'uniform sampler2D uMap; uniform sampler2D uLm; uniform vec4 uColor; uniform float uCutoff;',
-      'uniform float uLmScale; uniform float uAmbient; uniform float uShadow; uniform vec3 uLightDir; uniform vec3 uLightColor;',
+      'uniform float uLmScale; uniform float uAmbient; uniform float uShadow; uniform vec3 uLightDir; uniform vec3 uLightColor; uniform vec3 uWarmth;',
       FOCUS_GLSL,
       'varying vec2 vUv; varying vec2 vLm; varying vec3 vN; varying vec3 vWorld;',
       'void main() {',
@@ -423,6 +427,7 @@ export function sceneMaterial(THREE, o, focus) {
       '  #endif',
       '  vec3 n = normalize(gl_FrontFacing ? vN : -vN);',
       '  light += uLightColor * max(dot(n, uLightDir), 0.0) * shade;',
+      '  light *= uWarmth;',
       '  gl_FragColor = vec4(a.rgb * light * focusMask(vWorld.xy), a.a);',
       '  #include <colorspace_fragment>',
       '}',

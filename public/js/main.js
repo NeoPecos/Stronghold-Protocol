@@ -56,8 +56,10 @@ import { installBrowserNotice } from './ui/notice.js';
 import { LoadoutHost } from './screens/loadout.js';
 import { StatsHost } from './screens/stats.js';
 import { recordResult, installStatsRecorder } from './ui/stats.js';
-import { installLoadoutSync, installOwnershipSync, installDiySync } from './ui/loadoutSync.js';
-import { installSkinsSync } from './ui/skins.js';
+import { installLoadoutSync, installOwnershipSync, installDiySync, loadoutStore } from './ui/loadoutSync.js';
+import { installSkinsSync, skinsStore } from './ui/skins.js';
+import { AvatarHost } from './ui/avatarPicker.js';
+import { installAvatarSync, loadAvatarData, avatarId, setAvatar } from './ui/avatar.js';
 import { startBuildGuard } from './ui/buildGuard.js';
 import { initLang, useLang, tickerText } from './ui/lang.js';
 import { t, N_, translateWire } from '../../shared/i18n.js';
@@ -324,6 +326,7 @@ function App() {
     <${GuideHost} />
     <${LoadoutHost} />
     <${StatsHost} />
+    <${AvatarHost} />
   </div>`;
 }
 
@@ -388,7 +391,7 @@ async function boot() {
   const savedName = sanitizeName(identity.loadName());
   // 保持登录（设置里的开关，默认开）：关掉就当作从没登录过，并清掉已存下的登录状态与名字，
   // 免得下一次启动又被自动带进大厅（旧行为是被 token 归属规则静默退回登录页，玩家不知道原因）。
-  if (!settingsStore.get().keepSignedIn) { identity.setEntered(false); identity.saveName(''); }
+  if (!settingsStore.get().keepSignedIn) { identity.setEntered(false); identity.saveName(''); identity.forgetRemember(); }
   const entered = settingsStore.get().keepSignedIn && identity.wasEntered() && !!savedName;
   store.set((s) => ({
     me: { ...s.me, name: savedName },
@@ -403,19 +406,37 @@ async function boot() {
   });
   // 设置里把「保持登录」关掉的那一刻就清掉凭证，不必等下次启动
   settingsStore.subscribe((cur, prev) => {
-    if (prev?.keepSignedIn && !cur.keepSignedIn) { identity.setEntered(false); identity.saveName(''); }
+    if (prev?.keepSignedIn && !cur.keepSignedIn) { identity.setEntered(false); identity.saveName(''); identity.forgetRemember(); }
   });
   installStatsRecorder(store); // follows the match on screen, so a 放弃模拟 can be recorded (ui/stats.js)
+  // 账号画像（维护者 2026-10-13）：服务器在 welcome 里带回这台账号存下的局外选择（干员调配 / 潜能练度 / 皮肤 /
+  // 持有 / 自选编队）。先写进本地 store，随后各 sync 在 welcome 后的推送会把同一份值回给服务器（幂等），
+  // 所以换设备、换浏览器后选择会自动恢复（服务器端只在本地为空时使用画像，见 server/net.js）。
+  net.on('welcome', (msg) => {
+    const profile = msg && msg.profile;
+    if (!profile || typeof profile !== 'object') return;
+    const patch = {};
+    if (profile.loadout && typeof profile.loadout === 'object') patch.entries = profile.loadout;
+    if (profile.ops && typeof profile.ops === 'object') patch.ops = profile.ops;
+    if (profile.notOwned) patch.notOwned = profile.notOwned;
+    if (profile.diy && typeof profile.diy === 'object') patch.diy = profile.diy;
+    if (Object.keys(patch).length) loadoutStore.set(patch);
+    if (profile.skins && typeof profile.skins === 'object') skinsStore.set({ entries: profile.skins });
+    // 玩家头像 (TASK-004)：本机还没选过才采用账号里的（本机选过说明那是更新的意图，别被旧画像盖回去）
+    if (typeof profile.avatar === 'string' && profile.avatar && !avatarId()) setAvatar(profile.avatar);
+  });
   installLoadoutSync({ net });
   installOwnershipSync({ net });
   installDiySync({ net });
   installSkinsSync({ net });
+  installAvatarSync({ net });
   net.attachBrowserHooks();
   installActivityTracking();
   // Audio: unlock on first gesture, BGM follows the route / match phase (js/audio.js).
   installAudio({ getManifest: () => data.get('assets'), subscribe: store.subscribe, getState: store.get, selectRoute, settings: settingsStore.get() });
   data.load('assets').catch(() => {});
   data.load('skins').catch(() => {});
+  loadAvatarData();
   // Warm the data cache in the background (missing files are tolerated).
   data.loadAll('config').catch(() => {});
   // Optional local-client art manifest (emotes, tutorial pages, official UI sprites; DESIGN §13).

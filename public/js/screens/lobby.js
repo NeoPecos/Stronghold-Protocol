@@ -22,6 +22,7 @@ import { openStats } from './stats.js';
 import { SettingsButton } from '../ui/settings.js';
 import { PwaInstallButton } from '../ui/device.js';
 import { LoadoutButton } from './loadout.js';
+import { openAvatarPicker, avatarStore, avatarUrl } from '../ui/avatar.js';
 import { MatchRecordsButton } from './records.js';
 import { net, identity } from '../net.js';
 import { store, useStore, shallowEqual, loadPref, savePref } from '../store.js';
@@ -303,6 +304,8 @@ function RoomDirectory({ rooms, online, loading, error, busy, code, codeOk, rece
 export function LobbyScreen() {
   const me = useStore((s) => s.me, shallowEqual);
   const conn = useStore((s) => s.connection, shallowEqual);
+  // 玩家头像 (TASK-004)：本机所选头像（点 me-chip 里的头像打开选择面板）
+  const avatarSel = useStore((s) => s.id, Object.is, avatarStore);
   useData('config');
   const [roomMode, setRoomMode] = useState(() => (loadPref('lobby.mode', 'coop') === 'solo' ? 'solo' : 'coop'));
   const [difficulty, setDifficulty] = useState(() => {
@@ -397,21 +400,23 @@ export function LobbyScreen() {
       <div class="topbar__left">
         <${Button} variant="ghost" size="sm" icon="chevronLeft" onClick=${backToTitle} title=${t('返回标题')}>${t('返回')}<//>
         <${PingPill} ms=${conn.ping} online=${online} />
+        <${MatchRecordsButton} />
+        <${Button} variant="secondary" size="sm" icon="chart" class="stats-entry" onClick=${openStats} title=${t('统计数据')} aria-label=${t('统计数据')}>${t('统计')}<//>
       </div>
       <div class="topbar__center">
         <${MicroLabel} tone="mint">SIMULATION PROTOCOL SELECT<//>
         <h1 class="topbar__title">${t('选择模拟协议')}</h1>
       </div>
       <div class="topbar__right">
-        <${MatchRecordsButton} />
-        <${Button} variant="secondary" size="sm" icon="chart" class="stats-entry" onClick=${openStats} title=${t('统计数据')} aria-label=${t('统计数据')}>${t('统计')}<//>
         <${ResumeMatchButton} />
         <${PwaInstallButton} class="lobby-pwa" />
         <${SettingsButton} class="lobby-settings" variant="secondary" label=${t('设置')} />
         <${GuideButton} class="lobby-guide" variant="secondary" label=${t('玩法说明')} />
         <${LoadoutButton} from="lobby" size="sm" class="lobby-loadout" label=${t('干员调配')} />
         <div class="me-chip">
-          <${AvatarFrame} size="sm" name=${me.name} seat=${0} self=${true} />
+          <button type="button" class="me-chip__avatar" title=${t('选择头像')} aria-label=${t('选择头像')} onClick=${openAvatarPicker}>
+            <${AvatarFrame} size="sm" name=${me.name} src=${avatarUrl(avatarSel)} seat=${0} self=${true} />
+          </button>
           <div class="me-chip__text">
             <span class="me-chip__name">${me.name || t('博士')}</span>
             <${MicroLabel}>${me.playerId != null ? `DOCTOR #${doctorNo(me.playerId)}` : 'DOCTOR'}<//>

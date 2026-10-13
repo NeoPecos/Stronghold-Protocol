@@ -1069,3 +1069,32 @@
   --bk-c: var(--red-premium);
 }
 .crash__box h2 { font-size: calc(.3 * var(--t)); }
+
+/* 玩家头像 (TASK-004)：大厅点自己的头像打开选择面板；面板 = 全部干员头像的网格 */
+.me-chip__avatar { display: block; padding: 0; background: none; border: 0; cursor: pointer; touch-action: manipulation; }
+.me-chip__avatar:hover .avatar { --bk-c: var(--mint-500); }
+
+.avatar-pick { display: flex; flex-direction: column; min-height: 0; }
+.avatar-pick__bar { display: flex; align-items: center; gap: .1rem; }
+.avatar-pick__search {
+  flex: 1 1 2rem; min-width: 120px; height: max(.36rem, 26px); padding: 0 .08rem; font: inherit;
+  font-size: calc(.13 * var(--t)); color: var(--text-hi); background: rgba(255, 255, 255, .04); border: 1px solid var(--line-2);
+}
+.avatar-pick__hint { margin: .08rem 0 0; font-size: calc(.12 * var(--t)); color: var(--text-lo); }
+.avatar-pick__grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(max(1.05rem, 68px), 1fr)); align-content: start;
+  gap: .06rem; margin-top: .1rem; max-height: min(58vh, 20rem); overflow: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: var(--line-3) transparent;
+}
+.avatar-pick__cell {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: .04rem; padding: .05rem;
+  min-width: 0; font: inherit; color: var(--text-hi); background: rgba(255, 255, 255, .03);
+  border: 1px solid var(--line); cursor: pointer; touch-action: manipulation;
+}
+.avatar-pick__cell:hover { background: rgba(255, 255, 255, .07); }
+.avatar-pick__cell.is-on { border-color: var(--mint-500); background: rgba(52, 211, 153, .1); }
+.avatar-pick__cell img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; }
+.avatar-pick__name {
+  max-width: 100%; font-size: calc(.11 * var(--t)); color: var(--text-lo);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

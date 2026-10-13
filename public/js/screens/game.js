@@ -6,7 +6,7 @@
 // with the DOM HUD layered on top: top bar, bond strip + popup, team panel (click = g.watch), effects,
 // shop bar (prep), merge-reward and 机变 overlays, detail panel, enemy / match-info drawer, combat HUD
 // (DP, "作战结束，等待队友完成作战" + teammates' progress, observing pill, 联防 / 最终攻势 ‹ › camera halves),
-// phase banners, the round's result box at SETTLE (官方「作战结束」 + 「全员无伤！」 / 「生命值减少 −N」 and the BATTLEOVER sound;
+// phase banners, the round's result box at SETTLE (官方「作战结束」 + 「完美作战！」 / 「生命值减少 −N」 and the BATTLEOVER sound;
 // GitHub #235, PR #112), ticker, emote wheel + bubbles,
 // settings, exit flow. Drag & drop from the view: pieceDrop on a board tile (also the piece's own tile) opens the
 // direction wheel (ui/facingWheel.js, research 09 §1.2) and its release sends g.move {uid, to, dir} (g.art {…, dir}
@@ -66,7 +66,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from '../../vendor/hooks.module.js';
 import { PHASE, GEO } from '../../../shared/constants.js';
-import { html, Spinner, PhaseBanner, ResultDialog, Icon, Button, confirmDialog, closeAllDialogs, useTicker } from '../ui/components.js';
+import { html, Spinner, PhaseBanner, UniteIntro, ResultDialog, RoundStartIntro, Icon, Button, confirmDialog, closeAllDialogs, useTicker } from '../ui/components.js';
 import { useGameData, GIcon } from '../ui/gameComponents.js';
 import { useFieldView } from '../ui/fieldHost.js';
 import { TopBar, liveLp, ownLeaks, uniteRemaining, tempInfo, tempReadyReason } from '../ui/hud.js';
@@ -201,6 +201,7 @@ function MatchScreen() {
   const [hud, setHud] = useState(null);
   const [banner, setBanner] = useState(null);
   const [resultBox, setResultBox] = useState(null);      // the round's result box (ResultDialog), shown at SETTLE
+  const fundsAtCombatStart = useRef(null);
   const [readyBusy, setReadyBusy] = useState(false);
   const [spBusy, setSpBusy] = useState(null);
   const [personalBusy, setPersonalBusy] = useState(null); // { choiceId, idx }: an older request cannot clear a newer pick
@@ -214,6 +215,10 @@ function MatchScreen() {
   const battleState = useStore((s) => s.match.battle, shallowEqual); // local battle runner (client-side combat)
 
   const phase = pub?.phase;
+  if (isCombatPhase(phase) && alive && Number.isFinite(priv?.funds)
+      && fundsAtCombatStart.current?.round !== pub?.round) {
+    fundsAtCombatStart.current = { round: pub?.round, funds: priv.funds };
+  }
   const mode = phaseMode(phase);
   const combat = isCombatPhase(phase);
   const solo = roomSolo || String(pub?.modeId || '').includes('single');
@@ -679,7 +684,15 @@ function MatchScreen() {
     prevPhase.current = phase;
     if (prev === phase) return;
     const b = phaseBanner(phase, pub, { alive, spectator });
-    if (b) setBanner({ ...b, key: phaseKey });
+    if (phase === PHASE.ROUND_START) {
+      const before = fundsAtCombatStart.current;
+      const gain = alive && before?.round === pub?.round - 1 && Number.isFinite(priv?.funds)
+        ? Math.max(0, priv.funds - before.funds) : null;
+      setResultBox(null);
+      setBanner({ ...b, key: phaseKey, phase, round: pub?.round, gain });
+    } else if (phase === PHASE.PREP && prev === PHASE.ROUND_START) {
+      fundsAtCombatStart.current = null;
+    } else if (b) setBanner({ ...b, key: phaseKey, phase });
     if (phase === PHASE.ROUND_START) audio.sfx('roundStart');
     else if (phase === PHASE.PREP) audio.sfx('rest', { volume: 0.7 });
     else if (phase === PHASE.COMBAT) audio.sfx('battleStart');
@@ -1539,8 +1552,13 @@ function MatchScreen() {
         setPersonalBusy((b) => b?.choiceId === choiceId ? null : b);
       }} />` : null}
 
-    ${banner ? html`<${PhaseBanner} key=${banner.key} mode="overlay" title=${banner.title} sub=${banner.sub} micro=${banner.micro}
-      tone=${banner.tone} duration=${banner.duration || 1500} onDone=${() => setBanner(null)} />` : null}
+    ${banner ? banner.phase === PHASE.UNITE
+      ? html`<${UniteIntro} key=${banner.key} title=${banner.title} sub=${banner.sub} onDone=${() => setBanner(null)} />`
+      : banner.phase === PHASE.ROUND_START
+      ? html`<${RoundStartIntro} key=${banner.key} round=${banner.round} gain=${banner.gain}
+        onDone=${() => setBanner((current) => current?.key === banner.key ? null : current)} />`
+      : html`<${PhaseBanner} key=${banner.key} mode="overlay" title=${banner.title} sub=${banner.sub} micro=${banner.micro}
+        tone=${banner.tone} duration=${banner.duration || 1500} onDone=${() => setBanner(null)} />` : null}
 
     ${resultBox ? html`<${ResultDialog} key=${resultBox.key} title=${resultBox.title} sub=${resultBox.sub} micro=${resultBox.micro}
       tone=${resultBox.tone} duration=${resultBox.duration} onDone=${() => setResultBox(null)} />` : null}

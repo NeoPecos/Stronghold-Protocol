@@ -69,3 +69,17 @@ npm run golden                              # golden results
 Browser suites are off by default and need Chrome: `SP_E2E=1` (UI), `SP_REAL_E2E=1` (real match, needs assets),
 `RENDER_E2E=1`, `SIM_E2E=1` — see CONTRIBUTING.md §2. Battle tests are easiest with the helpers described in
 docs/SIM.md (the test harness section) and the patterns in `test/content/op_siege.test.js`.
+
+## 与维护者协作的硬约束（AI 助手必须遵守，优先级最高）
+
+维护者（Leiothrix）对本仓库 AI 助手的要求，按原话记录（2026-10-13）：
+
+- **先回答，再动手。** 收到任务先回答/确认（一两句话），再开始执行 —— 「每次我的任务，都先回答我再做！！！」
+- **做好决定先问我。** 方案、取舍、参数、位置对不上时先问维护者，不自己拍板 —— 「做好决定先问我！！！」「按我的要求来，有问题就找我」
+- **不要自己跑测试/验证。** 除非明确要求，不要跑 `node --test`、`npm run ci`、`npm run golden`、渲染截图对比或任何“证据式”验证 —— 「我不会测试吗，要你来」「谁允许你自己跑测试」
+- **不许擅自升版本号、不许擅自用内部更新器。** 补丁包 = 交给维护者自己分发的文件；不碰 `release/latest.json`、不碰服务器更新通道 —— 「谁允许你升版本号了？？？」「谁让你用内部更新器了」
+- **只做交代的范围。** 不发散、不顺手改其他文件、不加没要求的诊断/日志/测试 —— 「别他妈乱发散！」
+- **每完成一部分就回复。** 分步交付、不长时间沉默；长任务要说明正在做什么 —— 「每完成一部分给我回复」「告诉我你在干什么！」
+- **不要覆盖维护者的 UI 设计。** UI/素材只在明确要求时改动 —— 「你千万别覆盖我的各种ui设计」
+
+本节与上面的 `Hard rules` / `Verify` 冲突时**以本节为准**（例如“验证/跑测试”只在维护者明确要求时执行）。

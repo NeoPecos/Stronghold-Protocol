@@ -10,6 +10,7 @@ handoff files. Update this page whenever production state, the active task, a re
 - Public service: `sp2.service` on JING is active. It serves **both** `sp.bs.leio.fun` (production) and
   `sp2.bs.leio.fun` (preview) from one process on `127.0.0.1:3810` — nginx cut production over from the home server
   (WG `10.0.0.2:3800`) on 2026-10-09. The unit's name and its "0.2.1 staging line" description are stale labels.
+- TASK-028/TASK-030 static hotfix went live on 2026-10-13: top-HUD proportions/rest tint/unite capsule alignment and the unite intro animation. Four CSS/JS files only, backup `/opt/sp2/backups/unite-hud-20261013-080054/old/`; post-deploy SHA256 matched and `sp2.service` kept PID `1093295`. The next video-based animation is not part of this release. See `docs/releases/2026-10-13-unite-hud-static.md`.
 - Game/server application: `0.2.5`; `/healthz` reports build `c13af814d77f` (server-only deploy 2026-10-13 01:52 +08 from
   `9497533d`; the client packages and the update manifest were `1.2.8` at that moment — the `1.2.9` incremental update
   was published the same night, see the TASK-025 bullet below).
@@ -57,10 +58,29 @@ handoff files. Update this page whenever production state, the active task, a re
   and a self-contained installer (`apply-scenes-patch.ps1` / `.cmd`). It is NOT uploaded to the server — the maintainer
   posts it in the QQ group; applying it to an extracted real 1.2.9 install tree added 57 files / replaced 1 (exit 0),
   a second run is a no-op, and a 1.2.8 tree is refused with `当前版本与补丁不匹配`.
+- TASK-027 static hotfix went live on JING at 2026-10-13 07:00 +08: reduced enemy stealth smoke, up to three tilted rising refraction hexagons, and a transparent funds badge background. Only `public/css/screens/game-shop.css`, `public/js/render/{app,units,statusAura}.js` changed; the existing production equipment-slot hotfix was preserved. Backup: `/opt/sp2/backups/status-vfx-shopbadge-20261013-90adad7a/`. `sp2` stayed active with the same PID, and native client versions and update manifests were untouched. Already-open clients need a manual refresh; `/healthz.build` stays cached until the next normal restart. Maintainer visual acceptance is pending.
+- TASK-031 static hotfix went live on JING on 2026-10-13: the settlement panel now follows the supplied “作战结束／完美作战！” presentation, `ROUND_START` shows the observed funds delta when known, and the top cue transitions into the existing rest art. Eight files were replaced without restarting `sp2`; backup `/opt/sp2/backups/battle-end-round-20261013-122950/old/`, read-back hashes matched, `/healthz` returned 200, and PID `1131763` stayed unchanged. Native packages, CDN, server rules and version metadata were untouched. See `docs/releases/2026-10-13-battle-end-round-transition.md`.
 - Browser-only gate: TASK-020 reports `SP_CLIENT_ONLY=1` is live; browsers receive the bandwidth notice while native
   clients still receive the game. Recheck directly before release work.
 - Media caching: TASK-021's nginx immutable-cache headers are live. TASK-022's Node/nginx ETag alignment is committed
   locally but is **not deployed** because deployment restarts Node.
+- Browser assets are served from the maintainer's CDN since 2026-10-13 08:18 +08 (TASK-029, deployed on the
+  maintainer's 「上线」 order): `weishucdn.jiangjiangze.icu` carries **13 375** verified keys (852.5 MiB under
+  `/assets/**`, voice included). Every key was re-downloaded and byte-compared — **13 375/13 375 identical, 0
+  mismatches, 0 errors** — and the one key whose CDN bytes differ from ours
+  (`assets/local/scene/act2autochess_m03/scene.json`, CDN 6 841 B ≠ local 6 815 B) is denylisted, as are 483 other
+  keys (484 total). Installed in `/opt/sp2`: `server/http/assetCdn.js` `2e8e965b…`, `server/http/static.js`
+  `37ea98d3…`, `data/cdn-assets.json` `45703789…`, `data/cdn-denylist.json` `397be18c…`, `data/cdn-config.json`
+  `6d77af84…` (`enabled: true`); local and server hashes match, `sp2` restarted to build `6b2e9a8cfbb7` (backup
+  `/root/sp2-backups/static-20261013-0830.js`). Because nginx owns `location ~* ^/assets/` (TASK-021), the switch
+  needed an nginx layer too: `/etc/nginx/conf.d/sp-cdn-keys.conf` (13 375-key `map`, `map_hash_bucket_size 512`) plus
+  `error_page 418 = @sp_cdn_asset` in that location, which `proxy_pass`es matching keys to Node so Node still owns the
+  health probe and the local fallback (nginx snippet backed up at
+  `/root/sp2-backups/stronghold-static-20261013-0820.conf`). Verified from outside: a listed asset answers
+  `302 Location: https://weishucdn.jiangjiangze.icu/…` with `X-Asset-Source: cdn`, the denylisted key and every
+  unlisted path stay local (`/index.html` 200), and a headless Edge run of the production scene page made **128 CDN
+  responses with 0 failures** (`ready`, no JS errors). Rollback: `enabled: false` in `data/cdn-config.json` (≤30 s, no
+  restart) and/or delete the nginx map + restore the snippet (`nginx -t && systemctl reload nginx`).
 - These values were read directly from JING on 2026-10-12. Recheck before any release or incident conclusion.
 
 ## Repository truth
@@ -89,6 +109,9 @@ handoff files. Update this page whenever production state, the active task, a re
 
 ## Active work
 
+- TASK-030 unite-phase intro is `released` as a static hotfix at the maintainer's direct request. The UNITE mock replay button remains local-only; production still respects reduced-motion. Maintainer visual feedback may require follow-up; the next video animation is separate.
+- TASK-029 browser CDN foundation is planned for DeepSeekharness in an isolated worktree. The two supplied ZIPs do not enable CDN routing or WS compression; no CDN upload, server switch, browser reopening or deployment has happened in this task.
+- TASK-028 top-HUD proportions/rest tint and unite capsule alignment are `released` as the same static hotfix. Maintainer visual feedback remains open; no agent-run gameplay tests or screenshots.
 - 2026-10-13 integration batch: official v0.2.5 plus Paper-Yuan room text chat/floating messages, announcements/admin room removal, quick matching, live operator DPS and bounded resource warmup are implemented. Targeted backend checks, typecheck and changed-file lint pass. The maintainer owns gameplay/device testing and has authorized a repository push; no deployment is included.
 - TASK-005/010/011/012/015 are `review_ready`. Historical sequential roadmap gates below are superseded for this grouped implementation. TASK-004 selectable account avatars remains a separate feature (not provided by Paper-Yuan), and TASK-013 voice remains deferred.
 

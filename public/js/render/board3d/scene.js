@@ -28,14 +28,16 @@ import { surfaceUV } from './atlas.js';
 import {
   focusUniforms, makeTexture, boardMaterial, glassMaterial, decalMaterial, pipeMaterial, unlitMaterial, gateMaterial, glowMaterial,
   waterMaterial, mireMaterial, infectionMaterial, smogMaterial, dashTexture, environmentMap, sceneMaterial, sceneWaterMaterial,
+  SCENE_LIGHT,
 } from './materials.js';
 import { syncThreeCamera } from '../projection.js';
 import { mergeSceneChunks, sceneMaterialKey } from './load.js';
 
-/** Lighting rig (tuned against the official screenshots: bright even tops, darker sides, soft shadows). */
-export const LIGHTING = Object.freeze({
-  key: { color: 0xfff1df, intensity: 2.6, dir: [-5.2, -3.4, 10] },
-  hemi: { sky: 0xe4ecf4, ground: 0x4a5058, intensity: 0.6 },
+/** Lighting rig (tuned against the official screenshots: bright even tops, darker sides, soft shadows). Mutable so the
+ *  dev tuning panel (public/dev/render-demo.html) can tune it live; the game never writes it. */
+export const LIGHTING = {
+  key: { color: 0xfff1df, intensity: 3.787, dir: [-5.2, -3.4, 10] },
+  hemi: { sky: 0xe4ecf4, ground: 0x4a5058, intensity: 2.5 },
   env: 1.0,
   emissive: 0.25,
   roughness: 0.78,
@@ -47,7 +49,7 @@ export const LIGHTING = Object.freeze({
   // S_Background_common (100 × 0.4316 = 43.16 tiles); `tiles` × `tiles` mirrored copies around it so no framing
   // (21:9, 4:3, portrait fit, camera flights) sees past its edge
   bg: { z: -8, size: 43.16, color: 0.713, dim: 0.8, tiles: 3 },
-});
+};
 
 /** Additive gain of the gate boxes at the curve's mean (tuned against the official screenshots). */
 export const GATE_GAIN = 0.6;
@@ -179,8 +181,8 @@ export class BoardScene {
       pipe: pipeMaterial(T, this.focus),
       bg: this.tex.BG ? unlitMaterial(T, this.tex.BG, new T.Color().setScalar(LIGHTING.bg.color * LIGHTING.bg.dim)) : new T.MeshBasicMaterial({ color: 0x1a1d1f }),
       wind: this.tex.wind ? unlitMaterial(T, this.tex.wind) : null,
-      gateStartAdd: this.tex.gate ? gateMaterial(T, this.tex.gate, { additive: true }) : null,
-      gateEndAdd: this.tex.gate ? gateMaterial(T, this.tex.gate, { additive: true }) : null,
+      gateStartAdd: this.tex.gate ? gateMaterial(T, this.tex.gate, { additive: false, tint: [0.72, 0.07, 0.04] }) : null,
+      gateEndAdd: this.tex.gate ? gateMaterial(T, this.tex.gate, { additive: false, tint: [0.72, 0.07, 0.04] }) : null,
       gateEndAb: this.tex.gate ? gateMaterial(T, this.tex.gate, { additive: false }) : null,
       edge: glowMaterial(T, dashTexture(T)),
       water: waterMaterial(T, this.tex, this.focus),
@@ -191,10 +193,13 @@ export class BoardScene {
     };
     this.mat.crateFade = null;
     // lights
-    const hemi = new T.HemisphereLight(LIGHTING.hemi.sky, LIGHTING.hemi.ground, LIGHTING.hemi.intensity);
+    // the scene's colour temperature (SCENE_LIGHT.warmth) tints both lights; neutral [1,1,1] leaves them untouched
+    const w = SCENE_LIGHT.warmth || [1, 1, 1];
+    const tint = (hex) => new T.Color(hex).multiply(new T.Color(w[0], w[1], w[2]));
+    const hemi = new T.HemisphereLight(tint(LIGHTING.hemi.sky), tint(LIGHTING.hemi.ground), LIGHTING.hemi.intensity);
     hemi.position.set(0, 0, 1);
     this.scene.add(hemi);
-    const key = new T.DirectionalLight(LIGHTING.key.color, LIGHTING.key.intensity);
+    const key = new T.DirectionalLight(tint(LIGHTING.key.color), LIGHTING.key.intensity);
     key.castShadow = R.shadowMap.enabled;
     key.shadow.mapSize.set(LIGHTING.shadow.size, LIGHTING.shadow.size);
     key.shadow.radius = LIGHTING.shadow.radius;

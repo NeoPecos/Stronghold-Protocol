@@ -124,6 +124,9 @@ export class Net {
     this.WS = opts.WebSocket || null;
     this.getToken = typeof opts.getToken === 'function' ? opts.getToken : () => null;
     this.getTokenClaim = typeof opts.getTokenClaim === 'function' ? opts.getTokenClaim : () => null;
+    /** 长期「记住登录」令牌的读取/保存（方案 A；identity 提供，注入以便测试）。 */
+    this.getRemember = typeof opts.getRemember === 'function' ? opts.getRemember : () => null;
+    this.saveRemember = typeof opts.saveRemember === 'function' ? opts.saveRemember : () => {};
     this.now = opts.now || (() => Date.now());
     this.random = opts.random || Math.random;
     this.timers = opts.timers || {
@@ -385,6 +388,11 @@ export class Net {
       if (claim?.noReplace) msg.noReplace = true;
       if (Number.isFinite(claim?.claimAt)) msg.claimAt = claim.claimAt;
     }
+    // 长期「记住登录」令牌（方案 A，维护者 2026-10-13）：会话 token 失效后靠它免密码登录；仍然带上 token 是为了
+    // 优先走「原会话恢复」，两者不冲突。
+    let remember = null;
+    try { remember = this.getRemember(); } catch { remember = null; }
+    if (typeof remember === 'string' && /^[0-9a-f]{64}$/.test(remember)) msg.remember = remember;
     this._helloToken = token;
     this._helloRid = rid;
     this._helloSentName = this.name;
@@ -408,6 +416,8 @@ export class Net {
     this._helloRid = null;
     this.auth = null;
     this.password = null;
+    // 服务器换发的长期令牌（只在密码登录成功那一次出现）：存进 localStorage，供以后免密码登录。
+    if (typeof msg.remember === 'string') { try { this.saveRemember(msg.remember); } catch { /* ignore */ } }
     // Compare future setName() calls against what we sent (the server may normalise the name).
     this.helloName = this._helloSentName;
     this.serverName = typeof msg.name === 'string' && msg.name ? msg.name : this._helloSentName;
@@ -696,6 +706,7 @@ const K_WELCOME = 'sp.tokenWelcome'; // sessionStorage: { hash, at } from the fi
 const K_RECENT = 'sp.tokens';    // localStorage: this browser's recent tokens, most recent first
 const K_MATCHES = 'sp.matches'; // local metadata for explicit recovery of another closed tab's seat
 const K_ENTERED = 'sp.entered';  // localStorage: a remembered login; token ownership still decides whether it can resume
+const K_REMEMBER = 'sp.remember'; // localStorage: 长期「记住登录」令牌（30 天，维护者 2026-10-13 方案 A）
 const RECENT_MAX = 4;
 const TOKEN_MAX_LEN = 64;        // protocol limit for hello.token
 const CHANNEL_NAME = 'sp.identity';
@@ -978,6 +989,17 @@ export function createIdentity(deps = {}) {
       if (on) { sset(local, K_ENTERED, '1'); sset(session, K_ENTERED, '1'); }
       else { sdel(local, K_ENTERED); sdel(session, K_ENTERED); }
     },
+    /** 长期「记住登录」令牌（方案 A）：和本次会话的 token 无关，存在 localStorage，跨重启有效（30 天滑动）。 */
+    getRemember() {
+      const value = sget(local, K_REMEMBER);
+      return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value) ? value : null;
+    },
+    /** @param {string} token from `welcome` */
+    saveRemember(token) {
+      if (typeof token === 'string' && /^[0-9a-f]{64}$/.test(token)) sset(local, K_REMEMBER, token);
+    },
+    /** 关掉「保持登录」时调用：本机不再自动免密登录（服务器端的哈希照旧到期失效）。 */
+    forgetRemember() { sdel(local, K_REMEMBER); },
   };
 }
 
@@ -985,4 +1007,9 @@ export function createIdentity(deps = {}) {
 export const identity = createIdentity({ onYield: () => net.reconnectNow(net.helloName || net.name) });
 
 /** Browser connection singleton (created lazily-safe: nothing touches the network until connect()). */
-export const net = new Net({ getToken: () => identity.getToken(), getTokenClaim: () => identity.getTokenClaim() });
+export const net = new Net({
+  getToken: () => identity.getToken(),
+  getTokenClaim: () => identity.getTokenClaim(),
+  getRemember: () => identity.getRemember(),
+  saveRemember: (token) => identity.saveRemember(token),
+});

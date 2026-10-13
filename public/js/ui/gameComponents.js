@@ -253,11 +253,14 @@ export function RichTip({ text, children, placement = 'top' }) {
 }
 
 /**
- * Seat-coloured player avatar: band icon when a band is picked, else glyph/robot.
+ * Seat-coloured player avatar: the player's chosen avatar (TASK-004) when set, else band icon, else glyph/robot.
  * @param {{ player: any, size?: 'sm'|'md', self?: boolean, class?: string }} props
  */
 export function PlayerAvatar({ player, size = 'md', self = false, class: cls }) {
-  const src = player?.bandId ? bandIconUrl(data.get('assets'), player.bandId) : null;
+  // 玩家头像 (TASK-004)：avatar = 干员 id（素材在 assets.chars[*].avatar）；没选回落阵营图标、再回落名字首字
+  const chars = data.get('assets')?.chars;
+  const chosen = player?.avatar && chars ? chars[player.avatar]?.avatar : null;
+  const src = chosen || (player?.bandId ? bandIconUrl(data.get('assets'), player.bandId) : null);
   const glyph = [...(player?.name || '').trim()][0] || '?';
   const dead = player?.alive === false || player?.status === 'dead';
   const left = player?.status === 'left';
