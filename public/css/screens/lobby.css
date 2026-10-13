@@ -11,7 +11,14 @@
   margin: 0 auto;
   padding: .22rem .6rem .24rem;
   align-content: start;
-  overflow: hidden;
+  /* 原来这里是 overflow: hidden —— 它盖掉了 .screen__scroll 的滚动（lobby.css 在 theme.css 之后加载），
+     窗口不够高时下半部分直接被裁掉、按钮点不到。改成可滚动（配合 @media (max-height) 的压缩规则），
+     宁可让玩家滑一下，也不要把内容藏起来。 */
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-3) transparent;
 }
 .lobby-left, .lobby-right { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
@@ -127,7 +134,9 @@
 }
 .code-chip:hover { border-color: var(--amber); background: rgba(246, 163, 41, .08); }
 
-.room-directory { flex: 1; min-height: 0; display: flex; flex-direction: column; background: linear-gradient(145deg, rgba(20, 31, 27, .94), rgba(9, 14, 13, .96)); }
+/* Fixed-size directory: the left column must not stretch to the right column's height (that height changes with
+   the selected mode/difficulty), so the panel sizes to its own content and the room list below keeps a fixed height. */
+.room-directory { flex: 0 0 auto; min-height: 0; display: flex; flex-direction: column; background: linear-gradient(145deg, rgba(20, 31, 27, .94), rgba(9, 14, 13, .96)); }
 .room-directory .panel__head { align-items: center; padding-block: .1rem; }
 .room-directory .panel__actions { flex: 1; min-width: 0; justify-content: flex-end; }
 .room-directory .panel__body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: .08rem .14rem .1rem; }
@@ -137,7 +146,7 @@
 .room-directory__join .btn { min-height: .42rem; white-space: nowrap; }
 .room-directory__recent { display: flex; align-items: center; flex-wrap: wrap; gap: .07rem; min-height: .35rem; padding: 0 .02rem .07rem; font-size: calc(.13 * var(--t)); }
 .room-directory__empty { margin: 0; padding: .3rem .16rem; color: var(--text-lo); font-size: calc(.16 * var(--t)); text-align: center; }
-.room-directory__list { flex: 1; min-height: .72rem; display: flex; flex-direction: column; gap: .08rem; overflow-y: auto; overscroll-behavior: contain; }
+.room-directory__list { flex: 0 0 auto; height: 4.8rem; display: flex; flex-direction: column; gap: .08rem; overflow-y: auto; overscroll-behavior: contain; }
 .room-directory__room {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
