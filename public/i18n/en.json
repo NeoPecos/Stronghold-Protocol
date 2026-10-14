@@ -860,6 +860,8 @@
   "无法写入剪贴板，请手动复制下面的内容": "Couldn't write to the clipboard. Copy the text below by hand.",
   "诊断信息": "Diagnostics",
   "观战中无法进行该操作": "Spectators cannot do that",
+  "开启观战": "Allow spectating",
+  "该房间已关闭观战": "The host turned spectating off in this room",
   "标准": "Standard",
   "险境": "Perilous",
   "绝境": "Dire",

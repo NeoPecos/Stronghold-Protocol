@@ -41,7 +41,7 @@ test('room.list shows co-op rooms, occupancy and whether joining is still possib
     assert.deepEqual(await list(viewer), [{
       code: state.code, hostName: 'Host', difficulty: 'NORMAL', players: 1, bots: 0,
       connectedPlayers: 1, activePlayers: 1,
-      capacity: 4, spectators: 0, inMatch: false, recruitWanted: false,
+      capacity: 4, spectators: 0, inMatch: false, recruitWanted: false, allowSpectators: true,
       createdAt: server.lobby.getRoom(state.code).createdAt,
     }]);
 

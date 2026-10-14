@@ -550,7 +550,7 @@ describe('websocket lobby', () => {
     assert.equal(st.difficulty, 'HARD');
     assert.equal(st.inMatch, false);
     assert.equal(st.seats.length, MAX_SEATS);
-    assert.deepEqual(st.seats[0], { seat: 0, playerId: host.id, name: 'Host', isBot: false, ready: false, connected: true });
+    assert.deepEqual(st.seats[0], { seat: 0, playerId: host.id, name: 'Host', avatar: null, isBot: false, ready: false, connected: true });
     assert.deepEqual(st.seats.slice(1), [null, null, null]);
 
     const guest = await pool.player('Guest');
@@ -688,6 +688,61 @@ describe('websocket lobby', () => {
     const legacy = roomAccessOptions({ hostId: 'p_host', mode: 'coop' }, 'p_host');
     assert.equal(legacy.inviteOnly, false, 'an older server without the field reads as false');
     assert.equal(legacy.recruitWanted, false);
+    assert.equal(legacy.allowSpectators, true, '观战 is on by default (an older server without the field too)');
+    assert.equal(roomAccessOptions({ ...base, allowSpectators: false }, 'p_host').allowSpectators, false, 'the host turned it off');
+  });
+
+  // The host's 观战 switch (server/lobby.js setSpectators; room.state.allowSpectators). Unlike the two directory
+  // switches it also works while a match runs (a room's spectator seats are open then too) and it never touches
+  // spectators already seated — it only refuses new ones.
+  test('the 观战 switch: host-only, refuses new spectator seats, keeps the seated ones, and a starting match drops 期望路人加入', async () => {
+    const host = await pool.player('Host');
+    const guest = await pool.player('Guest');
+    const watcher = await pool.player('Watcher');
+    const st = await createRoom(host);
+    assert.equal(st.allowSpectators, true, 'on by default');
+    await joinRoom(guest, st.code);
+
+    // host-only, and a solo room has no spectator seats at all
+    await expectError(guest, { t: 'room.setSpectators', on: false }, ERR.NOT_HOST);
+    const solo = await pool.player('Solo');
+    await createRoom(solo, 'solo', 'FUNNY');
+    await expectError(solo, { t: 'room.setSpectators', on: false }, ERR.BAD_TARGET);
+
+    // off: the room state says so, the directory row too, and a new spectator seat is refused
+    await expectOk(host, { t: 'room.setSpectators', on: false });
+    const off = await host.waitFor('room.state', (s) => s.allowSpectators === false);
+    assert.equal(off.allowSpectators, false);
+    await expectError(watcher, { t: 'room.spectate', code: st.code }, ERR.SPECTATE_OFF);
+    const probe = await pool.player('Probe');
+    await expectOk(probe, { t: 'room.list' });
+    const listed = await probe.waitFor('room.list', (m) => m.rooms.some((r) => r.code === st.code));
+    assert.equal(listed.rooms.find((r) => r.code === st.code).allowSpectators, false, 'the directory knows');
+
+    // on again: the same session takes the seat
+    await expectOk(host, { t: 'room.setSpectators', on: true });
+    await host.waitFor('room.state', (s) => s.allowSpectators === true);
+    await expectOk(watcher, { t: 'room.spectate', code: st.code });
+    await host.waitFor('room.state', (s) => s.spectators.some((x) => x.playerId === watcher.id));
+
+    // going off again only refuses NEW seats: the seated spectator keeps watching (the host still removes it by hand)
+    await expectOk(host, { t: 'room.setSpectators', on: false });
+    const kept = await host.waitFor('room.state', (s) => s.allowSpectators === false && s.spectators.length === 1);
+    assert.equal(kept.spectators[0].playerId, watcher.id);
+
+    // 期望路人加入: advertised now, dropped the moment the match starts (a running match cannot take players)
+    await expectOk(host, { t: 'room.setRecruitWanted', on: true });
+    await host.waitFor('room.state', (s) => s.recruitWanted === true);
+    await expectOk(guest, { t: 'room.ready', ready: true });
+    await expectOk(host, { t: 'room.start' });
+    const started = await host.waitFor('room.state', (s) => s.inMatch === true);
+    assert.equal(started.recruitWanted, false, 'a running match is no longer recruiting');
+    await expectOk(probe, { t: 'room.list' });
+    const again = await probe.waitFor('room.list', (m) => m.rooms.some((r) => r.code === st.code && r.inMatch));
+    assert.equal(again.rooms.find((r) => r.code === st.code).recruitWanted, false, 'the directory drops the tag too');
+    // the switch itself stays usable during the match (the spectator seats are open then too)
+    await expectOk(host, { t: 'room.setSpectators', on: true });
+    await host.waitFor('room.state', (s) => s.allowSpectators === true);
   });
 
   test('room full, solo rooms admit one human and no AI', async () => {
@@ -722,7 +777,7 @@ describe('websocket lobby', () => {
     const s1 = await pool.player('Watcher1');
     await expectOk(s1, { t: 'room.spectate', code: st.code.toLowerCase() });
     const v1 = await s1.waitFor('room.state', (s) => s.spectators.some((x) => x.playerId === s1.id));
-    assert.deepEqual(v1.spectators, [{ playerId: s1.id, name: 'Watcher1', connected: true }]);
+    assert.deepEqual(v1.spectators, [{ playerId: s1.id, name: 'Watcher1', avatar: null, connected: true }]);
     assert.ok(!v1.seats.some((x) => x && x.playerId === s1.id), 'never in a player seat');
     await host.waitFor('room.state', (s) => s.spectators.length === 1);
     await expectOk(s1, { t: 'room.spectate', code: st.code }); // idempotent
@@ -816,7 +871,7 @@ describe('websocket lobby', () => {
     const w = await back.hello('Late', late.token);
     assert.equal(w.resumed, true);
     const rs = await back.waitFor('room.state');
-    assert.deepEqual(rs.spectators.find((x) => x.playerId === late.id), { playerId: late.id, name: 'Late', connected: true });
+    assert.deepEqual(rs.spectators.find((x) => x.playerId === late.id), { playerId: late.id, name: 'Late', avatar: null, connected: true });
     await expectError(back, { t: 'g.infoReady' }, ERR.SPECTATOR);
     // the match ends: the spectators see the result (a broadcast) and stay in the room, which returns to its lobby
     await expectOk(host, { t: 'g.infoReady' });
@@ -983,7 +1038,7 @@ describe('websocket lobby', () => {
     assert.equal(w.token, guest.token);
     const restored = await back.waitFor('room.state');
     assert.equal(restored.code, st.code);
-    assert.deepEqual(seatOf(restored, guest.id), { seat: 1, playerId: guest.id, name: 'Guest2', isBot: false, ready: true, connected: true });
+    assert.deepEqual(seatOf(restored, guest.id), { seat: 1, playerId: guest.id, name: 'Guest2', avatar: null, isBot: false, ready: true, connected: true });
     await host.waitFor('room.state', (s) => seatOf(s, guest.id)?.connected === true);
 
     // an unknown token just creates a new identity

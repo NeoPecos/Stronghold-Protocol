@@ -270,13 +270,15 @@ function RoomDirectory({ rooms, online, loading, error, busy, code, codeOk, rece
         ${rooms.map((room) => {
           const occupied = room.players + room.bots;
           const joinable = !room.inMatch && occupied < room.capacity;
-          const watchable = room.spectators < MAX_SPECTATORS;
+          // the host's 观战 switch (server/lobby.js setSpectators): a closed room offers no 观战 entry; the tag only
+          // means "still recruiting", so it goes away as soon as the room's match runs (the server clears it too)
+          const watchable = room.allowSpectators !== false && room.spectators < MAX_SPECTATORS;
           const status = room.inMatch ? t('模拟中') : joinable ? t('招募中') : t('已满员');
           return html`<article key=${room.code} class=${`room-directory__room${joinable ? ' is-open' : ''}`} role="listitem">
             <div class="room-directory__identity">
               <span class="room-directory__code num">${room.code}</span>
               <span class="room-directory__host" title=${room.hostName}>${t('房主')} · ${room.hostName || t('博士')}</span>
-              ${room.recruitWanted ? html`<strong class="room-directory__recruit">${t('期望路人加入')}</strong>` : null}
+              ${room.recruitWanted && !room.inMatch ? html`<strong class="room-directory__recruit">${t('期望路人加入')}</strong>` : null}
             </div>
             <div class="room-directory__details">
               <span class="room-directory__difficulty" style=${`--d-color:${DIFFICULTY_COLORS[room.difficulty] || 'var(--mint-400)'}`}>

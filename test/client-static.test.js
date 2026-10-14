@@ -142,6 +142,7 @@ describe('shared modules', () => {
     assert.equal(p.validateC2S({ t: 'room.create', mode: 'coop', difficulty: 'HARD' }), null);
     assert.equal(p.validateC2S({ t: 'room.setInviteOnly', on: true }), null);
     assert.equal(p.validateC2S({ t: 'room.setRecruitWanted', on: false }), null);
+    assert.equal(p.validateC2S({ t: 'room.setSpectators', on: false }), null);
     assert.ok(Array.isArray(p.S2C) && p.S2C.includes('room.state'));
   });
 });
@@ -194,7 +195,8 @@ describe('HTML pages reference existing files', () => {
     const src = readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
     assert.match(src, /<script type="module" src="\/js\/main\.js"[^>]*><\/script>/);
     assert.match(src, /class="rotate-hint"/);
-    assert.match(src, /fonts\.googleapis\.com\/css2\?family=Noto\+Sans\+SC/);
+    assert.match(src, /href="\/fonts\/webfonts\.css"/, 'the self-hosted subsets (tools/build-webfonts.py)');
+    assert.doesNotMatch(src, /fonts\.googleapis\.com/, 'no runtime Google Fonts dependency');
     assert.match(src, /href="\/fonts\/fonts\.css"/);
   });
 });

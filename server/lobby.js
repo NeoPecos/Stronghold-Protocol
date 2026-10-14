@@ -203,6 +203,10 @@ export class Room {
     // but is omitted from room.list; recruitment is a prominent public directory marker.
     this.inviteOnly = false;
     this.recruitWanted = false;
+    // The host's 观战 switch (room.setSpectators): on by default — the spectator seats work as before. Off ⇒ new
+    // spectator seats are refused (SPECTATE_OFF); spectators already seated keep watching (the host removes one with
+    // room.removeSpectator). It is not tied to the match, so the host may close 观战 while a match runs.
+    this.allowSpectators = true;
     /** @type {string | null} */
     this.hostId = null;
     /** @type {(Seat | null)[]} */
@@ -255,6 +259,7 @@ export class Room {
       aiPicksLast: this.aiPicksLast,
       inviteOnly: this.inviteOnly,
       recruitWanted: this.recruitWanted,
+      allowSpectators: this.allowSpectators,
       inMatch: !!this.match,
       seats: this.seats.map((s) => (s
         ? { seat: s.seat, playerId: s.playerId, name: s.name, avatar: s.avatar || null, isBot: s.isBot, ready: s.ready, connected: s.connected && !s.left }
@@ -382,6 +387,7 @@ export class Lobby {
       case 'room.setAiPicksLast': return this.setAiPicksLast(session, msg);
       case 'room.setInviteOnly': return this.setInviteOnly(session, msg);
       case 'room.setRecruitWanted': return this.setRecruitWanted(session, msg);
+      case 'room.setSpectators': return this.setSpectators(session, msg);
       case 'room.addBot': return this.addBot(session);
       case 'room.removeBot': return this.removeBot(session, msg);
       case 'room.kick': return this.kick(session, msg);
@@ -467,6 +473,7 @@ export class Lobby {
           spectators: room.spectators.length,
           inMatch: !!room.match,
           recruitWanted: room.recruitWanted,
+          allowSpectators: room.allowSpectators,
           createdAt: room.createdAt,
         };
       })
@@ -557,6 +564,7 @@ export class Lobby {
     }
     if (cur && cur.match) return fail(ERR.ROOM_STARTED, 'leave your running match first');
     if (room.mode === 'solo') return fail(ERR.ROOM_FULL, 'solo room');
+    if (!room.allowSpectators) return fail(ERR.SPECTATE_OFF);
     if (room.spectators.length >= MAX_SPECTATORS) return fail(ERR.ROOM_FULL, 'no free spectator seat');
     if (cur) this.removeMember(cur, session.playerId);
     room.spectators.push({ playerId: session.playerId, name: session.name, connected: session.connected });
@@ -651,6 +659,24 @@ export class Lobby {
     if (room.mode === 'solo') return fail(ERR.BAD_TARGET, 'solo rooms are never listed');
     if (room.recruitWanted !== on) {
       room.recruitWanted = on;
+      this.broadcastState(room);
+    }
+    return OK;
+  }
+
+  /**
+   * room.setSpectators (host): the room's 观战 switch. Unlike the two directory flags above it stays usable while a
+   * match runs — a room's spectator seats are open during the match too (header). Turning it off refuses *new*
+   * spectator seats (SPECTATE_OFF in spectate); the ones already seated keep their seat, so a host that wants the
+   * room cleared also removes them (room.removeSpectator).
+   */
+  setSpectators(session, { on }) {
+    const room = this.roomOf(session);
+    if (!room) return fail(ERR.NOT_IN_ROOM);
+    if (room.hostId !== session.playerId) return fail(ERR.NOT_HOST);
+    if (room.mode === 'solo') return fail(ERR.BAD_TARGET, 'solo rooms have no spectator seats');
+    if (room.allowSpectators !== on) {
+      room.allowSpectators = on;
       this.broadcastState(room);
     }
     return OK;
@@ -872,6 +898,10 @@ export class Lobby {
 
   /** @param {Room} room @param {string | null} [key] per-network limit key of the starter */
   startMatch(room, key = null) {
+    // A running match cannot take players (only spectator seats), so the 「期望路人加入」 marker is dropped here: the
+    // directory stops advertising the room and the tag disappears from the room list and the room options. The host can
+    // switch it back on for the next match (the next LOBBY round).
+    room.recruitWanted = false;
     const host = room.seatOf(room.hostId);
     if (host) host.ready = true;
     const seats = room.seats.filter(Boolean).map((s) => ({

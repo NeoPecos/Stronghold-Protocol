@@ -426,6 +426,9 @@ export const C2S = {
   'room.setAiPicksLast': { on: isBool },
   'room.setInviteOnly': { on: isBool },
   'room.setRecruitWanted': { on: isBool },
+  // the host's 观战 switch (server/lobby.js setSpectators): off ⇒ a new spectator seat is refused (SPECTATE_OFF);
+  // usable while a match runs (room.state.allowSpectators)
+  'room.setSpectators': { on: isBool },
   'room.addBot': {},
   'room.removeBot': { seat: (v) => isInt(v, 0, MAX_SEATS - 1) },
   // the host removes another human before the match (server/lobby.js kick; community report #17); playerId = the one the

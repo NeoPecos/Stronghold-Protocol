@@ -91,6 +91,8 @@ export function roomAccessOptions(room, myId) {
   return {
     inviteOnly: room.inviteOnly === true,
     recruitWanted: room.recruitWanted === true,
+    // 观战 switch (room.setSpectators): absent on an older server payload ⇒ on (the default, as before the switch)
+    allowSpectators: room.allowSpectators !== false,
     editable: room.hostId != null && room.hostId === myId,
   };
 }
@@ -230,16 +232,19 @@ function AiLastToggle({ option, busy, onToggle }) {
   </div>`;
 }
 
-function RoomAccessOptions({ option, busy, onInviteOnly, onRecruitWanted }) {
+function RoomAccessOptions({ option, busy, onInviteOnly, onRecruitWanted, onSpectators }) {
   if (!option) return null;
   // The plan ships a purpose-drawn 256² transparent PNG per switch (§4 图片素材), so the picture carries the
   // meaning and nothing else is stacked on it: no same-meaning SVG glyph, and the label text stays HTML (never
   // baked into the art) so it can go through t(). State is styling only — CSS dims it when off and brightens it
   // when on — which keeps the two images out of a JS src swap that would flicker on a slow connection.
-  const toggle = (name, on, art, action) => html`<button type="button" role="switch" aria-checked=${on ? 'true' : 'false'}
+  // 观战 has no such art yet, so it uses the eye glyph in the same slot (same chrome, same behaviour).
+  const toggle = (name, on, art, action, icon = null) => html`<button type="button" role="switch" aria-checked=${on ? 'true' : 'false'}
       class=${`room-access__toggle${on ? ' is-active' : ''}`} disabled=${!option.editable || !!busy}
       onClick=${() => option.editable && action(!on)}>
-    <span class="room-access__icon"><img src=${`/assets/ui/room/${art}.png`} alt="" aria-hidden="true" draggable=${false} /></span>
+    <span class="room-access__icon">${icon
+      ? html`<${Icon} name=${icon} />`
+      : html`<img src=${`/assets/ui/room/${art}.png`} alt="" aria-hidden="true" draggable=${false} />`}</span>
     <span><strong>${t(name)}</strong><small>${on ? t('已开启') : t('已关闭')}</small></span>
     <span class="room-access__switch" aria-hidden="true"></span>
   </button>`;
@@ -247,6 +252,7 @@ function RoomAccessOptions({ option, busy, onInviteOnly, onRecruitWanted }) {
     <${MicroLabel} tone="mint">ROOM ACCESS<//>
     ${toggle(N_('仅邀请'), option.inviteOnly, 'invite-only', onInviteOnly)}
     ${toggle(N_('期望路人加入'), option.recruitWanted, 'recruit-wanted', onRecruitWanted)}
+    ${toggle(N_('开启观战'), option.allowSpectators, null, onSpectators, 'eye')}
     ${option.editable ? null : html`<span class="room-access__readonly">${t('由创建者设置')}</span>`}
   </aside>`;
 }
@@ -294,6 +300,8 @@ export function RoomScreen() {
   const setAiLast = (on) => run('ailast', () => net.request('room.setAiPicksLast', { on }));
   const setInviteOnly = (on) => run('inviteOnly', () => net.request('room.setInviteOnly', { on }));
   const setRecruitWanted = (on) => run('recruitWanted', () => net.request('room.setRecruitWanted', { on }));
+  // the room's 观战 switch (host): off ⇒ new spectator seats are refused; those already seated keep watching
+  const setSpectators = (on) => run('spectators', () => net.request('room.setSpectators', { on }));
   // spectator seats: the host frees one; a spectator takes a free player seat with room.join of this room
   const removeSpectator = (playerId) => run(`rs${playerId}`, () => net.request('room.removeSpectator', { playerId }));
   const sit = () => run('sit', () => net.request('room.join', { code: room.code }));
@@ -359,7 +367,7 @@ export function RoomScreen() {
       ${facts.seats.map((s, i) => html`<${SeatCard} key=${s ? `p${s.playerId}` : `e${i}`} seat=${s} index=${i} room=${room} facts=${facts}
         myId=${me.playerId} busy=${busy} onAddBot=${addBot} onRemoveBot=${removeBot} onKick=${kick} />`)}
       ${coop ? html`<${RoomAccessOptions} option=${roomAccessOptions(room, me.playerId)} busy=${busy}
-        onInviteOnly=${setInviteOnly} onRecruitWanted=${setRecruitWanted} />` : null}
+        onInviteOnly=${setInviteOnly} onRecruitWanted=${setRecruitWanted} onSpectators=${setSpectators} />` : null}
       ${coop ? null : html`<aside class="solo-brief brackets">
         <${MicroLabel} tone="mint">BRIEFING<//>
         <h2>${DIFFICULTY_NAMES[room.difficulty] ? t(DIFFICULTY_NAMES[room.difficulty]) : ''}<span class="num t-dim"> ${info.code}</span></h2>
