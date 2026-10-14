@@ -750,10 +750,24 @@ export function AvatarFrame({ name = '', src, size = 'md', seat = 0, host, bot, 
   </div>`;
 }
 
+/** Adds `name` to <body> while `active` (`:has()` is banned — see test/client-static.test.js). */
+function useBodyClass(name, active = true) {
+  useEffect(() => {
+    if (!active) return undefined;
+    document.body.classList.add(name);
+    return () => document.body.classList.remove(name);
+  }, [name, active]);
+}
+
 // ---- PhaseBanner -------------------------------------------------------------------------------
 
 /**
  * Chevron phase banner (full-width strip that wipes in horizontally).
+ *
+ * In `overlay` mode the banner owns the top-bar capsule slot while it plays (`body.is-banner-up` hides
+ * the capsule), and on exit it *docks* into that slot: measured against the live capsule, then scaled and
+ * translated onto it (`.pbanner__band.is-docking`, see css/components.css) so the big banner becomes the
+ * small capsule instead of vanishing next to a second copy of the same words.
  * @param {{ title: any, sub?: any, micro?: string, tone?: 'mint'|'orange'|'red'|'gold'|'ice', mode?: 'overlay'|'inline',
  *   duration?: number, onDone?: Function, class?: string }} props
  *   mode 'overlay' = fixed over the screen; duration (ms) > 0 auto-hides then calls onDone. Re-key to replay.
@@ -761,15 +775,32 @@ export function AvatarFrame({ name = '', src, size = 'md', seat = 0, host, bot, 
 export function PhaseBanner({ title, sub, micro, tone = 'mint', mode = 'inline', duration = 0, onDone, class: cls }) {
   const [leaving, setLeaving] = useState(false);
   const [gone, setGone] = useState(false);
+  const bandRef = useRef(null);
+  // The capsule stands down only while the banner is holding — once it starts docking the capsule is back,
+  // so the banner lands on the real thing.
+  useBodyClass('is-banner-up', mode === 'overlay' && !gone && !leaving);
   useEffect(() => {
     if (!(duration > 0)) return undefined;
     const t1 = setTimeout(() => setLeaving(true), duration);
     const t2 = setTimeout(() => { setGone(true); onDone?.(); }, duration + 260);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [duration]);
+  useLayoutEffect(() => {
+    if (!leaving || mode !== 'overlay') return;
+    const band = bandRef.current;
+    const capsule = document.querySelector('.gtop__meter .capsule') || document.querySelector('.capsule');
+    if (!band || !capsule || !band.getBoundingClientRect) return;
+    const from = band.getBoundingClientRect();
+    const to = capsule.getBoundingClientRect();
+    if (!from.width || !to.width) return;
+    band.style.setProperty('--dock-x', `${Math.round(to.left + to.width / 2 - (from.left + from.width / 2))}px`);
+    band.style.setProperty('--dock-y', `${Math.round(to.top + to.height / 2 - (from.top + from.height / 2))}px`);
+    band.style.setProperty('--dock-s', (to.width / from.width).toFixed(4));
+    band.classList.add('is-docking');
+  }, [leaving, mode]);
   if (gone) return null;
   return html`<div class=${cx('pbanner', `pbanner--${tone}`, `pbanner--${mode}`, leaving && 'is-leaving', cls)} role="status" aria-live="polite">
-    <div class="pbanner__band">
+    <div class="pbanner__band" ref=${bandRef}>
       <${Chevrons} count=${4} tone=${tone} class="pbanner__chev pbanner__chev--l" />
       <div class="pbanner__text">
         ${micro ? html`<span class="pbanner__micro">${micro}</span>` : null}
@@ -784,6 +815,8 @@ export function PhaseBanner({ title, sub, micro, tone = 'mint', mode = 'inline',
 export function UniteIntro({ title, sub, duration = 3400, onDone }) {
   const [leaving, setLeaving] = useState(false);
   const [gone, setGone] = useState(false);
+  // The intro draws its own strip in the capsule slot (`.unite-intro__top`), so the capsule stands down.
+  useBodyClass('is-banner-up', !gone);
   useEffect(() => {
     const hideTimer = setTimeout(() => setLeaving(true), duration);
     const doneTimer = setTimeout(() => { setGone(true); onDone?.(); }, duration + 360);
@@ -826,9 +859,25 @@ export function ResultDialog({ title, sub, micro, tone = 'mint', duration = 2800
   if (gone) return null;
   return html`<div class=${cx('rdialog', 'rdialog--battle-end', `rdialog--${tone}`, leaving && 'is-leaving')} role="status" aria-live="polite">
     <div class="rdialog__box">
+      <span class="rdialog__scan" aria-hidden="true"></span>
+      <span class="rdialog__tick rdialog__tick--tl" aria-hidden="true"></span>
+      <span class="rdialog__tick rdialog__tick--tr" aria-hidden="true"></span>
+      <span class="rdialog__tick rdialog__tick--bl" aria-hidden="true"></span>
+      <span class="rdialog__tick rdialog__tick--br" aria-hidden="true"></span>
       ${micro ? html`<span class="rdialog__micro">${micro}</span>` : null}
       <div class="rdialog__row">
-        <img class="rdialog__icon" src="/assets/ui/hudPanel/icon_battle.png" alt="" />
+        <span class="rdialog__icon-panel" aria-hidden="true">
+          <span class="rdialog__icon-mark rdialog__icon-mark--tl"></span><span class="rdialog__icon-mark rdialog__icon-mark--tr"></span>
+          <span class="rdialog__icon-mark rdialog__icon-mark--bl"></span><span class="rdialog__icon-mark rdialog__icon-mark--br"></span>
+          <span class="rdialog__icon"><svg viewBox="0 0 180 115" fill="none">
+            <path d="M17 22h55l9 9v55l-9 9H17l-9-9V31z" fill="currentColor"/>
+            <path d="m27 49 12 12-12 12m44-24L59 61l12 12" stroke="#09231d" stroke-width="8" stroke-linecap="square" stroke-linejoin="bevel"/>
+            <path d="M30 79h35l-8 9H38z" fill="#09231d"/>
+            <path d="m111 70 44-53c5-6 14 1 9 7l-44 52" stroke="currentColor" stroke-width="13" stroke-linecap="square"/>
+            <path d="m96 57 30 29M107 73 94 87" stroke="currentColor" stroke-width="12" stroke-linecap="square"/>
+            <path d="M105 13v9m17-15-7 9m-25 4 9 3" stroke="currentColor" stroke-width="5" stroke-linecap="square"/>
+          </svg></span>
+        </span>
         <span class="rdialog__words"><span class="rdialog__title">${title}</span>
           ${sub ? html`<span class="rdialog__sub">${sub}</span>` : null}</span>
       </div>
@@ -839,6 +888,8 @@ export function ResultDialog({ title, sub, micro, tone = 'mint', duration = 2800
 export function RoundStartIntro({ round, gain, duration = 2400, onDone }) {
   const [leaving, setLeaving] = useState(false);
   const [gone, setGone] = useState(false);
+  // Same as UniteIntro: the round intro's strip occupies the capsule slot while it plays.
+  useBodyClass('is-banner-up', !gone);
   useEffect(() => {
     const hideTimer = setTimeout(() => setLeaving(true), duration);
     const doneTimer = setTimeout(() => { setGone(true); onDone?.(); }, duration + 300);
@@ -851,12 +902,15 @@ export function RoundStartIntro({ round, gain, duration = 2400, onDone }) {
       <span class="round-intro__top-icons"><img src=${asset('round_emoji_head')} alt="" /><img src=${asset('round_emoji_body')} alt="" /></span>
     </div>
     <div class="round-intro__plate">
-      <div class="round-intro__figure" aria-hidden="true">
-        <img class="round-intro__figure-head" src=${asset('round_emoji_head')} alt="" />
-        <img class="round-intro__figure-body" src=${asset('round_emoji_body')} alt="" />
-        <img class="round-intro__figure-book" src=${asset('round_emoji_book')} alt="" />
-        <img class="round-intro__figure-hand" src=${asset('round_emoji_hand')} alt="" />
-      </div>
+      <div class="round-intro__figure" aria-hidden="true"><svg viewBox="0 0 170 150" fill="none">
+        <path d="M69 98h43v28H69zM70 121h16v22H70zM97 121h16v22H97z" fill="currentColor"/>
+        <path d="M46 26h71l11 11v57l-11 11H46L35 94V37z" fill="currentColor"/>
+        <path d="M66 61h12v12H66zM97 61h12v12H97z" fill="#0a302b"/>
+        <path d="m16 84 41-8 10 58-42 9z" fill="currentColor" stroke="#0a302b" stroke-width="5" stroke-linejoin="bevel"/>
+        <path d="m18 85 29-5 9 48" stroke="#0a302b" stroke-width="4"/>
+        <path d="m126 98 30 9-5 17-27-9z" fill="currentColor"/>
+        <path d="M19 39h7v7h-7zM31 18h8v8h-8zM140 25h8v8h-8zM153 49h7v7h-7z" fill="currentColor"/>
+      </svg></div>
       <div class="round-intro__round"><span>${t('回合')}</span>
         <strong class="round-intro__old">${String(Math.max(0, round - 1)).padStart(2, '0')}</strong>
         <i aria-hidden="true">›</i><strong class="round-intro__new">${String(round).padStart(2, '0')}</strong>

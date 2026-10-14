@@ -731,7 +731,10 @@
 .gm.is-pen .gm__bonds > *, .gm.is-pen .gm__effects > *, .gm.is-pen .gm__bonds .bslot, .gm.is-pen .gm__bonds .bstrip__more { pointer-events: none; }
 
 .unite-intro { position: fixed; inset: 0; z-index: var(--z-banner); display: grid; place-items: center; pointer-events: none; }
-body:has(.unite-intro) .gtop__meter .capsule { visibility: hidden; }
+/* A full-width intro / phase banner owns the top-bar capsule slot while it plays: the screens add
+   `is-banner-up` to <body> (`:has()` is banned in this client — Firefox ESR 115 / Safari < 15.4),
+   and the phase banner then docks into that slot on exit (see css/components.css). */
+body.is-banner-up .gtop__meter .capsule { visibility: hidden; }
 .unite-intro__top {
   position: absolute; top: .28rem; left: 50%; transform: translateX(-50%);
   display: grid; place-items: center; width: 2.2rem; height: .58rem;
@@ -773,25 +776,44 @@ body:has(.unite-intro) .gtop__meter .capsule { visibility: hidden; }
 .unite-intro.is-leaving .unite-intro__top { animation: unite-top-out 360ms ease-in forwards; }
 
 .rdialog--battle-end .rdialog__box {
-  box-sizing: border-box; width: min(6.2rem, 90vw); min-width: 0; height: 1.48rem;
-  flex-direction: row; justify-content: center; padding: .16rem .38rem;
-  background: linear-gradient(90deg, rgba(6, 20, 17, .97), rgba(8, 15, 14, .97) 48%, rgba(6, 20, 17, .97));
-  border: 1px solid var(--rd); box-shadow: 0 0 .26rem var(--rd-glow), 0 .16rem .55rem rgba(0, 0, 0, .6);
-  animation: battle-end-in 540ms cubic-bezier(.16, 1, .3, 1) both;
+  box-sizing: border-box; width: min(6.5rem, 90vw); min-width: 0; height: 2.05rem;
+  flex-direction: row; justify-content: center; padding: .22rem .42rem;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .018) 0 1px, transparent 1px 4px),
+    linear-gradient(110deg, rgba(8, 29, 25, .96), rgba(8, 18, 17, .96) 48%, rgba(7, 30, 25, .96));
+  border: 2px solid var(--rd); box-shadow: 0 0 .22rem var(--rd-glow), inset 0 0 .3rem var(--rd-glow), 0 .16rem .55rem rgba(0, 0, 0, .6);
+  animation: battle-end-in 560ms .12s cubic-bezier(.16, 1, .3, 1) both;
 }
-.rdialog--battle-end .rdialog__box::before, .rdialog--battle-end .rdialog__box::after { left: 0; right: 0; }
-.rdialog--battle-end .rdialog__micro { position: absolute; top: .12rem; left: .27rem; font-size: calc(.1 * var(--t)); letter-spacing: .26em; }
-.rdialog--battle-end .rdialog__row { width: 100%; justify-content: center; gap: .24rem; }
-.rdialog--battle-end .rdialog__icon { width: .85rem; height: .85rem; flex: none; object-fit: contain; filter: drop-shadow(0 0 .12rem var(--rd-glow)); }
+.rdialog--battle-end .rdialog__box::before, .rdialog--battle-end .rdialog__box::after { left: .1rem; right: .1rem; opacity: .38; }
+.rdialog--battle-end .rdialog__tick { width: .12rem; height: .12rem; border-width: 1px; opacity: .65; }
+.rdialog--battle-end .rdialog__micro { position: absolute; top: .14rem; left: .22rem; font-size: calc(.09 * var(--t)); letter-spacing: .2em; opacity: .48; animation: battle-end-copy-in 300ms .48s backwards; }
+.rdialog--battle-end .rdialog__row { width: 100%; justify-content: center; gap: .22rem; animation: none; }
+.rdialog--battle-end .rdialog__row::after { animation: none; }
+.rdialog--battle-end .rdialog__icon-panel { position: relative; display: grid; place-items: center; width: 2.45rem; height: 1.5rem; flex: none; }
+.rdialog--battle-end .rdialog__icon-panel::before, .rdialog--battle-end .rdialog__icon-panel::after { content: ''; position: absolute; top: .25rem; bottom: .25rem; width: .08rem; border: 1px solid var(--rd); opacity: .4; }
+.rdialog--battle-end .rdialog__icon-panel::before { left: .05rem; border-right: 0; }
+.rdialog--battle-end .rdialog__icon-panel::after { right: .05rem; border-left: 0; }
+.rdialog--battle-end .rdialog__icon-mark { position: absolute; width: .13rem; height: .13rem; opacity: .55; background: linear-gradient(var(--rd), var(--rd)) center / 1px 100% no-repeat, linear-gradient(var(--rd), var(--rd)) center / 100% 1px no-repeat; }
+.rdialog--battle-end .rdialog__icon-mark--tl { top: .02rem; left: .04rem; }
+.rdialog--battle-end .rdialog__icon-mark--tr { top: .02rem; right: .04rem; }
+.rdialog--battle-end .rdialog__icon-mark--bl { bottom: .02rem; left: .04rem; }
+.rdialog--battle-end .rdialog__icon-mark--br { bottom: .02rem; right: .04rem; }
+.rdialog--battle-end .rdialog__icon { display: grid; place-items: center; width: 1.98rem; height: 1.26rem; color: var(--rd); filter: drop-shadow(0 0 .1rem var(--rd-glow)); animation: battle-end-glyph-in 360ms .38s cubic-bezier(.16, 1, .3, 1) backwards; }
+.rdialog--battle-end .rdialog__icon svg { width: 100%; height: 100%; }
 .rdialog--battle-end .rdialog__words { display: flex; flex-direction: column; gap: .08rem; min-width: 0; }
 .rdialog--battle-end .rdialog__title { font-size: calc(.46 * var(--t)); letter-spacing: .05em; padding: 0; white-space: nowrap; }
-.rdialog--battle-end .rdialog__sub { color: var(--rd); font-size: calc(.23 * var(--t)); text-align: left; animation: rd-wipe 340ms 300ms ease-out backwards; }
+.rdialog--battle-end .rdialog__title { animation: battle-end-copy-in 400ms .48s ease-out backwards; }
+.rdialog--battle-end .rdialog__sub { color: var(--rd); font-size: calc(.23 * var(--t)); text-align: left; animation: battle-end-sub-in 340ms .72s ease-out backwards; }
+.rdialog--battle-end .rdialog__scan { position: absolute; inset: 0 auto 0 -35%; width: 35%; background: linear-gradient(90deg, transparent, var(--rd-glow), transparent); transform: skewX(-15deg); opacity: 0; animation: battle-end-scan 680ms .28s ease-out both; }
 .rdialog--battle-end.is-leaving .rdialog__box { animation: battle-end-out 300ms ease-in forwards; }
-@keyframes battle-end-in { from { opacity: 0; transform: translateX(2.2rem); clip-path: inset(0 90% 0 0); } to { opacity: 1; transform: translateX(0); clip-path: inset(0 0 0 0); } }
-@keyframes battle-end-out { to { opacity: 0; transform: translateX(-1rem); clip-path: inset(0 0 0 85%); } }
+@keyframes battle-end-in { from { opacity: 0; transform: translateY(.12rem); clip-path: inset(0 49% 0 49%); } to { opacity: 1; transform: translateY(0); clip-path: inset(0); } }
+@keyframes battle-end-glyph-in { from { opacity: 0; transform: scale(.65) rotate(-8deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+@keyframes battle-end-copy-in { from { opacity: 0; transform: translateX(.24rem); clip-path: inset(0 100% 0 0); } to { opacity: 1; transform: translateX(0); clip-path: inset(0); } }
+@keyframes battle-end-sub-in { from { opacity: 0; transform: translateY(.14rem); } to { opacity: 1; transform: translateY(0); } }
+@keyframes battle-end-scan { 0% { left: -35%; opacity: 0; } 20% { opacity: .8; } 100% { left: 115%; opacity: 0; } }
+@keyframes battle-end-out { to { opacity: 0; transform: translateY(-.1rem); clip-path: inset(0 49% 0 49%); } }
 
 .round-intro { position: fixed; inset: 0; z-index: var(--z-banner); display: grid; place-items: center; pointer-events: none; }
-body:has(.round-intro) .gtop__meter .capsule { visibility: hidden; }
 .round-intro__top {
   position: absolute; top: .28rem; left: 50%; transform: translateX(-50%);
   display: grid; place-items: center; width: 2.45rem; height: .58rem;
@@ -815,12 +837,8 @@ body:has(.round-intro) .gtop__meter .capsule { visibility: hidden; }
   animation: round-intro-in 650ms cubic-bezier(.16, 1, .3, 1) both;
 }
 .round-intro__plate > div + div { border-left: 1px solid rgba(114, 184, 164, .35); }
-.round-intro__figure { position: relative; height: 1.3rem; animation: round-intro-figure 650ms .2s ease-out both; }
-.round-intro__figure img { position: absolute; object-fit: contain; image-rendering: auto; }
-.round-intro__figure-head { width: .83rem; height: .65rem; top: .1rem; left: 50%; transform: translateX(-50%); }
-.round-intro__figure-body { width: .48rem; height: .56rem; top: .65rem; left: 49%; transform: translateX(-50%); }
-.round-intro__figure-book { width: .43rem; height: .59rem; top: .64rem; left: 51%; }
-.round-intro__figure-hand { width: .27rem; height: .22rem; top: .67rem; left: 25%; }
+.round-intro__figure { justify-self: center; width: 1.5rem; height: 1.25rem; color: #22bda0; animation: round-intro-figure 650ms .2s ease-out both; }
+.round-intro__figure svg { display: block; width: 100%; height: 100%; }
 .round-intro__round { height: 1.3rem; display: flex; align-items: center; justify-content: center; gap: .12rem; white-space: nowrap; }
 .round-intro__round span, .round-intro__gain span { color: #9caaa5; font-size: calc(.18 * var(--t)); }
 .round-intro__round strong { color: #e5eeeb; font-size: calc(.43 * var(--t)); font-weight: 800; }
@@ -843,9 +861,10 @@ body:has(.round-intro) .gtop__meter .capsule { visibility: hidden; }
 @keyframes round-intro-new { 0%, 28% { opacity: 0; transform: translateY(.28rem); } 65%, 100% { opacity: 1; transform: translateY(0); } }
 @keyframes round-intro-gain { from { opacity: 0; transform: translateX(.3rem); } to { opacity: 1; transform: translateX(0); } }
 @media (max-width: 720px) {
-  .rdialog--battle-end .rdialog__box { height: 1.3rem; padding: .12rem .22rem; }
+  .rdialog--battle-end .rdialog__box { height: 1.55rem; padding: .12rem .22rem; }
   .rdialog--battle-end .rdialog__title { font-size: calc(.35 * var(--t)); }
-  .rdialog--battle-end .rdialog__icon { width: .65rem; height: .65rem; }
+  .rdialog--battle-end .rdialog__icon-panel { width: 1.9rem; height: 1.17rem; }
+  .rdialog--battle-end .rdialog__icon { width: 1.55rem; height: 1rem; }
   .round-intro__plate { height: 1.35rem; }
   .round-intro__round { gap: .06rem; }
   .round-intro__round strong { font-size: calc(.3 * var(--t)); }
@@ -854,12 +873,20 @@ body:has(.round-intro) .gtop__meter .capsule { visibility: hidden; }
 }
 @media (prefers-reduced-motion: reduce) {
   .rdialog--battle-end .rdialog__box, .rdialog--battle-end.is-leaving .rdialog__box,
+  .rdialog--battle-end .rdialog__icon, .rdialog--battle-end .rdialog__title,
+  .rdialog--battle-end .rdialog__sub, .rdialog--battle-end .rdialog__micro,
+  .rdialog--battle-end .rdialog__scan,
   .round-intro__top, .round-intro__top-icons, .round-intro__top::after, .round-intro__plate,
   .round-intro__figure, .round-intro__old, .round-intro__new, .round-intro__gain { animation: none; }
   .round-intro__top-icons { opacity: 0; }
   .round-intro__top::after { opacity: 1; }
   .round-intro.is-leaving { opacity: 0; }
-  body.force-round-motion .rdialog--battle-end .rdialog__box { animation: battle-end-in 540ms cubic-bezier(.16, 1, .3, 1) both !important; }
+  body.force-round-motion .rdialog--battle-end .rdialog__box { animation: battle-end-in 560ms .12s cubic-bezier(.16, 1, .3, 1) both !important; }
+  body.force-round-motion .rdialog--battle-end .rdialog__icon { animation: battle-end-glyph-in 360ms .38s cubic-bezier(.16, 1, .3, 1) backwards !important; }
+  body.force-round-motion .rdialog--battle-end .rdialog__title { animation: battle-end-copy-in 400ms .48s ease-out backwards !important; }
+  body.force-round-motion .rdialog--battle-end .rdialog__sub { animation: battle-end-sub-in 340ms .72s ease-out backwards !important; }
+  body.force-round-motion .rdialog--battle-end .rdialog__micro { animation: battle-end-copy-in 300ms .48s backwards !important; }
+  body.force-round-motion .rdialog--battle-end .rdialog__scan { animation: battle-end-scan 680ms .28s ease-out both !important; }
   body.force-round-motion .rdialog--battle-end.is-leaving .rdialog__box { animation: battle-end-out 300ms ease-in forwards !important; }
   body.force-round-motion .round-intro__top { animation: round-intro-top-in 400ms ease-out both !important; }
   body.force-round-motion .round-intro__top-icons { animation: round-intro-icons 2.7s linear both !important; }
