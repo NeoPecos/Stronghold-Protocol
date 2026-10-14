@@ -1,4 +1,25 @@
 {
+  "_meta": {
+    "type": "lang",
+    "lang": "ja",
+    "name": "日本語",
+    "englishName": "Japanese",
+    "version": "0.2.0",
+    "app": ">=0.2.0",
+    "authors": [
+      "the Stronghold Protocol contributors"
+    ],
+    "credits": "Game texts (data/i18n/ja.json): the official JP client data (© Hypergryph / Yostar) via ArknightsAssets/ArknightsGamedata. Interface strings machine-translated on 2026-10-07 using the official Japanese game terms of the JP client; corrections are welcome on GitHub.",
+    "fallback": [
+      "en"
+    ],
+    "numberUnits": [
+      "万",
+      "億"
+    ],
+    "complete": true,
+    "machineTranslated": true
+  },
   "同盟聊天": "同盟チャット",
   "同盟通讯": "同盟通信",
   "折叠聊天": "チャットを折りたたむ",
@@ -21,30 +42,10 @@
   "总伤害": "総ダメージ",
   "战斗时间：{seconds} 秒": "戦闘時間：{seconds}秒",
   "当前没有可查看的战斗统计": "表示できる戦闘統計がありません",
-  "_meta": {
-    "type": "lang",
-    "lang": "ja",
-    "name": "日本語",
-    "englishName": "Japanese",
-    "version": "0.2.0",
-    "app": ">=0.2.0",
-    "authors": [
-      "the Stronghold Protocol contributors"
-    ],
-    "credits": "Game texts (data/i18n/ja.json): the official JP client data (© Hypergryph / Yostar) via ArknightsAssets/ArknightsGamedata. Interface strings machine-translated on 2026-10-07 using the official Japanese game terms of the JP client; corrections are welcome on GitHub.",
-    "fallback": [
-      "en"
-    ],
-    "numberUnits": [
-      "万",
-      "億"
-    ],
-    "complete": true,
-    "machineTranslated": true
-  },
   "你已在其他同盟中，请先离开当前同盟": "すでに他の同盟に参加しています。先に現在の同盟から退出してください",
   "你已不在该同盟中": "すでにこの同盟のメンバーではありません",
   "创建者已离开，同盟已解散": "ホストが退出したため、同盟は解散しました",
+  "房主长时间未操作，同盟已关闭": "ホストが長時間操作しなかったため、同盟は閉鎖されました",
   "由于长时间断开连接，你已离开同盟": "接続が長時間切れていたため、同盟から退出しました",
   "同盟已解散": "同盟は解散しました",
   "你已被移出同盟": "同盟から除外されました",

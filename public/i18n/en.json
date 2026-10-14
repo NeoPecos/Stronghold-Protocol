@@ -1,4 +1,19 @@
 {
+  "_meta": {
+    "type": "lang",
+    "lang": "en",
+    "name": "English",
+    "englishName": "English",
+    "version": "0.2.0",
+    "app": ">=0.2.0",
+    "authors": [
+      "@YuriRestia (GitHub PR #70, the seed of these strings)",
+      "the Stronghold Protocol contributors"
+    ],
+    "credits": "Game texts (data/i18n/en.json): the official EN client data (© Hypergryph / Yostar) via ArknightsAssets/ArknightsGamedata.",
+    "complete": true
+  },
+  "_about": "English UI strings: Chinese msgid → English (shared/i18n.js t(); docs/I18N.md). Placeholders {name} and {n|one|other} as in the msgid; a 'context::msgid' key is a tc() variant. Seeded from GitHub PR #70 (branch en-translation) by @YuriRestia, reused with credit (NOTICE.md). Game texts are not here: data/i18n/en.json (tools/build-i18n.mjs).",
   "同盟聊天": "Room chat",
   "同盟通讯": "Alliance chat",
   "折叠聊天": "Collapse chat",
@@ -21,21 +36,6 @@
   "总伤害": "Total damage",
   "战斗时间：{seconds} 秒": "Battle time: {seconds}s",
   "当前没有可查看的战斗统计": "No battle statistics available",
-  "_meta": {
-    "type": "lang",
-    "lang": "en",
-    "name": "English",
-    "englishName": "English",
-    "version": "0.2.0",
-    "app": ">=0.2.0",
-    "authors": [
-      "@YuriRestia (GitHub PR #70, the seed of these strings)",
-      "the Stronghold Protocol contributors"
-    ],
-    "credits": "Game texts (data/i18n/en.json): the official EN client data (© Hypergryph / Yostar) via ArknightsAssets/ArknightsGamedata.",
-    "complete": true
-  },
-  "_about": "English UI strings: Chinese msgid → English (shared/i18n.js t(); docs/I18N.md). Placeholders {name} and {n|one|other} as in the msgid; a 'context::msgid' key is a tc() variant. Seeded from GitHub PR #70 (branch en-translation) by @YuriRestia, reused with credit (NOTICE.md). Game texts are not here: data/i18n/en.json (tools/build-i18n.mjs).",
   "你已在其他同盟中，请先离开当前同盟": "You are already in another Alliance. Leave it first.",
   "你已不在该同盟中": "You are no longer in this Alliance",
   "创建者已离开，同盟已解散": "The host left. The Alliance has been disbanded.",
@@ -1315,5 +1315,6 @@
   "搜索干员": "Search operators",
   "不使用头像": "No avatar",
   "头像存在账号里，换设备也跟着你；房间成员、对局队伍和战绩里的其他人也能看到。": "Your avatar is stored on your account, so it follows you to other devices; room members, teammates and match records show it too.",
-  "没有匹配的干员。": "No matching operator."
+  "没有匹配的干员。": "No matching operator.",
+  "房主长时间未操作，同盟已关闭": "The host was away too long. The Alliance has been closed."
 }

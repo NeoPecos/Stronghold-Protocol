@@ -2243,3 +2243,72 @@ describe('platform units', () => {
     assert.equal(reg.size, 0);
   });
 });
+
+// -----------------------------------------------------------------------------------------------------------
+// host away (maintainer 2026-10-14 房主十分钟不在线就直接关房间): sweepHostAway() closes lobby rooms whose
+// host stopped sending input. The scheduler only runs it periodically, so the tests call it directly.
+// -----------------------------------------------------------------------------------------------------------
+describe('lobby host-away sweep', () => {
+  let srv;
+  let pool;
+  const AWAY = 300;
+
+  before(async () => {
+    srv = await startServer({
+      port: 0, host: '127.0.0.1', log: captureLog().log, MatchClass: RecordingMatch, seedFn: () => 123456789,
+      hostAwayMs: AWAY,
+    });
+    pool = clientPool(() => `ws://127.0.0.1:${srv.port}/ws`);
+  });
+  afterEach(async () => { await pool.closeAll(); });
+  after(async () => { await srv?.close(); });
+
+  /** Backdate the host's last input so the sweep reads it as away (user.activity would refresh it). */
+  const goAway = (host) => { srv.lobby.registry.byId(host.id).lastInputAt = Date.now() - AWAY - 50; };
+
+  test('a lobby room whose host went away is closed with room.closed{host_away}', async () => {
+    const host = await pool.player('Host');
+    const st = await createRoom(host);
+    const guest = await pool.player('Guest');
+    await joinRoom(guest, st.code);
+    goAway(host);
+    assert.equal(srv.lobby.sweepHostAway(), 1);
+    assert.equal((await guest.waitFor('room.closed')).reason, 'host_away');
+    assert.equal((await host.waitFor('room.closed')).reason, 'host_away');
+    assert.equal(srv.lobby.getRoom(st.code), null, 'the room is gone from the directory');
+  });
+
+  test('a host that keeps sending input keeps the room', async () => {
+    const host = await pool.player('Host');
+    const st = await createRoom(host);
+    await expectOk(host, { t: 'user.activity' });
+    assert.equal(srv.lobby.sweepHostAway(), 0);
+    await host.expectNone('room.closed');
+    assert.notEqual(srv.lobby.getRoom(st.code), null);
+  });
+
+  test('a room with a running match is left alone even when the host is away', async () => {
+    const host = await pool.player('Host');
+    const st = await createRoom(host);
+    const guest = await pool.player('Guest');
+    await joinRoom(guest, st.code);
+    await expectOk(guest, { t: 'room.ready', ready: true });
+    await expectOk(host, { t: 'room.start' });
+    goAway(host);
+    assert.equal(srv.lobby.sweepHostAway(), 0);
+    await guest.expectNone('room.closed');
+    assert.notEqual(srv.lobby.getRoom(st.code), null);
+  });
+
+  test('hostAwayMs: 0 disables the sweep', async () => {
+    const host = await pool.player('Host');
+    const st = await createRoom(host);
+    const prev = srv.lobby.opts.hostAwayMs;
+    srv.lobby.opts.hostAwayMs = 0;
+    try {
+      goAway(host);
+      assert.equal(srv.lobby.sweepHostAway(), 0);
+      assert.notEqual(srv.lobby.getRoom(st.code), null);
+    } finally { srv.lobby.opts.hostAwayMs = prev; }
+  });
+});

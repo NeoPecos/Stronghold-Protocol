@@ -117,6 +117,7 @@ export const LOBBY_DEFAULTS = Object.freeze({
   roomChat: true,
   matchmaking: true,
   lobbyGraceMs: 60_000,   // disconnected humans keep their lobby seat this long
+  hostAwayMs: 10 * 60_000, // a lobby room whose host sent no input this long is closed (0 = never; sweepHostAway)
   maxRooms: 1000,
   maxRoomsPerAddr: 16,    // rooms created from one client network that may exist at once (0 = unlimited)
   maxMatchesPerAddr: 8,   // matches started from one client network that may run at once (0 = unlimited)
@@ -300,6 +301,11 @@ export class Lobby {
     this.graceTimers = new Map();
     /** @type {Map<string, NodeJS.Timeout>} deferred (coalesced) resyncs by playerId */
     this.resyncTimers = new Map();
+    // rooms whose host walked away are closed by a periodic sweep (a room with no match has no other timer)
+    this.awayTimer = this.opts.hostAwayMs
+      ? setInterval(() => this.sweepHostAway(), Math.max(5_000, Math.min(60_000, this.opts.hostAwayMs / 10)))
+      : null;
+    this.awayTimer?.unref?.();
     /** per-network limit warnings: at most one log line per 10 s (the rest are counted) */
     this.limitLog = { at: -Infinity, suppressed: 0 };
   }
@@ -447,6 +453,7 @@ export class Lobby {
     this.graceTimers.clear();
     for (const t of this.resyncTimers.values()) clearTimeout(t);
     this.resyncTimers.clear();
+    if (this.awayTimer) clearInterval(this.awayTimer);
   }
 
   // ---------------------------------------------------------------------------------------------------
@@ -1230,6 +1237,39 @@ export class Lobby {
     const prev = room.hostId;
     room.hostId = pick ? pick.playerId : null;
     if (pick && prev !== pick.playerId) this.log.info(`[lobby] ${room.code} host → ${pick.name}`);
+  }
+
+  /**
+   * Close lobby rooms whose host walked away (maintainer 2026-10-14: 房主十分钟不在线就直接关房间).
+   *
+   * The host is what holds a lobby room together — only they can start the match (`room.start` is
+   * host-only), so a room whose host is gone can never do anything but sit in the directory. Away means
+   * "no input for `hostAwayMs`": a connected client nobody touches still counts, because `user.activity`
+   * is only sent on real pointer/key input (public/js/main.js) so `lastInputAt` stops advancing.
+   *
+   * A room with a running match is left alone: the match does not need the host to keep playing and
+   * closing it would end the other players' run. Disconnects are not this sweep's business either —
+   * `startGrace` frees a disconnected seat after `lobbyGraceMs`, then the host migrates or the room goes.
+   *
+   * @returns {number} rooms closed
+   */
+  sweepHostAway() {
+    const limit = this.opts.hostAwayMs;
+    if (!limit) return 0;
+    const now = this.now();
+    let closed = 0;
+    for (const room of [...this.rooms.values()]) {
+      if (room.disposed || room.match) continue;
+      const session = this.registry.byId(room.hostId);
+      if (session && session.roomCode !== room.code) continue; // the host already moved on
+      const since = session?.lastInputAt ?? room.createdAt;
+      if (now - since < limit) continue;
+      if (session) session.notice = 'host_away';
+      this.log.info(`[lobby] ${room.code} closed: host away ${Math.round((now - since) / 1000)}s`);
+      this.disposeRoom(room, 'host_away');
+      closed += 1;
+    }
+    return closed;
   }
 
   startGrace(room, seat) {
