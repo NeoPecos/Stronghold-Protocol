@@ -750,24 +750,10 @@ export function AvatarFrame({ name = '', src, size = 'md', seat = 0, host, bot, 
   </div>`;
 }
 
-/** Adds `name` to <body> while `active` (`:has()` is banned — see test/client-static.test.js). */
-function useBodyClass(name, active = true) {
-  useEffect(() => {
-    if (!active) return undefined;
-    document.body.classList.add(name);
-    return () => document.body.classList.remove(name);
-  }, [name, active]);
-}
-
 // ---- PhaseBanner -------------------------------------------------------------------------------
 
 /**
  * Chevron phase banner (full-width strip that wipes in horizontally).
- *
- * In `overlay` mode the banner owns the top-bar capsule slot while it plays (`body.is-banner-up` hides
- * the capsule), and on exit it *docks* into that slot: measured against the live capsule, then scaled and
- * translated onto it (`.pbanner__band.is-docking`, see css/components.css) so the big banner becomes the
- * small capsule instead of vanishing next to a second copy of the same words.
  * @param {{ title: any, sub?: any, micro?: string, tone?: 'mint'|'orange'|'red'|'gold'|'ice', mode?: 'overlay'|'inline',
  *   duration?: number, onDone?: Function, class?: string }} props
  *   mode 'overlay' = fixed over the screen; duration (ms) > 0 auto-hides then calls onDone. Re-key to replay.
@@ -775,32 +761,15 @@ function useBodyClass(name, active = true) {
 export function PhaseBanner({ title, sub, micro, tone = 'mint', mode = 'inline', duration = 0, onDone, class: cls }) {
   const [leaving, setLeaving] = useState(false);
   const [gone, setGone] = useState(false);
-  const bandRef = useRef(null);
-  // The capsule stands down only while the banner is holding — once it starts docking the capsule is back,
-  // so the banner lands on the real thing.
-  useBodyClass('is-banner-up', mode === 'overlay' && !gone && !leaving);
   useEffect(() => {
     if (!(duration > 0)) return undefined;
     const t1 = setTimeout(() => setLeaving(true), duration);
     const t2 = setTimeout(() => { setGone(true); onDone?.(); }, duration + 260);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [duration]);
-  useLayoutEffect(() => {
-    if (!leaving || mode !== 'overlay') return;
-    const band = bandRef.current;
-    const capsule = document.querySelector('.gtop__meter .capsule') || document.querySelector('.capsule');
-    if (!band || !capsule || !band.getBoundingClientRect) return;
-    const from = band.getBoundingClientRect();
-    const to = capsule.getBoundingClientRect();
-    if (!from.width || !to.width) return;
-    band.style.setProperty('--dock-x', `${Math.round(to.left + to.width / 2 - (from.left + from.width / 2))}px`);
-    band.style.setProperty('--dock-y', `${Math.round(to.top + to.height / 2 - (from.top + from.height / 2))}px`);
-    band.style.setProperty('--dock-s', (to.width / from.width).toFixed(4));
-    band.classList.add('is-docking');
-  }, [leaving, mode]);
   if (gone) return null;
   return html`<div class=${cx('pbanner', `pbanner--${tone}`, `pbanner--${mode}`, leaving && 'is-leaving', cls)} role="status" aria-live="polite">
-    <div class="pbanner__band" ref=${bandRef}>
+    <div class="pbanner__band">
       <${Chevrons} count=${4} tone=${tone} class="pbanner__chev pbanner__chev--l" />
       <div class="pbanner__text">
         ${micro ? html`<span class="pbanner__micro">${micro}</span>` : null}
@@ -815,8 +784,6 @@ export function PhaseBanner({ title, sub, micro, tone = 'mint', mode = 'inline',
 export function UniteIntro({ title, sub, duration = 3400, onDone }) {
   const [leaving, setLeaving] = useState(false);
   const [gone, setGone] = useState(false);
-  // The intro draws its own strip in the capsule slot (`.unite-intro__top`), so the capsule stands down.
-  useBodyClass('is-banner-up', !gone);
   useEffect(() => {
     const hideTimer = setTimeout(() => setLeaving(true), duration);
     const doneTimer = setTimeout(() => { setGone(true); onDone?.(); }, duration + 360);
@@ -888,8 +855,6 @@ export function ResultDialog({ title, sub, micro, tone = 'mint', duration = 2800
 export function RoundStartIntro({ round, gain, duration = 2400, onDone }) {
   const [leaving, setLeaving] = useState(false);
   const [gone, setGone] = useState(false);
-  // Same as UniteIntro: the round intro's strip occupies the capsule slot while it plays.
-  useBodyClass('is-banner-up', !gone);
   useEffect(() => {
     const hideTimer = setTimeout(() => setLeaving(true), duration);
     const doneTimer = setTimeout(() => { setGone(true); onDone?.(); }, duration + 300);

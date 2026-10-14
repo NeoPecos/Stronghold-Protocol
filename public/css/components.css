@@ -694,14 +694,6 @@
   transform-origin: center;
   animation: pb-open var(--t-med) var(--ease-out) backwards;
 }
-/* Exit: the banner shrinks onto the top-bar capsule (geometry measured by PhaseBanner in ui/components.js),
-   so the big words hand the slot over to the small capsule instead of the two swapping abruptly. */
-.pbanner__band.is-docking {
-  animation: none;
-  transition: transform 220ms var(--ease-out), opacity 200ms var(--ease-out);
-  transform: translate(var(--dock-x, 0px), var(--dock-y, 0px)) scale(var(--dock-s, 1));
-  opacity: 0;
-}
 .pbanner__band::before, .pbanner__band::after {
   content: '';
   position: absolute;

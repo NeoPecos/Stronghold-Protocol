@@ -731,10 +731,7 @@
 .gm.is-pen .gm__bonds > *, .gm.is-pen .gm__effects > *, .gm.is-pen .gm__bonds .bslot, .gm.is-pen .gm__bonds .bstrip__more { pointer-events: none; }
 
 .unite-intro { position: fixed; inset: 0; z-index: var(--z-banner); display: grid; place-items: center; pointer-events: none; }
-/* A full-width intro / phase banner owns the top-bar capsule slot while it plays: the screens add
-   `is-banner-up` to <body> (`:has()` is banned in this client — Firefox ESR 115 / Safari < 15.4),
-   and the phase banner then docks into that slot on exit (see css/components.css). */
-body.is-banner-up .gtop__meter .capsule { visibility: hidden; }
+body:has(.unite-intro) .gtop__meter .capsule { visibility: hidden; }
 .unite-intro__top {
   position: absolute; top: .28rem; left: 50%; transform: translateX(-50%);
   display: grid; place-items: center; width: 2.2rem; height: .58rem;
@@ -814,6 +811,7 @@ body.is-banner-up .gtop__meter .capsule { visibility: hidden; }
 @keyframes battle-end-out { to { opacity: 0; transform: translateY(-.1rem); clip-path: inset(0 49% 0 49%); } }
 
 .round-intro { position: fixed; inset: 0; z-index: var(--z-banner); display: grid; place-items: center; pointer-events: none; }
+body:has(.round-intro) .gtop__meter .capsule { visibility: hidden; }
 .round-intro__top {
   position: absolute; top: .28rem; left: 50%; transform: translateX(-50%);
   display: grid; place-items: center; width: 2.45rem; height: .58rem;
