@@ -1,6 +1,6 @@
 # TASK-059 — Consolidate and push unreleased source
 
-Status: `in_progress`
+Status: `review_ready` (source Git checkpoint only; gameplay tasks remain pending validation)
 
 Owner: Codex
 
@@ -31,9 +31,10 @@ Preserve and reconcile all existing source work and the four local commits, then
 
 ## Checkpoint
 
-- The 0.2.6 merge was still in progress (`MERGE_HEAD` pointed at upstream `v0.2.6`). Its resolved index was committed as `7d531227`; the previously unstaged task work was left untouched.
-- The four local commits add the spectator switch, a ten-minute host-away room close, an experimental phase-banner dock and its revert. Their spectator/host-away behavior is already present in the current dirty tree; merging the branch must not undo the present UI.
-- No project tests or build were run. Next: record and commit the remaining dirty source, merge the local branch with conflict review, then push only the Git branch and update this checkpoint.
+- The unfinished upstream 0.2.6 merge became `7d531227`; the remaining local TASK-039–058 source and documentation became the explicit pending-validation checkpoint `59d56666`.
+- The four other-checkout commits add the spectator switch, ten-minute host-away close, experimental phase-banner dock and its revert. The current source already contains the first two behaviors with newer names and UI. A normal merge conflicted on those differing APIs and UI; merge `cb18947a` includes all four commits by ancestry while deliberately retaining the current source snapshot. The older branch variants, docs and tests were not copied over the newer implementation.
+- `git push origin HEAD:refs/heads/integrate-upstream-0.2.3` succeeded to `cb18947a`. The other checkout still has uncommitted edits and its local branch remains at `ef35dfe9`; it was not touched.
+- No project tests, build, screenshot or gameplay verification were run. No deployment, service restart, package update or version bump occurred. TASK-045/052/054/057/058 remain pending maintainer validation before release.
 
 ## Rollback
 
