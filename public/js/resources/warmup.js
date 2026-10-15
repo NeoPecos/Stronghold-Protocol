@@ -1,6 +1,6 @@
 import { createPreloader } from './preload.js';
 import { assets, spinePages } from '../assets.js';
-import { getChess } from '../data.js';
+import { data, getChess } from '../data.js';
 import { loadPref } from '../store.js';
 import { groupImages, sceneGroup } from '../render/board3d/load.js';
 import { themeForStage } from '../render/board3d/theme.js';
@@ -53,7 +53,7 @@ export function installResourceWarmup(store) {
     if (!state.room) { preloader.cancel(); lastKey = ''; return; }
     if (globalThis.navigator?.connection?.saveData || loadPref('resourceWarmup', true) === false) return;
     timer = setTimeout(async () => {
-      await Promise.all([assets.ready(), assets.local()]);
+      await Promise.all([assets.ready(), assets.local(), data.load('chess')]);
       if (request !== generation) return;
       const urls = warmupUrls(store.get());
       const key = urls.join('|');

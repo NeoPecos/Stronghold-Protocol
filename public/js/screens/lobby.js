@@ -12,6 +12,7 @@
 // config.json mode texts come localized from data.js.
 
 import { ResumeMatchButton } from '../ui/resumeMatch.js';
+import { BrowserPrecacheButton } from '../resources/browserPrecacheButton.js';
 import { QuickMatch } from '../ui/matchmaking.js';
 import { useEffect, useRef, useState } from '../../vendor/hooks.module.js';
 import { DIFFICULTIES, DIFFICULTY_NAMES, DIFFICULTY_COLORS, ROOM_CODE_LEN, MAX_SEATS, MAX_SPECTATORS, modeIdFor, ERR } from '../../../shared/constants.js';
@@ -453,6 +454,7 @@ export function LobbyScreen() {
             ${online
               ? html`<span>${roomMode === 'solo' ? t('创建后即可开始模拟') : t('创建后可邀请好友或添加 AI 队友')}</span>`
               : html`<${Spinner} size="sm" label="CONNECTING" />`}
+            <${BrowserPrecacheButton} />
           </div>
         </div>
         <${TipsPanel} />

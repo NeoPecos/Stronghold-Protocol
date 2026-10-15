@@ -85,14 +85,14 @@ describe('浏览器公告（真浏览器）', { skip: !ENABLED && 'set SP_E2E=1 
 
   const noticeText = (page) => page.evaluate(() => document.getElementById('distribution-notice')?.textContent.replace(/\s+/g, ' ').trim() ?? '');
 
-  test('浏览器用户：看到公告，文案含「不再支持」与群号', async () => {
+  test('浏览器用户：看到公告，文案含「已恢复」与群号', async () => {
     const { page, errors } = await open(UA_BROWSER);
     try {
       await waitNoticeShown(page);
       assert.equal(await noticeVisible(page), true, '浏览器用户必须看到公告');
       const text = await noticeText(page);
-      assert.match(text, /带宽/, `公告应说明带宽原因，实际：${text}`);
-      assert.match(text, /不再支持/, `公告应说明不再支持，实际：${text}`);
+      assert.match(text, /已恢复/, `公告应说明网页版已恢复，实际：${text}`);
+      assert.match(text, /浏览器/, `公告应说明可直接在浏览器游玩，实际：${text}`);
       assert.match(text, /1124360673/, '公告应含 QQ 群号');
       assert.match(text, /客户端/, '公告应引导下载客户端');
       assert.deepEqual(errors, [], `页面不应有 JS 错误：${errors.join(' | ')}`);

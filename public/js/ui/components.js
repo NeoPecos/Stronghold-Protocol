@@ -826,9 +826,25 @@ export function ResultDialog({ title, sub, micro, tone = 'mint', duration = 2800
   if (gone) return null;
   return html`<div class=${cx('rdialog', 'rdialog--battle-end', `rdialog--${tone}`, leaving && 'is-leaving')} role="status" aria-live="polite">
     <div class="rdialog__box">
+      <span class="rdialog__scan" aria-hidden="true"></span>
+      <span class="rdialog__tick rdialog__tick--tl" aria-hidden="true"></span>
+      <span class="rdialog__tick rdialog__tick--tr" aria-hidden="true"></span>
+      <span class="rdialog__tick rdialog__tick--bl" aria-hidden="true"></span>
+      <span class="rdialog__tick rdialog__tick--br" aria-hidden="true"></span>
       ${micro ? html`<span class="rdialog__micro">${micro}</span>` : null}
       <div class="rdialog__row">
-        <img class="rdialog__icon" src="/assets/ui/hudPanel/icon_battle.png" alt="" />
+        <span class="rdialog__icon-panel" aria-hidden="true">
+          <span class="rdialog__icon-mark rdialog__icon-mark--tl"></span><span class="rdialog__icon-mark rdialog__icon-mark--tr"></span>
+          <span class="rdialog__icon-mark rdialog__icon-mark--bl"></span><span class="rdialog__icon-mark rdialog__icon-mark--br"></span>
+          <span class="rdialog__icon"><svg viewBox="0 0 180 115" fill="none">
+            <path d="M17 22h55l9 9v55l-9 9H17l-9-9V31z" fill="currentColor"/>
+            <path d="m27 49 12 12-12 12m44-24L59 61l12 12" stroke="#09231d" stroke-width="8" stroke-linecap="square" stroke-linejoin="bevel"/>
+            <path d="M30 79h35l-8 9H38z" fill="#09231d"/>
+            <path d="m111 70 44-53c5-6 14 1 9 7l-44 52" stroke="currentColor" stroke-width="13" stroke-linecap="square"/>
+            <path d="m96 57 30 29M107 73 94 87" stroke="currentColor" stroke-width="12" stroke-linecap="square"/>
+            <path d="M105 13v9m17-15-7 9m-25 4 9 3" stroke="currentColor" stroke-width="5" stroke-linecap="square"/>
+          </svg></span>
+        </span>
         <span class="rdialog__words"><span class="rdialog__title">${title}</span>
           ${sub ? html`<span class="rdialog__sub">${sub}</span>` : null}</span>
       </div>
@@ -851,12 +867,15 @@ export function RoundStartIntro({ round, gain, duration = 2400, onDone }) {
       <span class="round-intro__top-icons"><img src=${asset('round_emoji_head')} alt="" /><img src=${asset('round_emoji_body')} alt="" /></span>
     </div>
     <div class="round-intro__plate">
-      <div class="round-intro__figure" aria-hidden="true">
-        <img class="round-intro__figure-head" src=${asset('round_emoji_head')} alt="" />
-        <img class="round-intro__figure-body" src=${asset('round_emoji_body')} alt="" />
-        <img class="round-intro__figure-book" src=${asset('round_emoji_book')} alt="" />
-        <img class="round-intro__figure-hand" src=${asset('round_emoji_hand')} alt="" />
-      </div>
+      <div class="round-intro__figure" aria-hidden="true"><svg viewBox="0 0 170 150" fill="none">
+        <path d="M69 98h43v28H69zM70 121h16v22H70zM97 121h16v22H97z" fill="currentColor"/>
+        <path d="M46 26h71l11 11v57l-11 11H46L35 94V37z" fill="currentColor"/>
+        <path d="M66 61h12v12H66zM97 61h12v12H97z" fill="#0a302b"/>
+        <path d="m16 84 41-8 10 58-42 9z" fill="currentColor" stroke="#0a302b" stroke-width="5" stroke-linejoin="bevel"/>
+        <path d="m18 85 29-5 9 48" stroke="#0a302b" stroke-width="4"/>
+        <path d="m126 98 30 9-5 17-27-9z" fill="currentColor"/>
+        <path d="M19 39h7v7h-7zM31 18h8v8h-8zM140 25h8v8h-8zM153 49h7v7h-7z" fill="currentColor"/>
+      </svg></div>
       <div class="round-intro__round"><span>${t('回合')}</span>
         <strong class="round-intro__old">${String(Math.max(0, round - 1)).padStart(2, '0')}</strong>
         <i aria-hidden="true">›</i><strong class="round-intro__new">${String(round).padStart(2, '0')}</strong>

@@ -817,8 +817,11 @@ function replayUniteIntro() {
 function replayRoundTransition() {
   const replay = ++roundReplay;
   document.body.classList.add('force-round-motion');
-  setPhase(PHASE.SETTLE, 'unite');
-  pushPublic();
+  setPhase(PHASE.COMBAT);
+  setTimeout(() => {
+    if (roundReplay !== replay) return;
+    setPhase(PHASE.SETTLE, 'unite');
+  }, 120);
   setTimeout(() => {
     if (roundReplay !== replay) return;
     stopBattle();

@@ -6,7 +6,7 @@ export function createPreloader({ fetch: fetcher = (...args) => globalThis.fetch
   return {
     get status() { return { ...latest }; },
     cancel() { controller?.abort(); },
-    async run(urls) {
+    async run(urls, onProgress) {
       controller?.abort();
       const batch = controller = new AbortController();
       const list = [...new Set(urls.filter(url => typeof url === 'string' && url))]
@@ -39,8 +39,14 @@ export function createPreloader({ fetch: fetcher = (...args) => globalThis.fetch
               completed.add(url);
               while (completed.size > 256) completed.delete(completed.values().next().value);
               progress.done++;
+              try { onProgress?.({ ...progress }); } catch {}
             }
-          } catch { progress.failed++; }
+          } catch {
+            if (!batch.signal.aborted) {
+              progress.failed++;
+              try { onProgress?.({ ...progress }); } catch {}
+            }
+          }
           finally {
             clearTimeout(timeout);
             batch.signal.removeEventListener('abort', abort);

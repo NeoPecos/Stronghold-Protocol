@@ -289,7 +289,10 @@
 /* ---- create ------------------------------------------------------------------------------------------ */
 .create-box { margin-top: .2rem; display: flex; flex-direction: column; gap: .08rem; }
 .create-box .btn--xl { height: .92rem; font-size: calc(.32 * var(--t)); letter-spacing: .3em; }
-.create-box__hint { display: flex; align-items: center; justify-content: center; min-height: .3rem; font-size: calc(.14 * var(--t)); color: var(--text-lo); }
+.create-box__hint { display: flex; align-items: center; justify-content: center; gap: .1rem; min-height: .3rem; font-size: calc(.14 * var(--t)); color: var(--text-lo); }
+.create-box__hint > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browser-precache { flex: none; border: 0; border-bottom: 1px solid currentColor; padding: 0; background: none; color: var(--mint-500); font: inherit; white-space: nowrap; cursor: pointer; }
+.browser-precache:disabled { opacity: .72; cursor: default; }
 
 /* ---- short viewports: compress the column, hide nothing ----------------------------------------------------------
    The root font size scales with the viewport (theme.css: `clamp(40px, min(100vw / 19.2, 100vh / 10.8), 240px)`), so

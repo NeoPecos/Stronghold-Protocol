@@ -18,6 +18,7 @@ import {
 } from '../../public/js/ui/gameLogic.js';
 import { PHASE, GEO } from '../../shared/constants.js';
 import { setLang, setMessages } from '../../shared/i18n.js';
+import { canvasPixelRatio } from '../../public/js/ui/gameLogic/settings.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const load = (f) => JSON.parse(readFileSync(path.join(ROOT, 'data', f), 'utf8'));
@@ -723,7 +724,7 @@ describe('keyboard & settings', () => {
   test('sanitizeSettings', () => {
     assert.deepEqual(sanitizeSettings(null), { ...DEFAULT_SETTINGS });
     assert.deepEqual(sanitizeSettings({ bgm: 3, sfx: -1, voice: 2, muted: 'yes', damageNumbers: false, quality: 'ultra' }),
-      { bgm: 1, sfx: 0, voice: 1, voiceLang: 'cn', resolution: 'auto', voiceOverrides: {}, muted: false, damageNumbers: false, officialDamageNumbers: false, keepSignedIn: true, quality: 'high', textSize: 'sm', keys: { ...DEFAULT_SETTINGS.keys } },
+      { bgm: 1, sfx: 0, voice: 1, voiceLang: 'cn', resolution: 'auto', voiceOverrides: {}, muted: false, damageNumbers: false, officialDamageNumbers: false, ammoCount: false, keepSignedIn: true, quality: 'high', textSize: 'sm', keys: { ...DEFAULT_SETTINGS.keys } },
       'a saved profile without `keys` (before 0.2.0) gets the default key map (test/ui/feedback5-hotkeys.test.js)');
     assert.equal(sanitizeSettings({ bgm: 0.5 }).voice, DEFAULT_SETTINGS.voice, 'a saved profile without `voice` gets the default');
     // 语音语言 (0.2.2): 中文 by default — a profile saved before it, or any other value, plays the Chinese dub
@@ -751,13 +752,11 @@ describe('keyboard & settings', () => {
     assert.equal(resolutionCap('nope'), null, 'an unknown value is treated as auto, never as a low cap');
     assert.equal(resolutionCap(undefined), null);
     assert.deepEqual(RESOLUTION_MODES, ['auto', '720p', '1080p', '1440p', 'native']);
-    // monotonic: a higher mode never asks for fewer pixels
-    const caps = RESOLUTION_MODES.filter((m) => m !== 'auto').map((m) => resolutionCap(m));
+    const caps = ['720p', '1080p', '1440p'].map((m) => resolutionCap(m));
     for (let i = 1; i < caps.length; i++) assert.ok(caps[i] >= caps[i - 1], `${RESOLUTION_MODES[i + 1]} >= ${RESOLUTION_MODES[i]}`);
     assert.equal(resolutionCap('720p'), 1);
-    assert.equal(resolutionCap('native'), 2);
-    // the 3D board is fill-bound (the PBR board): its own cap never exceeds the sprite cap and stays below it mid-range
-    for (const m of RESOLUTION_MODES) {
+    assert.equal(resolutionCap('native'), 'device');
+    for (const m of RESOLUTION_MODES.filter((mode) => mode !== 'native')) {
       const sprite = resolutionCap(m);
       const board = boardResolutionCap(m);
       if (sprite == null) { assert.equal(board, null, m); continue; }
@@ -766,12 +765,42 @@ describe('keyboard & settings', () => {
     }
     assert.equal(boardResolutionCap('720p'), 1);
     assert.equal(boardResolutionCap('1080p'), 1.25);
-    assert.equal(boardResolutionCap('native'), 2);
+    assert.equal(boardResolutionCap('native'), 'device');
     // sanitising: only the listed modes survive; anything else falls back to auto
     for (const bad of ['4k', '', null, 2, {}, []]) {
       assert.equal(sanitizeSettings({ resolution: bad }).resolution, 'auto', JSON.stringify(bad));
     }
     for (const m of RESOLUTION_MODES) assert.equal(sanitizeSettings({ resolution: m }).resolution, m, m);
+  });
+
+  test('native follows DPR under separate field and board pixel budgets', () => {
+    const fieldBudget = 3_700_000;
+    const boardBudget = 2_100_000;
+    for (const [width, height] of [[385, 320], [1024, 768], [1920, 1080], [3840, 2160]]) {
+      for (const deviceRatio of [1, 2, 3, 4]) {
+        const field = canvasPixelRatio(width, height, deviceRatio, resolutionCap('native'), fieldBudget);
+        const board = canvasPixelRatio(width, height, deviceRatio, boardResolutionCap('native'), boardBudget);
+        assert.equal(field, Math.min(deviceRatio, Math.sqrt(fieldBudget / (width * height))));
+        assert.equal(board, Math.min(deviceRatio, Math.sqrt(boardBudget / (width * height))));
+        assert.ok(board <= field);
+        assert.ok(field * field * width * height <= fieldBudget + 0.001);
+        assert.ok(board * board * width * height <= boardBudget + 0.001);
+      }
+    }
+    assert.equal(canvasPixelRatio(385, 320, 3, resolutionCap('native'), fieldBudget), 3);
+    assert.equal(canvasPixelRatio(385, 320, 3, boardResolutionCap('native'), boardBudget), 3);
+  });
+
+  test('fixed modes and auto quality caps remain unchanged at DPR 3', () => {
+    const area = [385, 320];
+    for (const [mode, fieldCap, boardCap] of [['720p', 1, 1], ['1080p', 1.5, 1.25], ['1440p', 2, 2]]) {
+      assert.equal(canvasPixelRatio(...area, 3, resolutionCap(mode), 3_700_000), fieldCap);
+      assert.equal(canvasPixelRatio(...area, 3, boardResolutionCap(mode), 2_100_000), boardCap);
+    }
+    for (const [quality, fieldCap, boardCap] of [['high', 2, 2], ['medium', 1.5, 1.25], ['low', 1, 1]]) {
+      assert.equal(canvasPixelRatio(...area, 3, resolutionCap('auto') ?? fieldCap, 3_700_000), fieldCap, quality);
+      assert.equal(canvasPixelRatio(...area, 3, boardResolutionCap('auto') ?? boardCap, 2_100_000), boardCap, quality);
+    }
   });
 });
 
@@ -801,18 +830,20 @@ describe('prepCamera (research 09 §1.2: the Final Assault prep on the own half 
     assert.equal(prepCamera(null, 'a').kind, 'prep');
     assert.equal(prepCamera({ round: 14, bossRound: null, hiddenRound: null, players: [] }, 'a').kind, 'prep');
   });
-  test('boss / hidden round prep: bossPrep on the side of the server pairing (alive players by seat, two by two)', () => {
+  test('older servers without bossPairs keep the legacy seat-order prep camera fallback', () => {
     const players = [pl('d', 3), pl('a', 0), pl('c', 2), pl('b', 1)];
     for (const round of [14, 15]) {
       const sides = Object.fromEntries(players.map((p) => [p.playerId, prepCamera(pub(round, players), p.playerId)]));
       assert.deepEqual(Object.fromEntries(Object.entries(sides).map(([k, v]) => [k, `${v.kind}:${v.opts.side}`])),
         { a: 'bossPrep:L', b: 'bossPrep:R', c: 'bossPrep:L', d: 'bossPrep:R' });
     }
-    // somebody left (eliminated): the pairs close up exactly like the server's (Match._quit re-plans the boss waves)
+    // Legacy servers closed the ordered pairs up when somebody left; new servers publish bossPairs explicitly.
     const left = [pl('a', 0), pl('b', 1, false), pl('c', 2), pl('d', 3)];
     const groups = [['a', 'c'], ['d']];
     const paired = { ...pub(14, left), bossPairs: groups };
     for (const g of groups) g.forEach((id, j) => assert.equal(prepCamera(paired, id).opts.side, j === 1 ? 'R' : 'L', id));
+    const legacyGroups = [[left[0], left[2]], [left[3]]];
+    for (const g of legacyGroups) g.forEach((player, index) => assert.equal(prepCamera(pub(14, left), player.playerId).opts.side, index === 1 ? 'R' : 'L', player.playerId));
     assert.equal(prepCamera(pub(14, left), 'c').opts.side, 'R', 'c moves up to the right half');
     assert.equal(prepCamera(pub(14, left), 'b').kind, 'prep', 'an eliminated player has no half');
     // solo / a lone last player: the left half

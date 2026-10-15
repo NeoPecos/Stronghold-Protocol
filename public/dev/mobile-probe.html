@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mobile probe · TASK-008</title>
+<title>Mobile probe · TASK-008/023</title>
 <!--
   TASK-008 mobile/adaptation probe (dev only, never packaged — tools/package.mjs excludes public/dev/).
 
@@ -42,10 +42,10 @@
 </head>
 <body>
 <header>
-  <b>手机适配探查 · TASK-008</b>
+  <b>手机适配探查 · TASK-008/023</b>
   <button id="btnLoad" class="primary" type="button">① 载入游戏（iframe）</button>
   <button id="btnMatch" class="primary" type="button">② 载入对局页（COMBAT）</button>
-  <button id="btnMeasure" class="primary" type="button">③ 测量</button>
+  <button id="btnMeasure" class="primary" type="button">③ 测量（含帧间隔）</button>
   <button id="btnRotate" type="button">④ 旋转测试（转横屏）</button>
   <button id="btnCopy" type="button">⑤ 复制结果</button>
   <span id="status">就绪</span>
@@ -93,6 +93,7 @@ function canvasInfo(win) {
   return [...win.document.querySelectorAll('canvas')].map((c) => {
     const r = c.getBoundingClientRect();
     const cs = win.getComputedStyle(c);
+    const deviceRatio = win.devicePixelRatio || 1;
     return {
       id: c.id || c.className || '(canvas)',
       back: [c.width, c.height],
@@ -101,8 +102,36 @@ function canvasInfo(win) {
       transform: cs.transform,
       imageRendering: cs.imageRendering,
       // the number that matters: backing store vs what the screen is asked to show
-      ratio: r.width > 0 ? +(c.width / (r.width * win.devicePixelRatio)).toFixed(3) : null,
+      ratio: r.width > 0 ? +(c.width / (r.width * deviceRatio)).toFixed(3) : null,
+      ratioY: r.height > 0 ? +(c.height / (r.height * deviceRatio)).toFixed(3) : null,
+      pixels: c.width * c.height,
     };
+  });
+}
+
+function sampleFramePacing(win, durationMs = 2000) {
+  return new Promise((resolve) => {
+    const intervals = [];
+    const start = win.performance.now();
+    let previous = null;
+    let request = 0;
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      win.cancelAnimationFrame(request);
+      clearTimeout(timeout);
+      resolve({ samples: intervals.length, averageMs: intervals.length ? +(intervals.reduce((sum, ms) => sum + ms, 0) / intervals.length).toFixed(2) : null,
+        worstMs: intervals.length ? +Math.max(...intervals).toFixed(2) : null });
+    };
+    const timeout = setTimeout(finish, durationMs + 1500);
+    const tick = (time) => {
+      if (previous != null) intervals.push(time - previous);
+      previous = time;
+      if (time - start >= durationMs) finish();
+      else request = win.requestAnimationFrame(tick);
+    };
+    request = win.requestAnimationFrame(tick);
   });
 }
 
@@ -192,10 +221,11 @@ function render(last) {
       inner: inner.inner, doc: inner.doc, visualViewport: inner.visualViewport, dpr: inner.dpr,
       safeArea: inner.safeArea, cssVars: inner.cssVars, htmlClasses: inner.htmlClasses,
       prefs: inner.prefs, nativeClient: inner.nativeClient, fullscreen: inner.fullscreen,
+      framePacing: inner.framePacing || '未测量',
     });
     for (const cv of inner.canvases) {
       const cls = cv.ratio == null ? '' : (cv.ratio < 0.95 ? 'bad' : 'ok');
-      c(`canvas ${cv.id}`, `back=${cv.back} css=${cv.css} dpr=${inner.dpr} → 后备/CSS·dpr = ${cv.ratio}${cv.ratio != null && cv.ratio < 0.95 ? '  ← 被放大，会发虚' : ''}`, cls);
+      c(`canvas ${cv.id}`, `back=${cv.back} css=${cv.css} pixels=${cv.pixels} dpr=${inner.dpr} → 横/纵后备比 = ${cv.ratio}/${cv.ratioY}${cv.ratio != null && cv.ratio < 0.95 ? '  ← 被放大，会发虚' : ''}`, cls);
     }
     for (const im of inner.images.slice(0, 8)) c(`img ${im.src}`, `natural=${im.natural} css=${im.css}`);
   } else {
@@ -209,8 +239,14 @@ S('btnLoad').onclick = () => loadGame('/');
 
 S('btnMatch').onclick = () => loadGame('/dev/game-mock.html?phase=COMBAT&render=engine');
 
-S('btnMeasure').onclick = () => {
+S('btnMeasure').onclick = async () => {
   last = grab();
+  const win = frame()?.contentWindow;
+  if (win && last.game && !last.game.error) {
+    S('status').textContent = '采样帧间隔中…';
+    last.game.framePacing = await sampleFramePacing(win);
+    last.game.canvasesAfterSample = canvasInfo(win);
+  }
   render(last);
   S('status').textContent = '测量完成';
 };

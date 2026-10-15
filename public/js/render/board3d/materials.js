@@ -349,11 +349,12 @@ export function smogMaterial(THREE, tex, focus) {
  * not reproduced: the albedo is lit by the baked indirect light of the scene's lightmap plus the scene's key light
  * masked by its baked shadow, in linear light (Unity's Shadowmask lighting mode). `range` — the linear light a lightmap
  * texel of 1.0 stands for when scene.json has no lightRange; [ASSUMED] `ambient` — the light of a mesh without a
- * lightmap page; `direct` / `indirect` — gains of the two terms (1 = the scene's own values); `warmth` — the
- * per-channel colour temperature of the light ([1,1,1] neutral, [0.80,0.90,1.16] cool, [1.16,0.95,0.80] warm).
+ * lightmap page; `direct` / `indirect` — gains of the two terms, both 1: the scene's own values (the key light's
+ * `light.intensity`, and the lightmap's baked linear light, whose texel is (L / lightRange)^(1/2.2)). Anything below 1
+ * darkens the board against the official render — 0.2.5 had 0.8 / 0.4 tuned by eye (GitHub #549, PR #554 by @xcdoge).
+ * `warmth` is a neutral colour-temperature control retained for the fork's dev tuning panel.
  */
-// Mutable so the dev tuning panel (public/dev/render-demo.html) can tune it live; the game never writes it.
-export const SCENE_LIGHT = { range: 8.0, ambient: 2.24, direct: 1.122, indirect: 1.584, warmth: [0.932, 0.966, 1.054] };
+export const SCENE_LIGHT = { range: 8.0, ambient: 0.2, direct: 1, indirect: 1, warmth: [1, 1, 1] };
 
 const colorOf = (info, key, fallback = [1, 1, 1, 1]) => {
   const c = info && info.colors && Array.isArray(info.colors[key]) ? info.colors[key] : fallback;
