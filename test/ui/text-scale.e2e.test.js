@@ -86,9 +86,7 @@ describe('文字大小 on a phone (headless Chrome)', { skip: !ENABLED && 'set S
 
   test('the steps grow the readable text; the layout root and the modal box do not move', async () => {
     const { page, problems } = await open(`${base}/`, null, { seed: false });
-    // 全屏浏览器公告默认弹出（ui/notice.js），会盖住整屏拦截点击：先关掉再操作标题页。
-      await page.evaluate(() => document.querySelector('[data-notice-dismiss]')?.click());
-      await page.waitForSelector('input', { timeout: 15000 });
+    await page.waitForSelector('input', { timeout: 15000 });
     await page.type('input', '文字大小');
     // the title screen now DEFAULTS to 登录 (owner request, 2026-10-11): a test that types a fresh
     // account still has to pick 注册账号 first, or it tries to log into an account that does not exist.

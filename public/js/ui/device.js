@@ -33,7 +33,7 @@ const mq = (win, q) => { try { return !!win.matchMedia?.(q)?.matches; } catch { 
 /**
  * Whether this page runs inside one of the project's native clients rather than a browser.
  *
- * Single source of truth for the whole client side — `screens/title.js` and `ui/notice.js` both take it from here, so
+ * Single source of truth for the whole client side — `screens/title.js` takes it from here, so
  * the three identifiers live in exactly one place:
  *   • `SPClient/Windows` / `SPClient/Android` — the marker the wrappers append to their user agent
  *     (`windows/Program.cs`, `android/MainActivity.java`);
@@ -203,9 +203,9 @@ export function PwaInstallButton({ class: cls = '', size = 'sm', square = false 
     data-testid="pwa-install" onClick=${() => pwaInstall.request()}>${square ? null : t('添加到桌面')}<//>`;
 }
 
-export function updateRotateHintPwaI18n(doc = globalThis.document) {
-  const btn = doc?.getElementById?.('rotate-hint-pwa');
-  if (btn) btn.textContent = t('添加到桌面');
+export function updateRotateHintI18n(doc = globalThis.document) {
+  const btn = doc?.getElementById?.('rotate-hint-fullscreen');
+  if (btn) btn.textContent = t('横置并全屏');
 }
 
 // ---- boot-time installation ----------------------------------------------------------------------------------------
@@ -223,6 +223,11 @@ export function installDeviceSupport(win = globalThis) {
   const root = doc.documentElement;
   const offs = [];
   const on = (target, ev, fn, opts) => { if (!target?.addEventListener) return; target.addEventListener(ev, fn, opts); offs.push(() => target.removeEventListener(ev, fn, opts)); };
+
+  if (/SPClient\/Windows/i.test(win.navigator?.userAgent || '') || !isNativeClient(win)) {
+    doc.body?.classList.add('force-round-motion', 'force-unite-motion');
+    offs.push(() => doc.body?.classList.remove('force-round-motion', 'force-unite-motion'));
+  }
 
   const apply = () => {
     const cls = featureClasses(detectFeatures(win));
@@ -299,11 +304,16 @@ export function installDeviceSupport(win = globalThis) {
     if (lp.swallowUntil && Date.now() < lp.swallowUntil) { lp.swallowUntil = 0; e.preventDefault(); e.stopPropagation(); }
   }, { capture: true });
 
-  const pwaBtn = doc?.getElementById?.('rotate-hint-pwa');
-  if (pwaBtn) {
-    updateRotateHintPwaI18n(doc);
-    offs.push(pwaInstall.subscribe((available) => { pwaBtn.hidden = !available; }));
-    on(pwaBtn, 'click', () => { pwaInstall.request(); });
+  const rotateBtn = doc?.getElementById?.('rotate-hint-fullscreen');
+  if (rotateBtn) {
+    updateRotateHintI18n(doc);
+    on(rotateBtn, 'click', async () => {
+      const entered = await fullscreen.enter(win);
+      if (!entered || screenLandscape(win) === false) {
+        const status = doc.getElementById('rotate-hint-status');
+        if (status) status.textContent = t('如未自动横置，请手动旋转手机');
+      }
+    });
   }
 
   installed = () => { for (const off of offs.splice(0)) { try { off(); } catch { /* ignore */ } } clearTimeout(rotTimer); installed = null; };

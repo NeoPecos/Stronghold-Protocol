@@ -45,6 +45,8 @@ import { answerClientError } from './http/common.js';
 import { lanUrls, displayHost, isProcessEntry, runMain } from './http/boot.js';
 import { MatchRecords } from './matchRecords.js';
 import { AccountStore } from './accounts.js';
+import { createAnnouncementStore } from './announcementStore.js';
+import { createAnnouncementNoticeMonitor } from './announcementNotices.js';
 
 // The public API of this module (tests and tools import it from here); the code lives in ./http/.
 export {
@@ -56,16 +58,18 @@ export {
  * Build and start the HTTP + WebSocket server.
  * @param {{
  *   port?: number, host?: string, quiet?: boolean, log?: object,
- *   publicDir?: string, dataDir?: string, sharedDir?: string, packsDir?: string,
+ *   publicDir?: string, dataDir?: string, sharedDir?: string, packsDir?: string, announcementsDir?: string,
  *   MatchClass?: Function, seedFn?: () => number,
  *   lobbyGraceMs?: number, reconnectWindowMs?: number, heartbeatMs?: number, helloTimeoutMs?: number,
  *   ratePerSec?: number, rateBurst?: number, maxConnections?: number, maxRooms?: number,
  *   maxConnectionsPerAddr?: number, maxRoomsPerAddr?: number, maxMatchesPerAddr?: number, resyncMinGapMs?: number,
  *   heavyPerSec?: number, heavyBurst?: number, trustProxy?: 'auto' | boolean, soloReconnectWindowMs?: number,
  *   clientOnly?: boolean,
+ *   announceToken?: string | null,
  *   assetIndex?: boolean | { cacheFile?: string | null, delayMs?: number },
  * }} [opts]
  *   assetIndex: the content-hash index (default on; false or SP_ASSET_INDEX=0: off — config.js assetIndexOptionsFrom)
+ *   announceToken: 公告发布桥接的窄令牌（默认读 SP_ANNOUNCE_TOKEN；未设置则该路由答 404）
  * @returns {Promise<{ port: number, host: string, url: string, server: http.Server, wss: import('ws').WebSocketServer,
  *                     lobby: import('./lobby.js').Lobby, network: import('./net.js').Network,
  *                     registry: import('./net.js').SessionRegistry, packs: ReturnType<typeof createPackRegistry>,
@@ -84,6 +88,8 @@ export async function startServer(opts = {}) {
   const accounts = opts.accountsFile === false ? null
     : new AccountStore(opts.accountsFile || process.env.SP_ACCOUNTS_FILE || path.join(ROOT, 'var', 'accounts.json'));
   const { registry, lobby, network } = createSessionStack({ ...opts, records, accounts }, { data, log });
+  const announcements = createAnnouncementStore({ dir: opts.announcementsDir, root: ROOT, log });
+  const announcementNotices = createAnnouncementNoticeMonitor({ store: announcements, network, log });
   // content packs (docs/PACKS.md): scanned now — the start log names them — and again whenever their folders change
   const packs = createPackRegistry({ publicDir, dataDir, packsDir }, { log });
   packs.refresh(true);
@@ -100,10 +106,13 @@ export async function startServer(opts = {}) {
   // The admin token arms the account routes (POST /api/account/password). Unset ⇒ they answer 404, so a server that
   // never sets SP_ADMIN_TOKEN exposes nothing new; routes.js refuses anything shorter than 16 characters.
   const adminToken = opts.adminToken ?? process.env.SP_ADMIN_TOKEN ?? null;
+  // 公告发布桥接（TASK-049）用**独立**令牌：机器人只获得「新增一条公告」这一项能力，与 adminToken 互不通用。
+  const announceToken = opts.announceToken ?? process.env.SP_ANNOUNCE_TOKEN ?? null;
   const traffic = createTrafficCounter();
-  const server = http.createServer(createRequestHandler({ serveStatic, health: { startedAt, network, registry, lobby, traffic, assetIndex, views }, records, accounts, adminToken, log, trustProxy: network.opts.trustProxy }));
+  const server = http.createServer(createRequestHandler({ serveStatic, announcements, health: { startedAt, network, registry, lobby, traffic, assetIndex, views }, records, accounts, adminToken, announceToken, log, trustProxy: network.opts.trustProxy }));
   server.on('clientError', answerClientError);
   const wss = attachWebSocket(server, { network, log, clientOnly, traffic });
+  announcementNotices.start();
 
   // The address actually bound. The default may fall back to IPv4; the returned host and url follow that.
   let boundHost;
@@ -135,6 +144,7 @@ export async function startServer(opts = {}) {
     if (bound === null) throw lastError;
     boundHost = bound;
   } catch (e) {
+    announcementNotices.close();
     network.close(); // stop heartbeat/sweep timers of the half-built server
     assetIndex?.close();
     throw e;
@@ -151,6 +161,7 @@ export async function startServer(opts = {}) {
     if (closing) return closing;
     closing = (async () => {
       try { lobby.shutdown('shutdown'); } catch (e) { log.error('[shutdown] lobby', e); }
+      announcementNotices.close();
       network.close();
       assetIndex?.close();
       await new Promise((resolve) => {
@@ -163,7 +174,7 @@ export async function startServer(opts = {}) {
     return closing;
   }
 
-  return { port: actualPort, host: boundHost, url, server, wss, lobby, network, registry, packs, records, traffic, assetIndex, views, close };
+  return { port: actualPort, host: boundHost, url, server, wss, lobby, network, registry, packs, records, announcements, traffic, assetIndex, views, close };
 }
 
 // `node server/index.js` / npm start: listen, print the banner, stop on SIGINT / SIGTERM (http/boot.js).

@@ -1,6 +1,6 @@
 # TASK-038 — 合并上游 0.2.6
 
-Status: `in_progress`
+Status: `released`
 Lead / implementer: Codex
 Starting commit: `4c517699` (`integrate-upstream-0.2.3`), upstream tag `v0.2.6` = `488db49f11daf862b67ce26fa4cf89aa6cba2466`.
 
@@ -27,4 +27,4 @@ Before integration into the main checkout, abort the merge or remove the isolate
 
 ## Checkpoint
 
-2026-10-13: Fetched official `v0.2.6` and started `git merge --no-commit --no-ff` in `F:\DSH-workspace\stronghold-026-integration`. Resolved the 35 initial conflicts without changing the main checkout or golden results, then overlaid the main checkout's current UI/runtime edits in this isolated tree. The maintainer chose to preserve the fixed-path CDN/native clients, add safe browser hash caching, and defer the restart until the current match ends. Hashed URLs currently stay on the origin; plain URLs keep the existing CDN because redirecting a hash URL to a fixed CDN key could reuse stale bytes. TASK-039 adds pre-cache for the shared UI and reuses match-specific warmup. No project tests run; no merge commit, push or production code deployment.
+2026-10-13: Fetched official `v0.2.6` and started `git merge --no-commit --no-ff` in `F:\DSH-workspace\stronghold-026-integration`. Resolved the 35 initial conflicts without changing the main checkout or golden results, then overlaid the main checkout's current UI/runtime edits in this isolated tree. The maintainer chose to preserve the fixed-path CDN/native clients and add safe browser hash caching. Hashed URLs stay on the origin; plain URLs retain the existing CDN because redirecting a hash URL to a fixed CDN key could reuse stale bytes. TASK-039 adds shared-UI pre-cache and reuses match-specific warmup. At 19:55 +08, the maintainer explicitly ordered deployment and browser opening after three minutes regardless of active matches: the frozen 52-file runtime artifact was deployed, five matches were interrupted, and production reports `0.2.6` build `a25d24fec134`. Details and rollback: `docs/releases/2026-10-13-browser-precache-026.md`. No project tests, merge commit or GitHub push; source review remains pending.

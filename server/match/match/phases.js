@@ -6,7 +6,7 @@
 
 import { PHASE, ERR } from '../../../shared/constants.js';
 import { buildNormalWave, buildBossWave } from '../waves.js';
-import { pairPlayers } from '../finalAssault.js';
+import { pairPlayersByGroup } from '../finalAssault.js';
 import { createRng, deriveSeed } from '../../sim/rng.js';
 import { botPickBand } from '../bot.js';
 import { OK, fail, DELAYS, BAND_TURN_SECONDS } from './common.js';
@@ -123,7 +123,8 @@ export class MatchPhases {
       const ps = this.players.get(this.draftTurn());
       if (!ps || !ps.botControlled) return;
       // a strategy a teammate already took is not selectable (队友已选): the bot re-draws, else the first free one
-      let id = botPickBand(this, ps);
+      const assigned = ps.isBot ? this.botBands.get(ps.playerId) : null;
+      let id = assigned && !this.bandTaken(assigned, ps.playerId) ? assigned : botPickBand(this, ps);
       for (let k = 0; k < 8 && this.bandTaken(id, ps.playerId); k++) id = botPickBand(this, ps);
       if (this.bandTaken(id, ps.playerId)) id = this.gd.bandIds().find((b) => !this.bandTaken(b, ps.playerId)) || id;
       this._applyBand(ps, id, { dedupe: true });
@@ -137,7 +138,10 @@ export class MatchPhases {
    */
   bandTaken(bandId, playerId) {
     const picks = this.draft?.picks || {};
-    for (const [pid, id] of Object.entries(picks)) if (pid !== playerId && id === bandId) return true;
+    const group = this.poolGroupByPlayer.get(playerId);
+    for (const [pid, id] of Object.entries(picks)) {
+      if (pid !== playerId && id === bandId && this.poolGroupByPlayer.get(pid) === group) return true;
+    }
     return false;
   }
 
@@ -294,7 +298,8 @@ export class MatchPhases {
     const r = this.round;
     const bossId = r === this.gd.hiddenRound && r !== this.gd.bossRound ? this.hiddenBossId : this.bossId;
     // Pairing uses an independent seeded draw, consuming no shop, wave, draft or battle randomness.
-    const groups = pairPlayers(this.alivePlayers(), createRng(deriveSeed(this.seed, 'boss-pairs')), this.bossPairs);
+    const groups = pairPlayersByGroup(this.alivePlayers(), createRng(deriveSeed(this.seed, 'boss-pairs')),
+      this.bossPairs, this.poolGroups, this.poolGroupByPlayer);
     this.bossPairs = groups.map(g => g.map(p => p.playerId));
     this.bossWaves = groups.map((g) => ({
       players: g.map((p) => p.playerId),

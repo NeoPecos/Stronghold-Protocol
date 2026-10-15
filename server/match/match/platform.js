@@ -215,7 +215,9 @@ export class MatchPlatform {
       this.finish({ victory: false, reason: 'eliminated' });
       return;
     }
-    if (phase === PHASE.SP_DRAFT && this.sp && this.spTurn() === ps.playerId) this.startSpTurn();
+    if (phase === PHASE.SP_DRAFT && this.sp && this.spTurn(this.poolGroupByPlayer.get(ps.playerId) ?? 0) === ps.playerId) {
+      this.startSpTurn(this.poolGroupByPlayer.get(ps.playerId) ?? 0);
+    }
     else if (phase === PHASE.PREP) this.maybeEndPrep();
   }
 

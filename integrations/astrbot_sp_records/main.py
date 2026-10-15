@@ -50,7 +50,9 @@ def strip_markers(text: str) -> str:
 
 CARD_DIR = Path("/tmp/astrbot-sp-records")
 DEFAULT_BASE_URL = "https://sp.bs.leio.fun"
-MAX_BODY = 65536
+# 一场 20 人局的完整战绩 JSON 约 77 KB（4 人局只有几 KB）。原来的 64 KB 上限会把大记录判死，
+# 群里只看到「暂时无法读取战绩，请稍后重试。」（2026-10-15 用户报「白瓜子」查不到，AstrBot 日志里是 ValueError: 响应过大）。
+MAX_BODY = 4 * 1024 * 1024
 ERROR_TEXT = {
     "BAD_CREDENTIALS": "账号名或旧密码不对。",
     "WEAK_PASSWORD": "新密码太短：至少 8 位，不能含控制字符。",

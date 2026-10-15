@@ -102,16 +102,16 @@ Co-op: random order (all seats, bots included), one pick per turn, ONE countdown
 published as `m.public.deadline` (= `draft.turnDeadline`; `draft.turnSeconds` its length) — no step cap; AI seats pick
 at once. A turn that runs out takes the strategy the player highlights in the draft screen (`g.bandFocus {bandId?}`,
 `Match.timeoutBand`) while it is allowed and no teammate holds it, else `bandDraft.timeoutBandId` 华法琳, else the first
-free strategy by sortId (`defaultBand`; a departing seat gets `defaultBand` too). One skip per player (`g.bandSkip`: the
+free strategy by sortId (`defaultBand`; a departing seat gets `defaultBand` too). In the unvalidated multiplayer expansion, duplicate checks are limited to the player's fixed four-seat group; the host may assign an AI's strategy before start, with a free-choice fallback if another group member takes it first. One skip per player (`g.bandSkip`: the
 player moves to the end of the order; refused when nobody is left to pass to). The draft screen disables skip when
 no other unpicked player remains; finished players stay in the published order but are not skip targets. A strategy a teammate already took is
 refused (队友已选); band must list the mode type in `modeTypeList`. A single human (co-op with AI teammates only):
 untimed. Solo: free pick, no timer, no skip. Starting LP = `bands[id].totalHp`.
 
 ### 1.2 机变 (SP draft)
-Family = weighted pick from `choices.schedule[modeId].rounds[r].families`; cards: co-op 6 shared (each player takes 1,
+Family = weighted pick from `choices.schedule[modeId].rounds[r].families`; cards: co-op 6 shared within each fixed group of at most four players (groups draft concurrently with separate card/taken state and timers; each player takes 1,
 random order, 30 s first / 16 s others, timeout ⇒ a random remaining card), solo 3; solo and single-human drafts are
-untimed. The UI picks a card with two taps (select → 确认选择, DESIGN §18.2). A 驰援 tactic card
+untimed. In the unvalidated grouped expansion, a team-wide tactic applies at full strength only to surviving members of the picker's fixed group. The UI picks a card with two taps (select → 确认选择, DESIGN §18.2). A 驰援 tactic card
 (`single_special_choice_gain_bond_chess`) is only offered while its bond still has chess in this match's pool
 (`Match.bondInPool`; a bond whose every member is banned would grant nothing); more generally a 驰援 or 盟誓
 (`global_special_choice_bond_addlayer`) card is offered only while one of its bonds is live (`Match.bondLive`: not in
@@ -709,6 +709,12 @@ Any `choice:` handler whose EffectRef reuses its own key must guard like this (o
   (`f.demoted`). Every boss field run by the server (takeover, or nobody connected at the
   start) publishes its own damage as `b.pool.acked[fieldId]` (its CreditPool total), so the display replica of a
   reconnecting / watching human stays in sync.
+  In grouped multiplayer boss rounds, pairs stay within their fixed group. Each group has a frozen normal-damage share
+  proportional to its surviving players at the fight's start; further raw leader damage contributes 50% to the common
+  pool. `b.progress.bossDmg` and `b.pool.acked[fieldId]` remain raw cumulative field damage, while
+  `b.pool.groupRaw[groupIndex]` carries the group's server-credited raw total so `LocalBossPool` can predict weighted
+  pending damage. The match's `bossDamage` statistics use weighted credits. Team-targeted prep effects, including
+  retained Touch, and teammate-directed items resolve `ctx.teammates()` within the same fixed group.
   End and verdict (user playtest #6 item 5): the pool never holds less than 1 HP (`sim/constants.js BOSS_POOL_MIN_HP`:
   the hit — or the per-player credit of a report — that would leave less takes the rest; the browser's `LocalBossPool`
   reads anything below 1 as 0), so a pool shown at 0 is a dead leader on every field and the round ends at once. Before,
@@ -749,9 +755,7 @@ Forced-down carry still participates in attribute chains and stays down without 
 without carry and other battle kinds retain normal devour damage; later redeploys do not reuse the old carry.
 Planned after the normal combats, at the end of the COMBAT_END pause from the players still in (`Match._afterCombat`, so a
 player who quit during the last field or the pause is neither a helper nor a leaker whose enemies re-enter; unite.js):
-helpers = `unite.js helperOrder` (research 08 §5, PRTS 卫戍协议/帮助 §联防阶段): ≤ `unite.maxHelpers` (2) perfect players
-chosen by most units on the field (downed included) > an active bond > most standing units > seat; the pair ordered by
-units > active bond > Σ active layers > standing > seat (LP plays no part), the first one on the right-hand field
+helpers = `unite.js helperOrder` (research 08 §5, PRTS 卫戍协议/帮助 §联防阶段): the local, unvalidated multiplayer option selects up to the room's configured helper count (two by default), two per wave. Perfect players who assisted in the preceding three match rounds rank below other eligible players; among those not recently selected, higher active-bond layers lead. If all candidates assisted recently, the longest-waiting one leads, then layers; units, active bond, standing units and seat break further ties. A previous helper remains eligible when there is no alternative. The first selected helper takes the right-hand field
 (colOffset +8, where escaped_multi enters), the other colOffset 0; the escaped template of that size routes the leaked
 enemies by slot class on the round's battlefield — the match stage opened to both halves (`GEO.UNITE_RECT`, cols 0–20),
 its terrain, crates, water, devices, runes and band map characters included, as in 0.1.x (the owner's decision of

@@ -12,7 +12,7 @@
 // Texts go through t() (docs/I18N.md).
 
 import { useEffect, useRef, useState } from '../../vendor/hooks.module.js';
-import { DIFFICULTIES, DIFFICULTY_NAMES, DIFFICULTY_COLORS, MAX_SEATS, MAX_SPECTATORS } from '../../../shared/constants.js';
+import { DIFFICULTIES, DIFFICULTY_NAMES, DIFFICULTY_COLORS, MAX_SEATS, BASE_SEATS, ROOM_CAPACITIES, MAX_SPECTATORS } from '../../../shared/constants.js';
 import {
   html, Button, Icon, MicroLabel, PingPill, AvatarFrame, DifficultyTag, DifficultyIcon, Tooltip, confirmDialog, doctorNo,
 } from '../ui/components.js';
@@ -27,15 +27,19 @@ import { avatarUrl } from '../ui/avatar.js';
 import { net } from '../net.js';
 import { store, useStore, shallowEqual, emptyMatch, isSpectating } from '../store.js';
 import { difficultyInfo } from './lobby.js';
+import { data, useData } from '../data.js';
 import { N_, t, tc } from '../../../shared/i18n.js';
+import { roomGroupMembers, uniteHelperLimit, uniteHelperOptions, uniteTimeBonus } from '../../../shared/playerCapacity.js';
 
 /**
- * Seats padded to the room's capacity (co-op 4, solo 1), each null or a seat record.
+ * Seats padded to the room's capacity (co-op 4–20, solo 1), each null or a seat record.
  * @param {any} room room.state payload
  * @returns {(null | {seat:number, playerId:any, name:string, isBot:boolean, ready:boolean, connected:boolean})[]}
  */
 export function normalizeSeats(room) {
-  const cap = room?.mode === 'solo' ? 1 : MAX_SEATS;
+  const cap = room?.mode === 'solo'
+    ? 1
+    : (Number.isInteger(room?.capacity) && room.capacity > 0 ? room.capacity : BASE_SEATS);
   const src = Array.isArray(room?.seats) ? room.seats : [];
   const out = [];
   for (let i = 0; i < cap; i++) {
@@ -91,6 +95,7 @@ export function roomAccessOptions(room, myId) {
   return {
     inviteOnly: room.inviteOnly === true,
     recruitWanted: room.recruitWanted === true,
+    allowSpectators: room.allowSpectators !== false,
     editable: room.hostId != null && room.hostId === myId,
   };
 }
@@ -110,12 +115,14 @@ export function inviteLink(code) {
  */
 export { copyText };
 
-function SeatCard({ seat, index, room, facts, myId, busy, onAddBot, onRemoveBot, onKick }) {
+function SeatCard({ seat, index, room, facts, myId, busy, groups, groupIndex, onMoveGroup, onAddBot, onRemoveBot, onKick }) {
   const coop = room.mode !== 'solo';
   if (!seat) {
     const canAdd = coop && facts.isHost;
-    return html`<article class="seat seat--empty" style=${`--seat-i:${index}`}>
-      <header class="seat__head"><span class="seat__no num">P${index + 1}</span><${MicroLabel}>SEAT ${String(index + 1).padStart(2, '0')}<//></header>
+    const defaultGroup = coop ? Math.floor(index / BASE_SEATS) : -1;
+    return html`<article class="seat seat--empty" style=${`--seat-i:${index}`} data-group=${defaultGroup >= 0 ? defaultGroup : undefined}>
+      <header class="seat__head"><span class="seat__no num">P${index + 1}</span><${MicroLabel}>SEAT ${String(index + 1).padStart(2, '0')}<//>
+        ${defaultGroup >= 0 ? html`<span class="seat__group-tag">${t('第 {number} 组', { number: defaultGroup + 1 })}</span>` : null}</header>
       <div class="seat__art seat__art--empty">
         <div class="seat__radar" aria-hidden="true"></div>
         <span class="seat__wait">${t('等待博士加入')}</span>
@@ -134,10 +141,18 @@ function SeatCard({ seat, index, room, facts, myId, busy, onAddBot, onRemoveBot,
   // The host never needs to toggle ready: starting the match readies them (server rule).
   const state = offline ? 'offline' : seat.ready || seat.isBot ? 'ready' : isHostSeat ? 'host' : 'waiting';
   return html`<article class=${`seat brackets${isMe ? ' is-me' : ''}${isHostSeat ? ' is-host' : ''}${seat.isBot ? ' is-bot' : ''} is-${state}`}
-      style=${`--seat-i:${index}`}>
+      style=${`--seat-i:${index}`} data-group=${groupIndex}>
     <header class="seat__head">
       <span class="seat__no num">P${index + 1}</span>
       <${MicroLabel}>SEAT ${String(index + 1).padStart(2, '0')}<//>
+      ${groupIndex >= 0 ? isMe && groups.length > 1 ? html`<select class="seat__group-select" aria-label=${t('分组')}
+        value=${String(groupIndex)} disabled=${!!busy || !!room.inMatch}
+        onChange=${(event) => onMoveGroup(Number(event.target.value))}>
+        ${groups.map((members, candidate) => html`<option key=${candidate} value=${candidate}
+          disabled=${candidate !== groupIndex && members.length >= 4}>
+          ${t('第 {number} 组', { number: candidate + 1 })}${candidate !== groupIndex && members.length >= 4 ? ` · ${t('已满员')}` : ''}
+        </option>`)}
+      </select>` : html`<span class="seat__group-tag">${t('第 {number} 组', { number: groupIndex + 1 })}</span>` : null}
       ${isHostSeat ? html`<span class="seat__host"><${Icon} name="crown" />${t('创建者')}</span>` : null}
     </header>
     <div class="seat__art">
@@ -230,16 +245,15 @@ function AiLastToggle({ option, busy, onToggle }) {
   </div>`;
 }
 
-function RoomAccessOptions({ option, busy, onInviteOnly, onRecruitWanted }) {
+function RoomAccessOptions({ option, busy, onInviteOnly, onRecruitWanted, onAllowSpectators }) {
   if (!option) return null;
-  // The plan ships a purpose-drawn 256² transparent PNG per switch (§4 图片素材), so the picture carries the
-  // meaning and nothing else is stacked on it: no same-meaning SVG glyph, and the label text stays HTML (never
-  // baked into the art) so it can go through t(). State is styling only — CSS dims it when off and brightens it
-  // when on — which keeps the two images out of a JS src swap that would flicker on a slow connection.
+  // 「仅邀请」是硬门（维护者 m01061）：开着时房间不进大厅列表、也不会被最快匹配；关着时路人既能在列表里点
+  // 「加入同盟」进来，也能被匹配进来。「期望路人加入」不是门，只是优先级：开着时最快匹配优先挑它
+  // （server/matchmaking.js:62-70），同优先级里越早创建的房间越优先。
   const toggle = (name, on, art, action) => html`<button type="button" role="switch" aria-checked=${on ? 'true' : 'false'}
       class=${`room-access__toggle${on ? ' is-active' : ''}`} disabled=${!option.editable || !!busy}
       onClick=${() => option.editable && action(!on)}>
-    <span class="room-access__icon"><img src=${`/assets/ui/room/${art}.png`} alt="" aria-hidden="true" draggable=${false} /></span>
+    <span class="room-access__icon">${art ? html`<img src=${`/assets/ui/room/${art}.png`} alt="" aria-hidden="true" draggable=${false} />` : html`<${Icon} name="eye" />`}</span>
     <span><strong>${t(name)}</strong><small>${on ? t('已开启') : t('已关闭')}</small></span>
     <span class="room-access__switch" aria-hidden="true"></span>
   </button>`;
@@ -247,6 +261,7 @@ function RoomAccessOptions({ option, busy, onInviteOnly, onRecruitWanted }) {
     <${MicroLabel} tone="mint">ROOM ACCESS<//>
     ${toggle(N_('仅邀请'), option.inviteOnly, 'invite-only', onInviteOnly)}
     ${toggle(N_('期望路人加入'), option.recruitWanted, 'recruit-wanted', onRecruitWanted)}
+    ${toggle(N_('允许观战'), option.allowSpectators, null, onAllowSpectators)}
     ${option.editable ? null : html`<span class="room-access__readonly">${t('由创建者设置')}</span>`}
   </aside>`;
 }
@@ -257,6 +272,7 @@ export function RoomScreen() {
   const me = useStore((s) => s.me, shallowEqual);
   const conn = useStore((s) => s.connection, shallowEqual);
   const [busy, setBusy] = useState(null);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const alive = useRef(true);
   const inFlight = useRef(false); // synchronous guard against double clicks (state updates are async)
   useEffect(() => () => { alive.current = false; }, []);
@@ -292,8 +308,15 @@ export function RoomScreen() {
   };
   const setDifficulty = (difficulty) => run('diff', () => net.request('room.setDifficulty', { difficulty }));
   const setAiLast = (on) => run('ailast', () => net.request('room.setAiPicksLast', { on }));
+  const setUniteHelpers = (helpers) => run('uniteHelpers', () => net.request('room.setUniteHelpers', { helpers }));
+  const moveGroup = (groupIndex) => run('groups', () => net.request('room.moveGroup', { groupIndex }));
+  const swapGroupMembers = (firstId, secondId) => run('groups', () => net.request('room.swapGroupMembers', { firstId, secondId }));
+  const setBotBand = (seat, playerId, bandId) => run('botBand', () => net.request('room.setBotBand', { seat, playerId, bandId }));
   const setInviteOnly = (on) => run('inviteOnly', () => net.request('room.setInviteOnly', { on }));
   const setRecruitWanted = (on) => run('recruitWanted', () => net.request('room.setRecruitWanted', { on }));
+  const setAllowSpectators = (on) => run('allowSpectators', () => net.request('room.setAllowSpectators', { on }));
+  // 同盟人数上限（20 人分支）：房主可调；服务端 room.setCapacity 校验档位与已占席位。
+  const setCapacity = (capacity) => run('capacity', () => net.request('room.setCapacity', { capacity }));
   // spectator seats: the host frees one; a spectator takes a free player seat with room.join of this room
   const removeSpectator = (playerId) => run(`rs${playerId}`, () => net.request('room.removeSpectator', { playerId }));
   const sit = () => run('sit', () => net.request('room.join', { code: room.code }));
@@ -332,6 +355,13 @@ export function RoomScreen() {
         ? html`<span class="t-mint">${t('已就绪 · 等待创建者开始模拟')}</span>`
         : html`<span class="t-lo">${t('准备就绪后，创建者即可开始模拟')}</span>`;
 
+  const groups = coop ? roomGroupMembers(facts.occupied, room.capacity || facts.seats.length, room.groupOrder) : [];
+  const groupByPlayer = new Map(groups.flatMap((members, groupIndex) => members.map((id) => [id, groupIndex])));
+
+  if (rulesOpen && coop) return html`<${RoomRulesPage} room=${room} facts=${facts} busy=${busy}
+    online=${online} onBack=${() => setRulesOpen(false)} onPick=${setUniteHelpers} onSwap=${swapGroupMembers}
+    onAssign=${setBotBand} onToggleAiLast=${setAiLast} />`;
+
   return html`<div class="screen room-screen">
     <header class="topbar">
       <div class="topbar__left">
@@ -355,11 +385,16 @@ export function RoomScreen() {
       </div>
     </header>
 
-    <main class=${`seats${coop ? '' : ' seats--solo'}`}>
+    ${coop ? html`<div class="room-config-strip">
+      <${CapacityPicker} room=${room} facts=${facts} busy=${busy} onPick=${setCapacity} />
+      <${Button} variant="secondary" size="sm" onClick=${() => setRulesOpen(true)}>${t('房间规则')}<//>
+    </div>` : null}
+    <!-- 座位区 + 右侧 room access 坞：面板不再当座位网格的子项（维护者 m00232），位置固定、不会随人数换格或压住座位。 -->
+    <div class=${`room-stage${coop ? ' room-stage--rail' : ''}`}>
+    <main class=${`seats${coop ? facts.seats.length > 10 ? ' seats--dense' : facts.seats.length > 4 ? ' seats--expanded' : '' : ' seats--solo'}${coop && facts.seats.length === 10 ? ' seats--ten' : ''}`}>
       ${facts.seats.map((s, i) => html`<${SeatCard} key=${s ? `p${s.playerId}` : `e${i}`} seat=${s} index=${i} room=${room} facts=${facts}
-        myId=${me.playerId} busy=${busy} onAddBot=${addBot} onRemoveBot=${removeBot} onKick=${kick} />`)}
-      ${coop ? html`<${RoomAccessOptions} option=${roomAccessOptions(room, me.playerId)} busy=${busy}
-        onInviteOnly=${setInviteOnly} onRecruitWanted=${setRecruitWanted} />` : null}
+        myId=${me.playerId} busy=${busy} groups=${groups} groupIndex=${s ? groupByPlayer.get(s.playerId) ?? -1 : -1}
+        onMoveGroup=${moveGroup} onAddBot=${addBot} onRemoveBot=${removeBot} onKick=${kick} />`)}
       ${coop ? null : html`<aside class="solo-brief brackets">
         <${MicroLabel} tone="mint">BRIEFING<//>
         <h2>${DIFFICULTY_NAMES[room.difficulty] ? t(DIFFICULTY_NAMES[room.difficulty]) : ''}<span class="num t-dim"> ${info.code}</span></h2>
@@ -371,6 +406,9 @@ export function RoomScreen() {
         </ul>
       </aside>`}
     </main>
+    ${coop ? html`<${RoomAccessOptions} option=${roomAccessOptions(room, me.playerId)} busy=${busy}
+      onInviteOnly=${setInviteOnly} onRecruitWanted=${setRecruitWanted} onAllowSpectators=${setAllowSpectators} />` : null}
+    </div>
     <${SpectatorBar} facts=${facts} myId=${me.playerId} busy=${busy} onRemove=${removeSpectator} onSit=${sit} />
 
     <footer class="room-bar">
@@ -378,7 +416,6 @@ export function RoomScreen() {
         <span class="room-bar__label">${t('模拟难度')}<${MicroLabel}>DIFFICULTY<//></span>
         <div class="room-bar__opts">
           <${DifficultyPicker} room=${room} isHost=${facts.isHost} busy=${busy} onPick=${setDifficulty} />
-          <${AiLastToggle} option=${aiLastOption(room, me.playerId)} busy=${busy} onToggle=${setAiLast} />
         </div>
       </div>
       <div class="room-bar__center">
@@ -404,5 +441,101 @@ export function RoomScreen() {
               loading=${busy === 'ready'} disabled=${!online || !facts.mine} onClick=${toggleReady}>${myReady ? t('已就绪') : t('准备就绪')}<//>`}
       </div>
     </footer>
+  </div>`;
+}
+
+function RoomRulesPage({ room, facts, busy, online, onBack, onPick, onSwap, onAssign, onToggleAiLast }) {
+  useData('bands');
+  const [selectedMember, setSelectedMember] = useState(null);
+  const groups = roomGroupMembers(facts.occupied, room.capacity || facts.seats.length, room.groupOrder);
+  const byId = new Map(facts.occupied.map((seat) => [seat.playerId, seat]));
+  const bands = data.list('bands').filter((band) => !Array.isArray(band.modeTypeList) || band.modeTypeList.includes('MULTI'))
+    .sort((left, right) => (left.sortId ?? 99) - (right.sortId ?? 99));
+  const selectedGroup = groups.findIndex((members) => members.includes(selectedMember));
+  const selectMember = (playerId, groupIndex) => {
+    if (!facts.isHost || !online || busy) return;
+    if (selectedMember && selectedMember !== playerId && selectedGroup !== groupIndex && selectedGroup >= 0) {
+      onSwap(selectedMember, playerId);
+      setSelectedMember(null);
+    } else setSelectedMember(selectedMember === playerId ? null : playerId);
+  };
+  const limit = uniteHelperLimit(Math.max(1, facts.occupied.length));
+  const selected = Math.min(room.uniteHelpers ?? 2, limit);
+  const bonus = uniteTimeBonus(Math.max(1, facts.occupied.length), selected);
+  return html`<div class="screen room-rules-screen">
+    <header class="room-rules__header">
+      <${Button} variant="secondary" size="sm" onClick=${onBack}>${t('返回房间')}<//>
+      <div><${MicroLabel} tone="mint">ALLIANCE RULES<//><h1>${t('房间规则')}</h1></div>
+      <span class="num">${room.code}</span>
+    </header>
+    <main class="room-rules__content">
+      <section class="room-rules__section brackets">
+        <${MicroLabel} tone="mint">POOL GROUPS<//>
+        <h2>${t('分组')}</h2>
+        <p>${t('每组最多四人；博士可在房间座位卡选择未满组，房主可在此互换成员。')}</p>
+        <p>${t('房主可为每位 AI 指定开局策略；同组不得重复。')}</p>
+        <div class="room-rules__groups">
+          ${groups.map((members, groupIndex) => html`<div key=${groupIndex} class="room-rules__group" data-group=${groupIndex}>
+            <strong>${t('第 {number} 组', { number: groupIndex + 1 })} <span class="num">${members.length}/4</span></strong>
+            <div class="room-rules__members">
+              ${members.map((playerId) => {
+                const seat = byId.get(playerId);
+                const usedBands = new Set(members.filter((id) => id !== playerId).map((id) => byId.get(id)?.aiBandId).filter(Boolean));
+                return html`<div key=${playerId} class="room-rules__member-row"><button type="button"
+                  class=${`room-rules__member${selectedMember === playerId ? ' is-selected' : ''}`}
+                  aria-pressed=${selectedMember === playerId ? 'true' : 'false'}
+                  disabled=${!facts.isHost || !online || !!busy || !!room.inMatch}
+                  onClick=${() => selectMember(playerId, groupIndex)}>
+                  <span class="num">P${seat.seat + 1}</span> ${seat.name}${seat.isBot ? html` <span class="t-dim">AI</span>` : null}
+                </button>${seat.isBot ? html`<select class="room-rules__band" aria-label=${t('指定 {name} 的策略', { name: seat.name })}
+                  value=${seat.aiBandId || ''} disabled=${!facts.isHost || !online || !!busy || !!room.inMatch || !bands.length}
+                  onChange=${(event) => onAssign(seat.seat, seat.playerId, event.target.value || null)}>
+                  <option value="">${t('自动选择')}</option>
+                  ${bands.map((band) => html`<option key=${band.bandId} value=${band.bandId} disabled=${usedBands.has(band.bandId)}>${band.name}</option>`)}
+                </select>` : null}</div>`;
+              })}
+            </div>
+          </div>`)}
+        </div>
+        ${selectedGroup >= 0 ? html`<p class="room-rules__bonus">${t('选择另一组成员交换')}</p>` : null}
+      </section>
+      <section class="room-rules__section brackets">
+        <${AiLastToggle} option=${aiLastOption(room, facts.mine?.playerId)} busy=${busy} onToggle=${onToggleAiLast} />
+      </section>
+      <section class="room-rules__section brackets">
+        <${MicroLabel} tone="mint">UNITE PHASE<//>
+        <h2>${t('协防兜底人数')}</h2>
+        <p>${t('可选人数由已入座博士与 AI 决定')}</p>
+        <div class="room-rules__options" role="radiogroup" aria-label=${t('协防兜底人数')}>
+          ${uniteHelperOptions(Math.max(1, facts.occupied.length)).map((helpers) => html`<button key=${helpers} type="button" role="radio"
+            aria-checked=${selected === helpers ? 'true' : 'false'}
+            class=${`room-rules__option${selected === helpers ? ' is-active' : ''}`}
+            disabled=${!facts.isHost || !online || !!busy} onClick=${() => selected !== helpers && onPick(helpers)}>
+            ${t('{count} 人协防', { count: helpers })}
+          </button>`)}
+        </div>
+        <p>${t('每轮最多两名队友上场；仍有漏怪才继续下一轮。')}</p>
+        <strong class="room-rules__bonus">${t('每轮额外 {seconds} 秒游戏时间', { seconds: bonus })}</strong>
+        ${facts.isHost ? null : html`<span class="t-dim">${t('由创建者设置')}</span>`}
+      </section>
+    </main>
+  </div>`;
+}
+
+/**
+ * 同盟人数上限（20 人分支）：房主可调，其它人只读；已占席位多过目标档位时那一档禁用。
+ */
+function CapacityPicker({ room, facts, busy, onPick }) {
+  const capacity = room.capacity || facts.seats.length;
+  const minCapacity = Math.max(1, ...facts.occupied.map((s) => s.seat + 1));
+  return html`<div class="room-capacity" aria-label=${t('同盟席位')}>
+    <span class="room-capacity__label">${t('人数上限')} <b class="num">${capacity}</b> ${t('人')}</span>
+    ${facts.isHost ? html`<div class="room-capacity__options" role="radiogroup" aria-label=${t('调整同盟人数上限')}>
+      ${ROOM_CAPACITIES.map((n) => html`<button key=${n} type="button" role="radio" aria-checked=${capacity === n ? 'true' : 'false'}
+        class=${`room-capacity__opt${capacity === n ? ' is-active' : ''}`} disabled=${!!busy || n < minCapacity}
+        title=${n < minCapacity ? t('先移除超出席位的玩家') : t('{n} 人房间', { n })}
+        onClick=${() => n !== capacity && onPick(n)}>${n}</button>`)}
+    </div>` : html`<span class="t-dim">${t('由房主设置')}</span>`}
+    <span class="room-capacity__count num">${facts.occupied.length} / ${capacity}</span>
   </div>`;
 }

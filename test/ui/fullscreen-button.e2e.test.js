@@ -9,7 +9,7 @@
 //   SP_E2E=1 CHROME_PATH=… node --test test/ui/fullscreen-button.e2e.test.js
 //
 // The user agents are the real shapes the wrappers send: ` SPClient/Windows` (windows/Program.cs) and
-// `; wv` + ` SPClient/Android` (android/MainActivity.java); the same agents browser-notice.e2e.test.js uses.
+// `; wv` + ` SPClient/Android` (android/MainActivity.java).
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -80,7 +80,7 @@ describe('TASK-007: the fullscreen button shows in a browser only', { skip: !ENA
     });
     await page.goto(base, { waitUntil: 'networkidle0', timeout: 60000 });
     // the title screen is what renders first (no session needed); give it a beat to mount
-    await page.waitForFunction(() => !!document.querySelector('.title-screen, .fsbtn, #distribution-notice'), { timeout: 15000 });
+    await page.waitForFunction(() => !!document.querySelector('.title-screen, .fsbtn'), { timeout: 15000 });
     await new Promise((r) => setTimeout(r, 600));
     return { page, errors };
   }

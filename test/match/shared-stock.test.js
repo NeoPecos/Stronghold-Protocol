@@ -39,8 +39,9 @@ test('a duplicate draft card becomes unavailable when the preceding player exhau
   const m = h.m, a = h.ps('p_0'), b = h.ps('p_1');
   a.acquireItem(PACK);
   m.phase = PHASE.SP_DRAFT;
-  m.sp = { cards: [PACK, PACK, 'chess_item_1_01_e_a'].map((id, idx) => ({ idx, id, kind: 'item' })),
-    order: ['p_0', 'p_1'], idx: 0, picks: {}, taken: {}, untimed: true };
+  const group = { cards: [PACK, PACK, 'chess_item_1_01_e_a'].map((id, idx) => ({ idx, id, kind: 'item' })),
+    order: ['p_0', 'p_1'], idx: 0, picks: {}, taken: {}, untimed: true, token: 0, timer: null };
+  m.sp = { ...group, groups: [group] };
   assert.ok(m.pickCard(a, 0).ok); assert.equal(m.spTurn(), 'p_1');
   assert.equal(m.pickCard(b, 1).error, 'SOLD_OUT'); assert.equal(m.sp.picks.p_1, undefined);
   const card = m.publicView().sp.cards[1]; assert.equal(card.soldOut, true);

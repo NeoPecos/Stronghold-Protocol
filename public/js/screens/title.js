@@ -15,6 +15,7 @@ import { useMemo, useState } from '../../vendor/hooks.module.js';
 import { NAME_MAX_LEN, APP_VERSION, DEV_BUILD } from '../../../shared/constants.js';
 import { html, Button, Icon, MicroLabel, TextField, PingPill } from '../ui/components.js';
 import { GuideButton } from '../ui/guide.js';
+import { AnnouncementButton } from '../ui/announcements.js';
 import { openStats } from './stats.js';
 import { toast } from '../ui/toasts.js';
 import { net, identity } from '../net.js';
@@ -86,8 +87,7 @@ export function enterSession(rawName, password, auth) {
   return true;
 }
 
-// Native-client detection lives in ui/device.js (the public device module) so the whole client side shares one
-// implementation; re-exported here because this module has been its public home (ui/notice.js, tests).
+// Native-client detection lives in ui/device.js; retain this re-export for title consumers.
 export { isNativeClient } from '../ui/device.js';
 
 // data/assets.json `ui` keys are 'group/key' (docs/ASSETS.md).
@@ -259,6 +259,7 @@ export function TitleScreen() {
     <div class="title-corner title-corner--tr">
       <div>
         <div class="title-corner__tools">
+          <${AnnouncementButton} class="title-announcements" />
           <${Button} variant="ghost" size="sm" icon="chart" class="title-stats" onClick=${openStats} title=${t('统计数据')}>${t('统计')}<//>
           <${LangToggle} class="title-lang" />
         </div>

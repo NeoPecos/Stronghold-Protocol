@@ -478,6 +478,9 @@ recorded for the player whose half contains the goal it reached, with `sourcePla
   idles while another field may still empty the pool or the match's overtime drain — team LP, from 120 real s for all-human teams / 150 with an AI teammate — ends it); without a pool
   (sandboxes, tools) it still ends `cleared` when empty. `timeout`: `time ≥ timeLimit` —
   every living non-boss enemy becomes a leak; spawns that never happened are dropped from `total` and listed in `unspawned`.
+- Grouped boss battles keep one shared HP pool. Each group's `boss.quota` is its normal-damage share; after its credited
+  raw damage reaches that share, later hits count at 50%. `LocalBossPool` predicts from the server's per-group raw
+  counter; its `cum` and `byPlayer` remain raw for client reports, while the match counts weighted leader damage.
 - `leaked[].counted = false` for `notCountInTotal`/`unharmful`/boss parts (LP rules: normal rounds count only `counted`
   leaks, cap 10; boss rounds use `lpr`). `perfect = no counted leak`.
 - `battleEnd {result}` fires before the result is frozen: handlers may still call `addLayers`/`addCoins`.

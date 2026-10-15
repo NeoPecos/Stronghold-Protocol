@@ -16,88 +16,123 @@ const PERSONAL_OFFER_SIZE = 3;
 
 export class MatchSpDraft {
   enterSpDraft() {
-    const draft = generateDraft(this.gd, this.rngDraft, this.round, { stageId: this.stageId, bondAvailable: (bondId) => this.bondLive(bondId), itemAvailable: id => this.itemPool.canGain(id) });
     const alive = this.alivePlayers();
-    if (!draft || !alive.length) { this.enterPrep(); return; }
+    if (!alive.length) { this.enterPrep(); return; }
+    const groups = this.poolGroups.map((members, groupIndex) => {
+      const players = alive.filter((player) => members.includes(player.playerId));
+      if (!players.length) return null;
+      const draft = generateDraft(this.gd, this.rngDraft, this.round, {
+        stageId: this.stageId,
+        bondAvailable: (bondId) => this.bondLive(bondId, groupIndex),
+        itemAvailable: (id) => this.groupPools[groupIndex].itemPool.canGain(id),
+      });
+      if (!draft) return null;
+      let order = players.map((player) => player.playerId);
+      if (!this.isSolo) this.rngDraft.shuffle(order);
+      order = this.humansFirst(order);
+      return { ...draft, order, idx: 0, picks: {}, taken: {}, untimed: this.soloUntimed, turnDeadline: 0, token: 0, timer: null, done: false };
+    });
+    if (!groups.some(Boolean)) { this.enterPrep(); return; }
     this.phase = PHASE.SP_DRAFT;
-    let order = alive.map((p) => p.playerId);
-    if (!this.isSolo) this.rngDraft.shuffle(order);
-    // 「AI 队友最后选择」 (GitHub #338): humans before AI seats, after the same shuffle (MatchPhases.humansFirst)
-    order = this.humansFirst(order);
-    // untimed: solo and any single-human match (soloUntimed); the co-op order / 6 cards stay
-    const untimed = this.soloUntimed;
-    this.sp = { ...draft, order, idx: 0, picks: {}, taken: {}, untimed, turnDeadline: 0 };
+    const firstGroup = groups.find(Boolean);
+    this.sp = { groups, cards: firstGroup.cards, order: firstGroup.order, picks: firstGroup.picks, taken: firstGroup.taken };
     this.setDeadline(0);
-    this.startSpTurn();
+    for (const [groupIndex, group] of groups.entries()) if (group) this.startSpTurn(groupIndex);
     this.markPublic();
   }
 
-  spTurn() {
-    const s = this.sp;
-    if (!s) return null;
+  spTurn(groupIndex = 0) {
+    const s = this.sp?.groups[groupIndex];
+    if (!s || s.done) return null;
     return s.order[s.idx] ?? null;
   }
 
-  spCardAvailable(card) { return !!card && this.sp?.taken[card.idx] == null && (card.kind !== 'item' || this.itemPool.canGain(card.id)); }
+  spCardAvailable(card, groupIndex = 0) {
+    const group = this.sp?.groups[groupIndex];
+    return !!card && !!group && group.taken[card.idx] == null
+      && (card.kind !== 'item' || this.groupPools[groupIndex].itemPool.canGain(card.id));
+  }
 
-  startSpTurn() {
-    const s = this.sp;
-    this.cancel(this._turnTimer);
-    this._turnTimer = null;
+  startSpTurn(groupIndex = 0) {
+    const s = this.sp?.groups[groupIndex];
+    if (!s || s.done) return;
+    this.cancel(s.timer);
+    s.timer = null;
     while (s.idx < s.order.length) {
       const ps = this.players.get(s.order[s.idx]);
       if (ps && ps.alive && s.picks[ps.playerId] == null) break;
       s.idx++;
     }
-    const available = s.cards.filter(c => this.spCardAvailable(c)).map(c => c.idx);
-    if (s.idx >= s.order.length || !available.length) { this.setDeadline(0); this.later(0, () => this.finishSpDraft()); return; }
-    const token = ++this._turnToken;
+    const available = s.cards.filter((card) => this.spCardAvailable(card, groupIndex)).map((card) => card.idx);
+    if (s.idx >= s.order.length || !available.length) {
+      s.done = true;
+      s.turnDeadline = 0;
+      this.updateSpDeadline();
+      this.markPublic();
+      this.later(0, () => this.finishSpDraft());
+      return;
+    }
+    const token = ++s.token;
     if (!s.untimed) {
       const first = s.idx === 0;
       const secs = first ? this.gd.timer('spFirst') : this.gd.timer('spTurn');
-      this.setDeadline(secs, () => {
-        if (this.phase !== PHASE.SP_DRAFT || token !== this._turnToken) return;
-        const ps = this.players.get(this.spTurn());
+      const ms = this.scaled(secs * 1000);
+      s.turnDeadline = this.sched.now() + ms;
+      s.timer = this.later(ms, () => {
+        if (this.phase !== PHASE.SP_DRAFT || token !== s.token) return;
+        const ps = this.players.get(this.spTurn(groupIndex));
         if (!ps) return;
-        const avail = s.cards.filter(c => this.spCardAvailable(c)).map(c => c.idx);
-        if (!avail.length) { this.finishSpDraft(); return; }
+        const avail = s.cards.filter((card) => this.spCardAvailable(card, groupIndex)).map((card) => card.idx);
+        if (!avail.length) { this.startSpTurn(groupIndex); return; }
         this._applyCard(ps, avail[Math.floor(this.rngDraft() * avail.length)]);
       });
-      s.turnDeadline = this.deadline;
     } else {
-      this.setDeadline(0);
+      s.turnDeadline = 0;
     }
-    const cur = this.players.get(this.spTurn());
-    if (cur && cur.botControlled) this.scheduleSpBot();
+    this.updateSpDeadline();
+    const cur = this.players.get(this.spTurn(groupIndex));
+    if (cur && cur.botControlled) this.scheduleSpBot(groupIndex);
     this.markPublic();
   }
 
-  scheduleSpBot() {
-    const token = this._turnToken;
+  updateSpDeadline() {
+    const deadlines = this.sp?.groups.filter((group) => group && !group.done && group.turnDeadline > 0)
+      .map((group) => group.turnDeadline) || [];
+    this.deadline = deadlines.length ? Math.min(...deadlines) : 0;
+  }
+
+  scheduleSpBot(groupIndex = 0) {
+    const group = this.sp?.groups[groupIndex];
+    if (!group) return;
+    const token = group.token;
     this.later(this.scaled(DELAYS.BOT_ACTION), () => {
-      if (this.phase !== PHASE.SP_DRAFT || token !== this._turnToken || !this.sp) return;
-      const ps = this.players.get(this.spTurn());
+      if (this.phase !== PHASE.SP_DRAFT || token !== group.token || !this.sp) return;
+      const ps = this.players.get(this.spTurn(groupIndex));
       if (!ps || !ps.botControlled) return;
-      const avail = this.sp.cards.filter(c => this.spCardAvailable(c)).map(c => c.idx);
+      const avail = group.cards.filter((card) => this.spCardAvailable(card, groupIndex)).map((card) => card.idx);
       if (!avail.length) return;
-      this._applyCard(ps, botPickCard(this, ps, this.sp.cards, avail));
+      this._applyCard(ps, botPickCard(this, ps, group.cards, avail));
     });
   }
 
   pickCard(ps, idx) {
     if (this.phase !== PHASE.SP_DRAFT || !this.sp) return fail(ERR.WRONG_PHASE);
     if (!ps.alive) return fail(ERR.ELIMINATED);
-    if (this.sp.picks[ps.playerId] != null) return fail(ERR.ALREADY);
-    if (this.spTurn() !== ps.playerId) return fail(ERR.NOT_YOUR_TURN);
-    if (!Number.isInteger(idx) || idx < 0 || idx >= this.sp.cards.length) return fail(ERR.BAD_TARGET);
-    if (!this.spCardAvailable(this.sp.cards[idx])) return fail(ERR.SOLD_OUT);
+    const groupIndex = this.poolGroupByPlayer.get(ps.playerId) ?? 0;
+    const group = this.sp.groups[groupIndex];
+    if (!group || group.done) return fail(ERR.WRONG_PHASE);
+    if (group.picks[ps.playerId] != null) return fail(ERR.ALREADY);
+    if (this.spTurn(groupIndex) !== ps.playerId) return fail(ERR.NOT_YOUR_TURN);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= group.cards.length) return fail(ERR.BAD_TARGET);
+    if (!this.spCardAvailable(group.cards[idx], groupIndex)) return fail(ERR.SOLD_OUT);
     this._applyCard(ps, idx);
     return OK;
   }
 
   _applyCard(ps, idx) {
-    const s = this.sp;
-    if (!s || s.picks[ps.playerId] != null || !this.spCardAvailable(s.cards[idx])) return;
+    const groupIndex = this.poolGroupByPlayer.get(ps.playerId) ?? 0;
+    const s = this.sp?.groups[groupIndex];
+    if (!s || s.picks[ps.playerId] != null || !this.spCardAvailable(s.cards[idx], groupIndex)) return;
     const card = s.cards[idx];
     if (!card) return;
     s.picks[ps.playerId] = idx;
@@ -106,13 +141,14 @@ export class MatchSpDraft {
     this.markPrivate(ps);
     this.markPublic();
     onPickCard(this, ps, card); // AI bots say "思考" when they take a bounty (enabled by default; SP_BOT_EMOTES=0 silences it)
-    this.startSpTurn();
+    this.startSpTurn(groupIndex);
   }
 
   finishSpDraft() {
     if (this.phase !== PHASE.SP_DRAFT) return;
-    this.cancel(this._turnTimer);
-    this._turnTimer = null;
+    if (this.sp?.groups.some((group) => group && !group.done)) return;
+    for (const group of this.sp?.groups || []) if (group) this.cancel(group.timer);
+    this.deadline = 0;
     this.enterPrep();
   }
 
@@ -183,27 +219,28 @@ export class MatchSpDraft {
   }
 
   /** Random item id: a choices.json server pool ({ pool }), a tier, or ≤ maxTier shop-eligible items. */
-  rollItemId({ pool = null, tier = null, maxTier = 6, shopLevel = 6 } = {}) {
+  rollItemId({ pool = null, tier = null, maxTier = 6, shopLevel = 6, player = null } = {}) {
+    const itemPool = player ? this.itemPoolFor(player) : this.itemPool;
     const pools = this.gd.choices.pools && typeof this.gd.choices.pools === 'object' ? this.gd.choices.pools : {};
     const p = typeof pool === 'string' && Object.hasOwn(pools, pool) ? pools[pool] : null;
     const rng = this.rngMeta;
     const tierList = (lo, hi) => { const out = []; for (let t = lo; t <= hi; t++) for (const id of this.gd.shopItemsByTier[t] || []) out.push(id); return out; };
     if (p && p.kind === 'equip') {
       if (Array.isArray(p.weighted) && p.weighted.length) {
-        const pairs = p.weighted.filter((x) => Array.isArray(x) && this.gd.item(x[0]) && this.itemPool.canGain(x[0]));
-        return this.itemPool.pick(rng, pairs.map(x => x[0]), new Map(pairs));
+        const pairs = p.weighted.filter((x) => Array.isArray(x) && this.gd.item(x[0]) && itemPool.canGain(x[0]));
+        return itemPool.pick(rng, pairs.map(x => x[0]), new Map(pairs));
       }
       if (Array.isArray(p.items) && p.items.length) {
         const items = p.items.filter((id) => this.gd.item(id));
-        return this.itemPool.pick(rng, items);
+        return itemPool.pick(rng, items);
       }
       let list;
       if (Array.isArray(p.tiers) && p.tiers.length) list = p.tiers.flatMap((t) => this.gd.shopItemsByTier[t] || []);
       else list = tierList(1, p.maxTier === 'shopLevel' ? Math.max(1, Math.min(6, shopLevel)) : 6);
-      return this.itemPool.pick(rng, list);
+      return itemPool.pick(rng, list);
     }
     const list = Number.isInteger(tier) ? tierList(tier, tier) : tierList(1, Math.max(1, Math.min(6, maxTier)));
-    return this.itemPool.pick(rng, list);
+    return itemPool.pick(rng, list);
   }
 
   /**
@@ -214,13 +251,14 @@ export class MatchSpDraft {
    * bonds (the player's data view: a slotted slot's operator) — 0.2.0 WE2.
    * @returns {{ kind: 'item'|'chess', id: string, golden?: boolean } | null}
    */
-  rollPool(poolId, { shopLevel = 6, extra = null, chessOf = null } = {}) {
+  rollPool(poolId, { shopLevel = 6, extra = null, chessOf = null, player = null } = {}) {
+    const sharedPool = player ? this.poolFor(player) : this.pool;
     const pools = this.gd.choices.pools && typeof this.gd.choices.pools === 'object' ? this.gd.choices.pools : {};
     const p = typeof poolId === 'string' && Object.hasOwn(pools, poolId) ? pools[poolId] : null;
     if (!p || typeof p !== 'object') return null;
     const lvl = Math.max(1, Math.min(6, Number.isInteger(shopLevel) ? shopLevel : 6));
     if (p.kind === 'equip') {
-      const id = this.rollItemId({ pool: poolId, shopLevel: lvl });
+      const id = this.rollItemId({ pool: poolId, shopLevel: lvl, player });
       return id ? { kind: 'item', id } : null;
     }
     if (p.kind !== 'chess') return null;
@@ -228,7 +266,7 @@ export class MatchSpDraft {
     const free = (id) => {
       if (typeof id !== 'string' || !this.gd.chess(id)) return false;
       const base = this.gd.baseIdOf(id);
-      return !this.pool.has(base) || this.pool.left(base) > 0;
+      return !sharedPool.has(base) || sharedPool.left(base) > 0;
     };
     let id = null;
     if (Array.isArray(p.weighted) && p.weighted.length) {
@@ -242,7 +280,7 @@ export class MatchSpDraft {
       const minTier = Number.isInteger(p.minTier) ? p.minTier : 1;
       const bond = typeof p.bond === 'string' ? p.bond : null;
       const recOf = typeof chessOf === 'function' ? chessOf : (cid) => this.gd.chess(cid);
-      id = this.pool.roll(rng, {
+      id = sharedPool.roll(rng, {
         tier: Number.isInteger(p.tier) ? p.tier : null,
         maxTier,
         filter: (cid, e) => e.tier >= minTier && (!bond || (Array.isArray(recOf(cid)?.bonds) && recOf(cid).bonds.includes(bond))),

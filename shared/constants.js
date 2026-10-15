@@ -10,14 +10,18 @@ export const APP_VERSION = '0.2.6';
  * tools/package.mjs refuses to build a release zip from it without --allow-dev. */
 export const DEV_BUILD = /-dev$/.test(APP_VERSION);
 
-export const MAX_SEATS = 4;
+export const BASE_SEATS = 4;
+export const MAX_SEATS = 20;
+export const DEFAULT_SEATS = BASE_SEATS;
+export const ROOM_CAPACITIES = Object.freeze([4, 6, 8, 10, 16, 20]);
+export const MAX_DRAFT_CARDS = 6;
 /**
  * Spectator seats of a co-op room (community report #26, owner's decision 2026-10-04) — a remake feature: the official
  * room has 1–4 players and no spectator seat (there only eliminated players and 联防 bystanders watch, research 09 §3.1).
  * A spectator never counts as a player, may not act, and watches like an eliminated player (server/lobby.js spectate,
  * server/match/match/watch.js addSpectator).
  */
-export const MAX_SPECTATORS = 2;
+export const MAX_SPECTATORS = 4;
 export const ROOM_CODE_LEN = 4;
 export const NAME_MAX_LEN = 12;
 
@@ -148,6 +152,7 @@ export const ERR = Object.freeze({
   TEMP_NOT_EMPTY: 'TEMP_NOT_EMPTY',
   ELIMINATED: 'ELIMINATED',
   SPECTATOR: 'SPECTATOR',         // a spectator seat only watches (MAX_SPECTATORS)
+  SPECTATING_DISABLED: 'SPECTATING_DISABLED',
   AUTH_REQUIRED: 'AUTH_REQUIRED', NAME_TAKEN: 'NAME_TAKEN', BAD_CREDENTIALS: 'BAD_CREDENTIALS', WEAK_PASSWORD: 'WEAK_PASSWORD',
   INTERNAL: 'INTERNAL',
 });
@@ -159,7 +164,7 @@ export const ERR_TEXT = {
   WRONG_PHASE: N_('当前阶段无法进行该操作'), NO_FUNDS: N_('资金不足'), HAND_FULL: N_('整备区已满'), BOARD_FULL: N_('已达到部署上限'),
   BAD_TILE: N_('无法部署在该位置'), BAD_TARGET: N_('无效的目标'), SOLD_OUT: N_('已售出'), MAX_LEVEL: N_('调度中心已达最高等级'),
   NOT_YOUR_TURN: N_('尚未轮到你'), ALREADY: N_('已完成该操作'), TEMP_NOT_EMPTY: N_('临时整备区不为空'), ELIMINATED: N_('你已被淘汰'),
-  SPECTATOR: N_('观战中无法进行该操作'), INTERNAL: N_('服务器内部错误'),
+  SPECTATOR: N_('观战中无法进行该操作'), SPECTATING_DISABLED: N_('房主已关闭观战'), INTERNAL: N_('服务器内部错误'),
   AUTH_REQUIRED: N_('请登录或注册账号'), NAME_TAKEN: N_('该代号已被注册'),
   BAD_CREDENTIALS: N_('账号或密码错误'), WEAK_PASSWORD: N_('密码至少 8 位，且不能包含控制字符'),
 };

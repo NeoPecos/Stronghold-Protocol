@@ -59,7 +59,7 @@
 //     single_special_choice_gain_bond_chess {count,bond} `count` random chess of the bond (≤ shop level)
 //     auto_chess_change_map {alias: 0|1}                device toggles on the picker's board (deploy legality) + battle
 //     anything else (env_gbuff…, enemy_attribute_mul…)  a battle EffectRef for the sim content (playerEffects)
-//   cards with `team: true` apply to the picker AND every alive teammate ("若存在其他队友则他们也获得").
+//   cards with `team: true` apply to the picker AND every alive teammate in the same fixed pool group.
 
 import { weightedPick } from './waves.js';
 
@@ -415,13 +415,16 @@ export function cardView(c) {
 }
 
 /**
- * Apply a picked card to a player (registry override → family default). Team tactic cards are applied to every
- * alive teammate as well.
+ * Apply a picked card to a player (registry override → family default). Team tactic cards are applied to alive
+ * teammates in the picker's fixed pool group.
  * @param {import('./Match.js').Match} m
  * @param {import('./PlayerState.js').PlayerState} ps
  */
 export function applyCard(m, ps, card) {
-  const targets = card.kind === 'tactic' && card.team ? [ps, ...m.alivePlayers().filter((p) => p !== ps)] : [ps];
+  const groupIndex = m.poolGroupByPlayer.get(ps.playerId) ?? 0;
+  const targets = card.kind === 'tactic' && card.team
+    ? [ps, ...m.alivePlayers().filter((player) => player !== ps && m.poolGroupByPlayer.get(player.playerId) === groupIndex)]
+    : [ps];
   for (const p of targets) {
     const ev = { card: { ...card }, family: card.family, picker: ps.playerId, forTeammate: p !== ps };
     const handled = m.dispatcher.runKey(p, `choice:${card.id}`, 'onChoicePick', { kind: 'choice', card }, ev);
@@ -455,7 +458,7 @@ function applyDefault(m, ps, card) {
     switch (b.key) {
       case 'global_special_choice_gain_equip': {
         for (let i = 0; i < count; i++) {
-          const id = m.rollItemId({ pool: bs.pool });
+          const id = m.rollItemId({ pool: bs.pool, player: ps });
           if (id) ps.acquireItem(id, { source: 'choice' });
         }
         handled = true;
@@ -490,8 +493,8 @@ function applyDefault(m, ps, card) {
         const hasBond = (cid) => { const c = pgd.chess(cid); return !!(c && Array.isArray(c.bonds) && c.bonds.includes(bs.bond)); };
         for (let i = 0; i < count; i++) {
           const extra = typeof ps.diyStockEntries === 'function' ? ps.diyStockEntries() : null;
-          const id = m.pool.roll(m.rngMeta, { maxTier: Math.max(1, ps.shop.level), filter: hasBond, extra })
-            || m.pool.roll(m.rngMeta, { maxTier: 6, filter: hasBond, extra });
+          const id = m.poolFor(ps).roll(m.rngMeta, { maxTier: Math.max(1, ps.shop.level), filter: hasBond, extra })
+            || m.poolFor(ps).roll(m.rngMeta, { maxTier: 6, filter: hasBond, extra });
           if (id) ps.acquireChess(id, { source: 'choice' });
         }
         handled = true;

@@ -1098,3 +1098,7 @@
   max-width: 100%; font-size: calc(.11 * var(--t)); color: var(--text-lo);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.avatar-pick__variant {
+  max-width: 100%; font-size: calc(.1 * var(--t)); color: var(--text-hi);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

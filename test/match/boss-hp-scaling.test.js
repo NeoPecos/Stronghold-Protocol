@@ -17,7 +17,7 @@ test('every leader and difficulty: bloodPoint × the players alive (co-op), × 1
     const solo = new GameData(DATA, `mode_single_${difficulty.toLowerCase()}`);
     for (const id of Object.keys(DATA.bosses)) {
       const base = DATA.bosses[id].bloodPoint[difficulty];
-      for (const n of [1, 2, 3, 4]) assert.equal(bossPoolHp(gd, id, n), base * n, `${id} ${difficulty} ×${n}`);
+      for (const n of [1, 2, 3, 4, 6, 8, 20]) assert.equal(bossPoolHp(gd, id, n), base * n, `${id} ${difficulty} ×${n}`);
       assert.equal(bossPoolHp(solo, id, 1), base, `${id} ${difficulty} solo`);
     }
   }

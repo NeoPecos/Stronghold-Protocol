@@ -30,6 +30,24 @@
 | [TASK-030](TASK-030-unite-phase-intro.md) | released | Codex | Unite-phase center banner and top cue hot-deployed at maintainer request; visual follow-up pending |
 | [TASK-031](TASK-031-battle-end-round-transition.md) | released | Codex | Battle-over result panel, next-round transition, real funds delta and “完美作战！” wording; static hotfix live |
 | [TASK-032](TASK-032-equipment-slot-rarity.md) | released | Codex | Equipment slots preserve ordinary/golden rarity and hide when empty; static hotfix live |
+| [TASK-038](TASK-038-upstream-026-integration.md) | released (source review pending) | Codex | Upstream 0.2.6 runtime deployed; isolated merge remains uncommitted/unpushed |
+| [TASK-039](TASK-039-browser-precache.md) | released (visual pending) | Codex | Browser lobby baseline pre-cache plus existing current-match warmup |
+| [TASK-040](TASK-040-room-chat-scroll.md) | released (visual pending) | Codex | Stop heartbeat-triggered history rebuilds and preserve scroll position |
+| [TASK-041](TASK-041-native-bundle-hash-hotfix.md) | review_ready | Codex | Restore installed clients' plain-path bundled assets without restarting matches |
+| [TASK-042](TASK-042-windows-client-transition-motion.md) | released (visual pending) | Codex | Play existing transition motion in Windows native client despite reduced-motion setting |
+| [TASK-044](TASK-044-spectator-avatar-options.md) | review_ready (visual pending) | Codex | Four spectator seats and searchable base/E2/skin account avatars; local only |
+| [TASK-045](TASK-045-multiplayer-capacity.md) | in_progress | Codex | Independent capacity UI preview before local integration; no deployment |
+| [TASK-046](TASK-046-room-spectator-switch.md) | review_ready (visual pending) | Codex | Host-controlled spectator admission and post-start recruitment label; local only |
+| [TASK-047](TASK-047-mobile-rotate-fullscreen.md) | review_ready (visual pending) | Codex | Portrait-only rotate/fullscreen button; local only |
+| [TASK-048](TASK-048-announcement-port-review.md) | review_ready (verification pending) | Codex | Replace old notices with historical/urgent announcements; local only |
+| [TASK-049](TASK-049-astrbot-announcement-publisher.md) | planned | Codex lead / implementer unassigned | 黍黍 AstrBot plugin drafts announcements; maintainer previews and explicitly approves publication |
+| [TASK-050](TASK-050-responsive-lobby-team-panel.md) | released (visual pending) | Codex | Keep two-column lobby on landscape phones and bound/collapse the in-match team list |
+| [TASK-051](TASK-051-avatar-catalog-completion.md) | planned | unassigned | Fetch missing avatar-only operators and skins, including Amiya and Goldenglow |
+| [TASK-058](TASK-058-group-effects-boss-assist.md) | in_progress | Codex | Group-local team effects and weighted cross-group boss assistance; local only |
+| [TASK-052](TASK-052-host-ai-strategy.md) | planned | unassigned | Let hosts choose each AI seat's opening strategy within four-seat groups |
+| [TASK-053](TASK-053-announcement-group-client-info.md) | released | Codex | Published pinned QQ group and client download/update instructions; previous notice retained |
+| [TASK-055](TASK-055-cloudflare-asset-channel.md) | released (browser acceptance pending) | Codex, isolated worktree | Cloudflare Pages primary for new browser sessions; source-only fallback |
+| [TASK-056](TASK-056-current-match-asset-gate.md) | released (browser acceptance pending) | Codex, isolated worktree | Block fresh browser entry until maps/common assets are cached; persist later successful asset loads |
 
 Only one task should be the repository-wide active implementation task unless tasks use isolated worktrees and do not
 touch overlapping files.

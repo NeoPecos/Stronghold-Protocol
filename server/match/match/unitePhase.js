@@ -5,7 +5,7 @@
 
 import { PHASE, GEO } from '../../../shared/constants.js';
 import { deriveSeed } from '../../sim/rng.js';
-import { uniteBattleOpts, uniteSurvivors } from '../unite.js';
+import { uniteBattleOpts, uniteSurvivors, nextUnitePlan, plannedUniteSurvivors } from '../unite.js';
 import { FieldRunner, timelineAt, uniteBillBounds } from '../fields.js';
 import { uniteLeft } from '../../sim/spec.js';
 import { FLOW_TICKER_PRIORITY, DELAYS } from './common.js';
@@ -17,7 +17,7 @@ export class MatchUnite {
     if (this.clientCombat) { this._startUniteClient(plan); return; }
     this.phase = PHASE.UNITE;
     this.unitePlan = plan;
-    const limit = this.wave ? this.wave.timeLimit : 60;
+    const limit = (this.wave ? this.wave.timeLimit : 60) + (this.uniteTimeBonus || 0);
     const battle = this.newBattle(this._uniteOpts(plan, limit));
     this.fields = [{ fieldId: 'u', kind: 'unite', players: plan.helpers.map((p) => p.playerId), battle, live: true }];
     this.deadline = this.sched.instant ? 0 : this.sched.now() + Math.round((limit / this.gameSpeed) * 1000);
@@ -35,7 +35,7 @@ export class MatchUnite {
         this.fields[0].live = false;
         this.deadline = 0;
         this.markPublic();
-        this.later(this.scaled(DELAYS.COMBAT_END), () => this.settle(plan, res));
+        this.later(this.scaled(DELAYS.COMBAT_END), () => this._afterUniteWave(plan, res));
       },
     });
     this.runner.start();
@@ -50,7 +50,7 @@ export class MatchUnite {
   _uniteOpts(plan, limit) {
     const { wave, players } = uniteBattleOpts(this, plan, limit);
     return {
-      seed: deriveSeed(this.seed, `u:${this.round}`),
+      seed: deriveSeed(this.seed, plan.round > 1 ? `u:${this.round}:${plan.round}` : `u:${this.round}`),
       kind: 'unite',
       modeId: this.modeId,
       round: this.round,
@@ -72,7 +72,7 @@ export class MatchUnite {
   _startUniteClient(plan) {
     this.phase = PHASE.UNITE;
     this.unitePlan = plan;
-    const limit = this.wave ? this.wave.timeLimit : 60;
+    const limit = (this.wave ? this.wave.timeLimit : 60) + (this.uniteTimeBonus || 0);
     const f = this._ccField({ fieldId: 'u', kind: 'unite', players: plan.helpers.map((p) => p.playerId), opts: this._uniteOpts(plan, limit) });
     this.deadline = this.sched.instant ? 0 : this.sched.now() + Math.round((limit / this.gameSpeed) * 1000);
     this.watchers.clear();
@@ -96,7 +96,14 @@ export class MatchUnite {
     this.deadline = 0;
     this.markPublic();
     const plan = this.unitePlan;
-    this.later(this.scaled(DELAYS.COMBAT_END), () => this.settle(plan, res));
+    this.later(this.scaled(DELAYS.COMBAT_END), () => this._afterUniteWave(plan, res));
+  }
+
+  _afterUniteWave(plan, result) {
+    if (this.phase !== PHASE.UNITE || this.unitePlan !== plan) return;
+    const next = nextUnitePlan(plan, result);
+    if (next) this.startUnite(next);
+    else this.settle(plan, result);
   }
 
   /**
@@ -119,10 +126,7 @@ export class MatchUnite {
     let res = null;
     if (f && f.cc) res = f.done ? f.result : null;
     else if (f && f.battle && f.battle.finished) { try { res = f.battle.result(); } catch { res = null; } }
-    if (res && res.synthetic) {
-      const own = this.lastResults.get(pid);
-      return own && Array.isArray(own.leaked) ? own.leaked.filter((l) => l && l.counted !== false).length : 0;
-    }
+    if (res && res.synthetic) return plannedUniteSurvivors(plan).get(pid) || 0;
     if (res) return uniteSurvivors(plan, res).get(pid) || 0;
     const sent = plan.leaked.filter((l) => l.sourcePlayerId === pid).length;
     let live = null;

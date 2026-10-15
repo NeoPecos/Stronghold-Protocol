@@ -37,11 +37,18 @@
 .solo-note { display: flex; flex-direction: column; align-items: flex-end; gap: .03rem; font-size: calc(.16 * var(--t)); color: var(--text-lo); }
 
 /* ---- seats ------------------------------------------------------------------------------------------------ */
+/* 座位区 + 右侧的 room access 坞。这块面板以前是座位网格的子项，所以人数一变它就在格子里换位置，矮行（16/20 人）
+   还会压住座位卡片（维护者 m00232，图一二三）。现在它固定占座位区右侧的一列，座位网格不再替它留列。 */
+.room-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.room-stage--rail { padding-right: .5rem; }
+.room-stage > .seats { flex: 1 1 auto; min-width: 0; align-self: stretch; min-height: 0; }
+.room-stage > .room-access-options { flex: none; align-self: center; max-height: 100%; overflow-y: auto; }
+
 .seats {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 3.55rem)) minmax(2.35rem, 2.75rem);
+  grid-template-columns: repeat(4, minmax(0, 3.55rem));
   grid-template-rows: minmax(0, 6rem);
   justify-content: center;
   align-content: center;
@@ -55,18 +62,19 @@
   align-self: center;
   display: flex;
   flex-direction: column;
-  gap: .14rem;
-  padding: .22rem .18rem;
+  width: 2.05rem;               /* 固定一列宽（原来撑满整个座位格），缩小面积后不再压住座位 */
+  gap: .1rem;
+  padding: .14rem .12rem;
   background: linear-gradient(180deg, rgba(19, 28, 25, .92), rgba(8, 12, 11, .94));
   border: 1px solid var(--line);
 }
 .room-access__toggle {
   display: grid;
-  grid-template-columns: .34rem minmax(0, 1fr) .38rem;
+  grid-template-columns: .3rem minmax(0, 1fr) .34rem;
   align-items: center;
-  gap: .1rem;
-  min-height: .72rem;
-  padding: .1rem .12rem;
+  gap: .08rem;
+  min-height: .58rem;
+  padding: .07rem .09rem;
   text-align: left;
   background: rgba(0, 0, 0, .28);
   border: 1px solid var(--line-2);
@@ -76,26 +84,32 @@
 .room-access__toggle:not(:disabled):hover { border-color: var(--mint-700); color: var(--text-hi); }
 .room-access__toggle.is-active { border-color: var(--mint-600); color: var(--mint-400); background: rgba(23, 249, 183, .07); }
 .room-access__icon { display: grid; place-items: center; }
-.room-access__icon .icon { width: .25rem; height: .25rem; }
+.room-access__icon .icon { width: .22rem; height: .22rem; }
 /* The plan's drawn art (public/assets/ui/room/{invite-only,recruit-wanted}.png, 256² transparent): the picture
    carries the meaning, so it is sized like the glyph it replaces and nothing is stacked on top of it. State is
    styling only — dim while off, full brightness while on — and a read-only switch is dimmed a further step so a
    guest can tell at a glance that it is not theirs to press. */
-.room-access__icon img { width: .32rem; height: .32rem; object-fit: contain; display: block;
+.room-access__icon img { width: .28rem; height: .28rem; object-fit: contain; display: block;
   opacity: .55; filter: saturate(.6); transition: opacity var(--t-fast), filter var(--t-fast); }
 .room-access__toggle.is-active .room-access__icon img { opacity: 1; filter: none; }
 .room-access__toggle:disabled .room-access__icon img { opacity: .38; filter: saturate(.35) brightness(.85); }
 .room-access__toggle strong, .room-access__toggle small { display: block; }
-.room-access__toggle strong { font-size: calc(.16 * var(--t)); white-space: nowrap; }
-.room-access__toggle small { margin-top: .03rem; color: var(--text-dim); font-size: calc(.12 * var(--t)); }
-.room-access__switch { position: relative; width: .38rem; height: .2rem; border: 1px solid var(--line-3); background: #0a0d0c; border-radius: .2rem; }
-.room-access__switch::after { content: ''; position: absolute; top: .025rem; left: .025rem; width: .13rem; height: .13rem; border-radius: 50%; background: var(--text-dim); transition: transform var(--t-fast), background var(--t-fast); }
-.room-access__toggle.is-active .room-access__switch::after { transform: translateX(.18rem); background: var(--mint-400); box-shadow: 0 0 .08rem var(--mint-glow); }
-.room-access__readonly { color: var(--text-dim); font-size: calc(.12 * var(--t)); text-align: center; }
+.room-access__toggle strong { font-size: calc(.14 * var(--t)); white-space: nowrap; }
+.room-access__toggle small { margin-top: .02rem; color: var(--text-dim); font-size: calc(.11 * var(--t)); }
+.room-access__switch { position: relative; width: .34rem; height: .18rem; border: 1px solid var(--line-3); background: #0a0d0c; border-radius: .2rem; }
+.room-access__switch::after { content: ''; position: absolute; top: .02rem; left: .02rem; width: .12rem; height: .12rem; border-radius: 50%; background: var(--text-dim); transition: transform var(--t-fast), background var(--t-fast); }
+.room-access__toggle.is-active .room-access__switch::after { transform: translateX(.16rem); background: var(--mint-400); box-shadow: 0 0 .08rem var(--mint-glow); }
+.room-access__readonly { color: var(--text-dim); font-size: calc(.11 * var(--t)); text-align: center; }
 
+/* 窄窗：多人数布局仍留一列给 5 个座位卡片（和以前一样），4 人布局不再需要给面板留列。 */
 @media (max-width: 1250px) {
-  .seats:not(.seats--solo) { grid-template-columns: repeat(4, minmax(0, 1fr)) 2.25rem; gap: .16rem; padding-inline: .3rem; }
-  .room-access__toggle { grid-template-columns: .36rem minmax(0, 1fr); }
+  .seats:not(.seats--solo) { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .16rem; padding-inline: .3rem; }
+  .seats:not(.seats--solo).seats--expanded,
+  .seats:not(.seats--solo).seats--ten,
+  .seats:not(.seats--solo).seats--dense { grid-template-columns: repeat(4, minmax(0, 1fr)) 2.25rem; }
+  .room-stage--rail { padding-right: .3rem; }
+  .room-access-options { width: 1.85rem; }
+  .room-access__toggle { grid-template-columns: .3rem minmax(0, 1fr); }
   .room-access__switch { display: none; }
 }
 
@@ -119,6 +133,19 @@
   animation: seat-in var(--t-slow) var(--ease-out) backwards;
   animation-delay: calc(var(--seat-i, 0) * 60ms);
 }
+[data-group="0"] { --group-accent: #49d6b2; }
+[data-group="1"] { --group-accent: #efb94f; }
+[data-group="2"] { --group-accent: #66b8f0; }
+[data-group="3"] { --group-accent: #b79af2; }
+[data-group="4"] { --group-accent: #ec8f9c; }
+.seat[data-group] { border-color: color-mix(in srgb, var(--group-accent) 55%, var(--line)); }
+.seat[data-group]::before { background: var(--group-accent); box-shadow: 0 0 .12rem var(--group-accent); }
+.seat[data-group] .seat__no { border-left-color: var(--group-accent); }
+.seat__group-tag, .seat__group-select { margin-left: auto; flex: none; color: var(--group-accent); font-size: calc(.13 * var(--t)); font-weight: 700; white-space: nowrap; }
+.seat__group-select { max-width: 1.06rem; min-width: 0; padding: .02rem; border: 1px solid var(--group-accent); background: #0b1715; cursor: pointer; }
+.seat__group-select:disabled { cursor: default; opacity: .7; }
+.seat__group-tag { border: 1px solid var(--group-accent); padding: .01rem .05rem; }
+.seat[data-group] .seat__host { margin-left: 0; }
 @keyframes seat-in { from { opacity: 0; transform: translateY(.18rem); } }
 .seat::before {
   content: '';
@@ -208,6 +235,8 @@
 
 .seat.is-ready { --bk-c: var(--mint-500); border-color: var(--mint-800); }
 .seat.is-ready::before { background: var(--mint-500); box-shadow: 0 0 .12rem rgba(23, 249, 183, .6); }
+.seat[data-group].is-ready { border-color: color-mix(in srgb, var(--group-accent) 65%, var(--line)); }
+.seat[data-group].is-ready::before { background: var(--group-accent); box-shadow: 0 0 .12rem var(--group-accent); }
 .seat.is-host .seat__no { border-left-color: var(--gold); }
 .seat.is-me { box-shadow: 0 0 0 1px rgba(78, 216, 175, .28), 0 0 .44rem rgba(23, 249, 183, .12), 0 .14rem .34rem rgba(0, 0, 0, .4); }
 .seat.is-me .seat__no { color: var(--mint-400); }
@@ -219,6 +248,7 @@
     #0b0e10; }
 
 .seat--empty { background: rgba(10, 13, 12, .5); border-style: dashed; border-color: var(--line-2); box-shadow: none; }
+.seat--empty[data-group] { border-color: color-mix(in srgb, var(--group-accent) 30%, var(--line-2)); }
 .seat--empty .seat__art { background: transparent; border: 0; }
 .seat__radar {
   width: 1.3rem;
@@ -362,3 +392,71 @@
 .ready-count__icons .icon.is-on { color: var(--mint-400); filter: drop-shadow(0 0 4px var(--mint-glow)); }
 
 .room-bar .btn--xl { min-width: 3.2rem; letter-spacing: .2em; }
+
+/* --- 席位容量条与 6/8/10/16/20 席布局（取自 20 人分支 d7d541e7，令牌与本仓一致） --- */
+.room-capacity { flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .08rem .16rem; min-height: .52rem; padding: .04rem .3rem; color: var(--text-lo); font-size: calc(.16 * var(--t)); }
+.room-capacity__label b, .room-capacity__count { color: var(--mint-400); font-size: calc(.2 * var(--t)); }
+.room-capacity__options { display: flex; gap: .06rem; }
+.room-capacity__opt { min-width: .48rem; height: .36rem; border: 1px solid var(--line-2); background: rgba(0, 0, 0, .35); color: var(--text-lo); font-family: var(--font-num); font-size: calc(.18 * var(--t)); }
+.room-capacity__opt:hover:not(:disabled) { border-color: var(--mint-500); color: var(--text-hi); }
+.room-capacity__opt.is-active { border-color: var(--mint-500); background: var(--mint-a20); color: var(--mint-400); }
+.room-capacity__opt:disabled { opacity: .35; cursor: default; }
+.room-config-strip { flex: none; display: flex; justify-content: center; align-items: center; gap: .16rem; min-height: .52rem; }
+.room-rules-screen { display: flex; flex-direction: column; min-height: 0; }
+.room-rules__header { display: flex; align-items: center; justify-content: space-between; gap: .2rem; min-height: 1.36rem; padding: .18rem .48rem; border-bottom: 1px solid var(--line); background: rgba(8, 13, 12, .92); }
+.room-rules__header h1 { margin: .05rem 0 0; color: var(--text-hi); font-size: calc(.3 * var(--t)); }
+.room-rules__header > .num { color: var(--mint-400); font-size: calc(.2 * var(--t)); }
+.room-rules__content { flex: 1; overflow-y: auto; display: grid; place-items: start center; align-content: start; gap: .24rem; padding: .48rem; }
+.room-rules__section { width: min(100%, 9rem); padding: .38rem; border: 1px solid var(--line-2); background: rgba(5, 17, 15, .78); }
+.room-rules__section h2 { margin: .1rem 0; color: var(--text-hi); font-size: calc(.28 * var(--t)); }
+.room-rules__section p { margin: .12rem 0; color: var(--text-lo); font-size: calc(.16 * var(--t)); }
+.room-rules__options { display: flex; flex-wrap: wrap; gap: .1rem; margin: .28rem 0; }
+.room-rules__option { min-width: 1.35rem; padding: .13rem .18rem; border: 1px solid var(--line-2); background: rgba(0, 0, 0, .35); color: var(--text-md); font-size: calc(.18 * var(--t)); cursor: pointer; }
+.room-rules__option:hover:not(:disabled), .room-rules__option.is-active { border-color: var(--mint-500); color: var(--mint-400); background: var(--mint-a20); }
+.room-rules__option:disabled { cursor: default; opacity: .55; }
+.room-rules__bonus { display: block; margin-top: .26rem; color: var(--mint-400); font-size: calc(.19 * var(--t)); }
+.room-rules__groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(2.25rem, 1fr)); gap: .14rem; margin-top: .24rem; }
+.room-rules__group { min-width: 0; padding: .16rem; border: 1px solid var(--group-accent, var(--line-2)); background: rgba(0, 0, 0, .25); }
+.room-rules__group > strong { display: flex; justify-content: space-between; color: var(--group-accent, var(--mint-400)); font-size: calc(.18 * var(--t)); }
+.room-rules__group > strong .num { color: var(--text-lo); }
+.room-rules__members { display: grid; gap: .06rem; margin-top: .12rem; }
+.room-rules__member-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .06rem; min-width: 0; }
+.room-rules__member { width: 100%; min-height: .38rem; padding: .06rem .1rem; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; border: 1px solid var(--line-2); background: rgba(0, 0, 0, .35); color: var(--text-md); font-size: calc(.16 * var(--t)); }
+.room-rules__band { max-width: 1.5rem; min-width: 0; padding: .02rem .04rem; border: 1px solid var(--line-2); background: #0b1715; color: var(--text-hi); font-size: calc(.14 * var(--t)); }
+.room-rules__band:disabled { opacity: .6; }
+.room-rules__member:hover:not(:disabled), .room-rules__member.is-selected { border-color: var(--mint-500); color: var(--mint-400); background: var(--mint-a20); }
+.room-rules__member:disabled { cursor: default; }
+.room-rules__member .num { margin-right: .06rem; color: var(--mint-400); }
+.seats--expanded, .seats--dense { grid-template-rows: none; align-content: stretch; overflow: auto; scrollbar-width: thin; }
+/* 6/8 人仍是「一行 5 个」：4 个宽格 + 1 个窄格（原来是基类的模板，现在基类不再给 room access 留列，这里显式写回）。 */
+.seats--expanded { grid-template-columns: repeat(4, minmax(0, 3.55rem)) minmax(2.35rem, 2.75rem); grid-auto-rows: minmax(2.7rem, 1fr); gap: .14rem; padding: .12rem .45rem; }
+.seats--ten { grid-template-columns: repeat(5, minmax(0, 3.08rem)); }
+.seats--expanded .seat { padding: .1rem .14rem; gap: .03rem; }
+.seats--expanded .seat__art { margin: 0; }
+.seats--expanded .seat__art .avatar { --av: 1.3rem; }
+.seats--expanded .seat__radar { width: .84rem; height: .84rem; }
+.seats--expanded .seat__name { font-size: calc(.22 * var(--t)); }
+.seats--expanded .seat__foot { min-height: .34rem; margin-top: 0; padding-top: .03rem; }
+
+.seats--dense { grid-template-columns: repeat(5, minmax(0, 3.08rem)); grid-auto-rows: minmax(1.48rem, 1fr); gap: .1rem; padding: .08rem .36rem; }
+/* 16 人以上：一行 5 张、行高压到 1.48rem，卡片内容仍跟 ≤10 人一样「竖排居中」
+   （维护者 m01105：个人信息和待命中不许靠左） */
+.seats--dense .seat { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .03rem; padding: .06rem .1rem; }
+.seats--dense .seat__head { align-self: stretch; gap: .06rem; }
+.seats--dense .seat__no { font-size: calc(.17 * var(--t)); }
+.seats--dense .seat__head .micro { font-size: calc(.11 * var(--t)); }
+.seats--dense .seat[data-group] .seat__head .micro { display: none; }
+.seats--dense .seat__group-tag, .seats--dense .seat__group-select { font-size: calc(.11 * var(--t)); }
+.seats--dense .seat__host { font-size: calc(.11 * var(--t)); padding: 0 .04rem; }
+.seats--dense .seat__art { margin: 0; border: 0; background: none; }
+.seats--dense .seat__art .avatar { --av: .68rem; }
+.seats--dense .seat__bot-label, .seats--dense .seat__stripes, .seats--dense .seat__radar, .seats--dense .seat > .micro { display: none; }
+.seats--dense .seat__who { justify-content: center; min-width: 0; }
+.seats--dense .seat__name { max-width: 100%; font-size: calc(.18 * var(--t)); }
+.seats--dense .seat__foot { justify-content: center; min-height: .25rem; margin: 0; padding: 0; }
+.seats--dense .seat__state { font-size: calc(.14 * var(--t)); }
+.seats--dense .seat__state .icon { width: .16rem; height: .16rem; }
+.seats--dense .seat__foot .tt-anchor { position: static; }
+.seats--dense .seat__actions { position: static; }
+.seats--dense .seat__foot .btn--sm { min-height: .25rem; height: .25rem; padding: 0 .08rem; font-size: calc(.12 * var(--t)); }
+.seats--dense .seat__wait { font-size: calc(.14 * var(--t)); }

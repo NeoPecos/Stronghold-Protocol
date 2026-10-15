@@ -83,18 +83,20 @@ export class MatchSetupVote {
       const setup = setupMatchWaves(this.gd, rng);
       const stage = setup.stageId ? this.gd.stage(setup.stageId) : null;
       const bans = drawDisabledBonds(this.gd, rng);
-      const pool = new SharedPool(this.gd, { banned: bans.banned });
-      if (!pool.entries.size) throw new Error('rerolled chess pool is empty');
+      const pools = this.groupPools.map((group) => new SharedPool(this.gd, {
+        banned: bans.banned, scale: group.pool.scale,
+      }));
+      if (pools.some((pool) => !pool.entries.size)) throw new Error('rerolled chess pool is empty');
       const off = new Set([...bans.drawn, ...bans.staticOff]);
       const stocks = this.order.map((ps) => ps.buildDiyStock(off));
-      prepared = { setup, stage, bans, pool, stocks };
+      prepared = { setup, stage, bans, pools, stocks };
     } catch (e) {
       this.reportError('reroll setup', e);
       this.cancelSetupVote();
       return fail(ERR.INTERNAL);
     }
     // All data-dependent work succeeds before any opening or player state changes.
-    const { setup, stage, bans, pool, stocks } = prepared;
+    const { setup, stage, bans, pools, stocks } = prepared;
     this.stageId = setup.stageId;
     this.stage = stage;
     this.factions = setup.factions;
@@ -103,7 +105,8 @@ export class MatchSetupVote {
     this.disabledBonds = bans.drawn;
     this.staticInactiveBonds = bans.staticOff;
     this.bannedChess = bans.banned;
-    this.pool = pool;
+    this.groupPools = this.groupPools.map((group, index) => ({ ...group, pool: pools[index] }));
+    this.pool = this.groupPools[0].pool;
     this._botPath = null;
     for (const [i, ps] of this.order.entries()) {
       ps.diyStock = stocks[i].stock;

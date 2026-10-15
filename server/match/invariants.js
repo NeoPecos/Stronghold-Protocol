@@ -38,7 +38,7 @@ export function collectViolations(m, { limit = 25 } = {}) {
   const out = [];
   const fail = (msg) => { if (out.length < limit) out.push(msg); };
   const gd = m.gd;
-  const held = new Map();
+  const held = m.groupPools.map(() => new Map());
   const uids = new Set();
   const banned = new Set(m.bannedChess || []);
   const note = (ps, p) => {
@@ -109,7 +109,7 @@ export function collectViolations(m, { limit = 25 } = {}) {
         const maxCopies = rec.isGolden ? gd.goldenCopies : 1;
         if (!Number.isInteger(p.poolCopies) || p.poolCopies < 0 || p.poolCopies > maxCopies) fail(`${id}: ${p.id} holds ${p.poolCopies} copies`);
         const base = gd.baseIdOf(p.id);
-        const tally = rec.isDiy ? diyHeld : held;
+        const tally = rec.isDiy ? diyHeld : held[m.poolGroupByPlayer.get(id) ?? 0];
         tally.set(base, (tally.get(base) || 0) + (p.poolCopies || 0));
       } else if (p.kind === 'item') {
         if (!gd.item(p.id)) fail(`${id}: unknown item ${p.id}`);
@@ -195,22 +195,24 @@ export function collectViolations(m, { limit = 25 } = {}) {
   }
 
   // shared pool accounting
-  for (const [base, e] of m.pool.entries) {
-    if (!(Number.isInteger(e.left) && e.left <= e.cap)) fail(`pool ${base}: balance ${e.left} cap ${e.cap}`);
-    const h = held.get(base) || 0;
-    if (e.left + h !== e.cap) fail(`pool ${base}: left ${e.left} + held ${h} != cap ${e.cap}`);
+  for (const [index, group] of m.groupPools.entries()) {
+    for (const [base, e] of group.pool.entries) {
+      if (!(Number.isInteger(e.left) && e.left <= e.cap)) fail(`group ${index + 1} pool ${base}: balance ${e.left} cap ${e.cap}`);
+      const count = held[index].get(base) || 0;
+      if (e.left + count !== e.cap) fail(`group ${index + 1} pool ${base}: left ${e.left} + held ${count} != cap ${e.cap}`);
+    }
+    for (const [base, count] of held[index]) if (!group.pool.has(base) && count !== 0) fail(`group ${index + 1} non-pool chess ${base} holds ${count} copies`);
   }
-  for (const [base, n] of held) if (!m.pool.has(base) && n !== 0) fail(`non-pool chess ${base} holds ${n} copies`);
 
   // Fixed operator gifts may overdraw equipment stock; ownership still counts and keeps shop availability at zero.
   // Other item families retain their cap. The chess pool above also permits explicit overdraw (Mimic).
-  if (m.itemPool && gd.raw.items) {
+  if (gd.raw.items) for (const [index, group] of m.groupPools.entries()) {
     for (const [id, rec] of Object.entries(gd.raw.items)) {
       if (!rec || rec.isGolden) continue;
-      const cap = m.itemPool.cap(id);
+      const cap = group.itemPool.cap(id);
       if (!Number.isInteger(cap)) continue;
-      const h = m.itemPool.held(id);
-      if (h > cap && !gd.isUnlimitedGiftItem(id)) fail(`item ${id}: held ${h} > cap ${cap}`);
+      const count = group.itemPool.held(id);
+      if (count > cap && !gd.isUnlimitedGiftItem(id)) fail(`group ${index + 1} item ${id}: held ${count} > cap ${cap}`);
     }
   }
 

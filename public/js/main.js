@@ -51,8 +51,8 @@ import { audio, installAudio } from './audio.js';
 import { settingsStore } from './ui/settings.js';
 import { GuideHost } from './ui/guide.js';
 import { installDeviceSupport } from './ui/device.js';
-// 浏览器公告：只给浏览器用户看（原生客户端由 isNativeClient() 排除），见 ui/notice.js
-import { installBrowserNotice } from './ui/notice.js';
+import { AnnouncementHost, installAnnouncements } from './ui/announcements.js';
+import { UrgentAnnouncementHost, installUrgentAnnouncements } from './ui/urgentAnnouncements.js';
 import { LoadoutHost } from './screens/loadout.js';
 import { StatsHost } from './screens/stats.js';
 import { recordResult, installStatsRecorder } from './ui/stats.js';
@@ -211,6 +211,7 @@ function onRoomState(msg) {
 const CLOSE_REASON = {
   // 'timeout' = this player was removed after staying disconnected past the lobby grace (server/lobby.js)
   host_left: N_('创建者已离开，同盟已解散'), timeout: N_('由于长时间断开连接，你已离开同盟'), empty: N_('同盟已解散'),
+  host_away: N_('房主长时间未操作，同盟已关闭'),
   kicked: N_('你已被移出同盟'), ended: N_('模拟已结束'), expired: N_('同盟已过期'), shutdown: N_('服务器维护中，同盟已关闭'),
 };
 
@@ -318,8 +319,6 @@ function App() {
   return html`<div class="app-root">
     <div class="app-bg" aria-hidden="true"></div>
     ${error ? html`<${ScreenCrashed} error=${error} reset=${resetError} />` : html`<${Screen} key=${route} />`}
-    ${route === 'title' ? html`<button type="button" id="distribution-reopen"
-      onClick=${() => { const panel = document.getElementById('distribution-notice'); if (panel) panel.hidden = false; }}>${t('公告')}</button>` : null}
     <${ConnectionBanner} />
     <${ToastHost} />
     <${UiHosts} />
@@ -327,6 +326,8 @@ function App() {
     <${LoadoutHost} />
     <${StatsHost} />
     <${AvatarHost} />
+    <${AnnouncementHost} />
+    <${UrgentAnnouncementHost} />
   </div>`;
 }
 
@@ -380,10 +381,6 @@ async function boot() {
   installTrafficMeter();
   // touch / hover / fullscreen classes, zoom-gesture blocking, rotation re-layout (ui/device.js, css/devices.css)
   installDeviceSupport();
-  // 浏览器公告（ui/notice.js）：带宽所限不再支持网页游玩，引导进群下载客户端。
-  // 原生客户端（SPClient/Windows|Android、WebView 宿主）不弹 —— 绝不能让它看到「浏览器版停用」。
-  // 关过一次就记住版本，不再打扰；换公告版本会再弹一次。
-  installBrowserNotice();
   // A page restored from the back/forward cache has a dead socket and a stale token choice: start over.
   window.addEventListener('pageshow', (ev) => { if (ev.persisted) location.reload(); });
   // Pick this tab's reconnect token (asks other live tabs; ≤150 ms) while fonts load.
@@ -403,9 +400,8 @@ async function boot() {
 
   wireNet();
   installResourceWarmup(store);
-  net.on('server.announcement', message => {
-    if (typeof message.text === 'string') toast(message.text, 'info', { ttl: 15000 });
-  });
+  installAnnouncements({ appStore: store, selectRoute, net, restoreGraceMs: RESTORE_GRACE_MS });
+  installUrgentAnnouncements({ net });
   // 设置里把「保持登录」关掉的那一刻就清掉凭证，不必等下次启动
   settingsStore.subscribe((cur, prev) => {
     if (prev?.keepSignedIn && !cur.keepSignedIn) { identity.setEntered(false); identity.saveName(''); identity.forgetRemember(); }

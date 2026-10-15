@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>席位容量预览 · 卫戍协议：盟约</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%230c0f0e'/%3E%3Cpath fill='%234ed8af' d='M5 3h3v2h2V3h4v2h2V3h3v5l-2 2v7l2 2v2H5v-2l2-2v-7L5 8z'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/fonts/fonts.css" />
+  <link rel="stylesheet" href="/css/theme.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/screens/lobby.css" />
+  <link rel="stylesheet" href="/css/screens/room.css" />
+  <script type="importmap">
+    { "imports": { "preact": "/vendor/preact.module.js", "preact/hooks": "/vendor/hooks.module.js", "htm": "/vendor/htm.module.js" } }
+  </script>
+  <style>
+    /* 这份预览页自带样式：只演示「同盟席位」两处控件与 20 席座位网格的样子。
+       刻意不写进 public/css/**，免得动到线上/其他人正在改的样式表。 */
+    html, body { margin: 0; min-height: 100%; background: #0a0e0d; color: var(--text-hi); }
+    body { padding: .28rem .34rem .5rem; font-family: var(--font-ui); }
+    .cp-head { display: flex; flex-direction: column; gap: .08rem; padding-bottom: .18rem; border-bottom: 1px solid var(--line-2); }
+    .cp-head h1 { margin: 0; font-size: calc(.3 * var(--t)); letter-spacing: .02em; }
+    .cp-warn { display: flex; gap: .12rem; align-items: baseline; margin-top: .12rem; padding: .12rem .16rem;
+      border: 1px solid rgba(240, 180, 90, .5); background: rgba(240, 180, 90, .08); color: #f0c07a;
+      font-size: calc(.17 * var(--t)); line-height: 1.5; }
+    .cp-warn b { color: #ffd79a; }
+    .cp-section { margin-top: .3rem; }
+    .cp-section > h2 { margin: 0 0 .12rem; font-size: calc(.22 * var(--t)); color: var(--text-md); font-weight: 700; }
+    .cp-section > h2 span { margin-left: .1rem; font-size: calc(.14 * var(--t)); letter-spacing: .08em; color: var(--mint-500); text-transform: uppercase; }
+    .cp-note { margin-top: .1rem; font-size: calc(.15 * var(--t)); color: var(--text-lo); line-height: 1.5; }
+    .cp-frame { padding: .16rem .18rem; border: 1px solid var(--line-2); background: rgba(9, 13, 11, .7); }
+    .cp-flag { display: inline-flex; align-items: center; gap: .06rem; margin-left: .08rem; padding: 0 .08rem;
+      border: 1px solid rgba(240, 180, 90, .45); color: #f0c07a; font-size: calc(.13 * var(--t)); }
+    /* --- 大厅：同盟席位选择器（预览版） --- */
+    .capacity-select { display: flex; align-items: center; justify-content: space-between; gap: .18rem; margin-top: .2rem;
+      padding: .14rem .18rem; border: 1px solid var(--line-2); background: rgba(9, 13, 11, .7); }
+    .capacity-select__label { display: flex; flex-direction: column; flex: none; color: var(--text-md);
+      font-size: calc(.19 * var(--t)); font-weight: 700; }
+    .capacity-select__options { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .06rem; }
+    .capacity-select__opt { min-width: .66rem; height: .42rem; padding: 0 .12rem; border: 1px solid var(--line-2);
+      background: rgba(255, 255, 255, .03); color: var(--text-lo); font-size: calc(.16 * var(--t)); font-weight: 700; cursor: pointer; }
+    .capacity-select__opt:hover { color: var(--text-hi); border-color: var(--mint-600); }
+    .capacity-select__opt.is-active { color: var(--mint-400); border-color: var(--mint-500); background: var(--mint-a20); }
+    .capacity-select__opt.is-locked { color: #f0c07a; border-color: rgba(240, 180, 90, .45); }
+    /* --- 房间：人数上限行（预览版） --- */
+    .room-capacity { flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+      gap: .08rem .16rem; min-height: .52rem; padding: .04rem .3rem; color: var(--text-lo); font-size: calc(.16 * var(--t)); }
+    .room-capacity__label b, .room-capacity__count { color: var(--mint-400); font-size: calc(.2 * var(--t)); }
+    .room-capacity__options { display: flex; gap: .06rem; }
+    .room-capacity__opt { min-width: .48rem; height: .36rem; border: 1px solid var(--line-2); background: rgba(0, 0, 0, .35);
+      color: var(--text-lo); font-family: var(--font-num); font-size: calc(.18 * var(--t)); cursor: pointer; }
+    .room-capacity__opt:hover:not(:disabled) { border-color: var(--mint-500); color: var(--text-hi); }
+    .room-capacity__opt.is-active { border-color: var(--mint-500); background: var(--mint-a20); color: var(--mint-400); }
+    .room-capacity__opt:disabled { opacity: .35; cursor: default; }
+    /* --- 座位网格（预览版）：按人数换列数 --- */
+    .cp-seats { display: grid; gap: .1rem; margin-top: .12rem; }
+    .cp-seat { display: flex; align-items: center; gap: .08rem; padding: .1rem; min-height: .6rem;
+      border: 1px solid var(--line-2); background: rgba(255, 255, 255, .03); }
+    .cp-seat.is-empty { border-style: dashed; color: var(--text-dim); background: rgba(255, 255, 255, .01); }
+    .cp-seat.is-me { border-color: var(--mint-500); background: var(--mint-a20); }
+    .cp-seat__no { flex: none; font-family: var(--font-num); font-size: calc(.16 * var(--t)); color: var(--text-lo); }
+    .cp-seat__name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: calc(.18 * var(--t)); }
+    .cp-seat__tag { flex: none; margin-left: auto; padding-left: .06rem; font-size: calc(.14 * var(--t)); color: var(--text-lo); }
+    .cp-stats { display: flex; gap: .3rem; margin-top: .1rem; font-size: calc(.16 * var(--t)); color: var(--text-lo); }
+    .cp-stats b { color: var(--mint-400); font-family: var(--font-num); }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/dev/capacity-preview.js"></script>
+</body>
+</html>

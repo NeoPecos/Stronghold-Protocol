@@ -70,8 +70,8 @@ export class MatchInfra {
   alivePlayers() { return this.order.filter((p) => p.alive); }
 
   /** Whether any chess of a bond is in this match's pool (a 驰援 card of a fully banned bond is never offered). */
-  bondInPool(bondId) {
-    for (const id of this.pool.entries.keys()) {
+  bondInPool(bondId, groupIndex = 0) {
+    for (const id of this.groupPools[groupIndex].pool.entries.keys()) {
       const c = this.gd.chess(id);
       if (c && Array.isArray(c.bonds) && c.bonds.includes(bondId)) return true;
     }
@@ -83,13 +83,17 @@ export class MatchInfra {
    * 奥术 … never activate, research 02 §2.1) and still with chess in the pool. 机变 tactic cards whose every target bond
    * is dead are not offered (choices.js).
    */
-  bondLive(bondId) {
-    return !this.gd.modeInactiveBonds.has(bondId) && this.bondInPool(bondId);
+  bondLive(bondId, groupIndex = 0) {
+    return !this.gd.modeInactiveBonds.has(bondId) && this.bondInPool(bondId, groupIndex);
   }
   humans() { return this.order.filter((p) => !p.isBot && !p.left); }
 
-  /** [ASSUMED] Touch's initial, match-long team grant survives its holder's elimination/quit; focus alone grants none. */
-  teamMedicGranted() { return this.order.some(p => p.bandId === 'band_amedic'); }
+  /** Touch's match-long grant survives its holder's elimination/quit but remains within its fixed group. */
+  teamMedicGranted(player = null) {
+    const group = player ? this.poolGroupByPlayer.get(player.playerId) : null;
+    return this.order.some(p => p.bandId === 'band_amedic'
+      && (group == null || this.poolGroupByPlayer.get(p.playerId) === group));
+  }
 
   /**
    * The boss-round group of a player (`bossWaves`: the per-match random pairs, planned in startRound

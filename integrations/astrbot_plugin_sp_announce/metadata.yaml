@@ -1,0 +1,18 @@
+name: astrbot_plugin_sp_announce
+display_name: 卫戍协议公告发布
+desc: 私聊机器人用草稿流程写并发布卫戍协议的全服公告（草稿 → 预览 → 发布）。只用游戏服的窄令牌公告发布接口，拿不到踢人/改密码权限。
+help: |
+  私聊（仅维护者）：
+    公告草稿 <标题>            → 新建草稿，返回 6 位草稿 ID
+    公告正文 <ID> <正文>       → 填写/覆盖 Markdown 正文（可多行，一次发完）
+    公告预览 <ID>              → 完整回显标题 + 正文（不截断）+ 指纹
+    公告发布 <ID>              → 发布；只有「预览后没再改过」才允许
+    公告取消 <ID>              → 丢弃草稿
+    公告列表                   → 我的未发布草稿
+    公告帮助                   → 这条说明
+  说明：插件配置里必须填 allowed_senders（维护者 QQ 号）与 announce_token（= 游戏服 SP_ANNOUNCE_TOKEN），
+        否则插件对任何命令都不响应。默认只在私聊生效（要开群聊需打开 allow_group + 群白名单 + @机器人）。
+        草稿只存在机器人内存里，30 分钟过期、重启即清空；发布是窄权限接口，不会泄露管理员令牌。
+version: 0.1.0
+author: Leiothrix
+repo: https://github.com/NeoPecos/Stronghold-Protocol

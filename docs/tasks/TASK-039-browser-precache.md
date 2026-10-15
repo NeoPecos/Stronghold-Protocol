@@ -1,6 +1,6 @@
 # TASK-039 — 网页端开玩前预缓存素材
 
-Status: `in_progress`
+Status: `released`
 Lead / implementer: Codex
 Starting commit: `4c517699`, in the isolated v0.2.6 merge worktree `F:\DSH-workspace\stronghold-026-integration`.
 
@@ -31,4 +31,4 @@ Remove the lobby component import/render and the `browserPrecache` module. The e
 
 ## Checkpoint
 
-2026-10-13: Maintainer chose shared assets plus the current match, not the full art library. Added a bounded automatic browser-lobby prefetch (28 shared UI keys plus up to five local battle sprites, two concurrent downloads, 12/24 MiB budget), visible item progress and manual retry. The current-match warmup now waits for chess data before resolving operator models; it still begins only when the server reveals the map and pieces. Source is in an isolated worktree, not deployed or pushed. CDN hash-path routing is not yet available, so v0.2.6 hashed URLs currently fall back to origin. No project tests run. Next: reconcile the CDN hash-path contract and release timing after the current match ends.
+2026-10-13: Maintainer chose shared assets plus the current match, not the full art library. Added a bounded automatic browser-lobby prefetch (28 shared UI keys plus up to five local battle sprites, two concurrent downloads, 12/24 MiB budget), visible item progress and manual retry. The current-match warmup now waits for chess data before resolving operator models; it begins when the server reveals the map and pieces. The feature and 0.2.6 hash-path origin route were deployed at 19:55 +08 with the browser entry; fixed-path CDN behavior remains. No project tests or visual acceptance; the source remains in an isolated uncommitted merge and is not pushed. Release and rollback: `docs/releases/2026-10-13-browser-precache-026.md`.

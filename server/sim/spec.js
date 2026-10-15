@@ -35,6 +35,7 @@ import { Battle } from './Battle.js';
 import { toDataSource, withUnitLoadouts } from './simdata.js';
 import { isPotential, isCultivate } from '../../shared/potential.js';
 import { BOSS_POOL_MIN_HP } from './constants.js';
+import { bossGroupCredit, bossRawForCredit } from '../../shared/bossDamage.js';
 
 export const SPEC_VERSION = 1;
 
@@ -78,7 +79,11 @@ export function buildBattleSpec(o = {}) {
     waveId: o.waveId ?? null,
     bossId: o.bossId ?? null,
     content: o.content ?? 'full',
-    boss: bossLike && o.boss ? { poolHp: Number(o.boss.poolHp) || 0, poolMax: Number(o.boss.poolMax) || 1 } : null,
+    boss: bossLike && o.boss ? {
+      poolHp: Number(o.boss.poolHp) || 0, poolMax: Number(o.boss.poolMax) || 1,
+      group: Number.isInteger(o.boss.group) ? o.boss.group : null,
+      quota: Number.isFinite(o.boss.quota) && o.boss.quota > 0 ? o.boss.quota : null,
+    } : null,
   };
   const out = JSON.parse(JSON.stringify(spec, specReplacer));
   for (const p of out.players) for (const u of (p && Array.isArray(p.units) ? p.units : [])) if (u && typeof u === 'object') sanitizeUnitLoadout(u);
@@ -139,7 +144,7 @@ export function createBattleFromSpec(spec, dataSource, opts = {}) {
   const s = jsonClone(spec);
   const bossLike = s.kind === 'boss' || s.kind === 'hidden';
   let sharedBoss = opts.sharedBoss ?? null;
-  if (!sharedBoss && bossLike && s.boss) sharedBoss = new LocalBossPool(s.boss.poolMax, s.boss.poolHp);
+  if (!sharedBoss && bossLike && s.boss) sharedBoss = new LocalBossPool(s.boss.poolMax, s.boss.poolHp, s.boss.quota);
   const BattleClass = typeof opts.BattleClass === 'function' ? opts.BattleClass : Battle;
   const battleOpts = {
     seed: s.seed,
@@ -174,50 +179,66 @@ export function createBattleFromSpec(spec, dataSource, opts = {}) {
  * damage locally and shows `server hp − local damage the server has not acknowledged yet`.
  *   damage(playerId, amount)  called by the sim; returns the damage dealt (≤ the remaining displayed hp; the hit that
  *                             would leave less than BOSS_POOL_MIN_HP (1) takes the rest)
- *   sync(serverHp, ackedCum)  a b.pool broadcast: the server's hp and how much of THIS field's cumulative damage
- *                             (`cum`) it has already counted
+ *   sync(serverHp, ackedCum, groupRaw)  a b.pool broadcast: the server's hp, this field's acknowledged raw damage,
+ *                                      and the group's acknowledged raw damage for weighted prediction
  *   cum / byPlayer            cumulative damage of this field (reported as b.progress.bossDmg / .by)
  * `hp` below 1 reads 0 (the leader is down; user playtest #6 item 5): the difference of the server's float hp and the
  * local counters can leave dust (3.6e-12) smaller than half an ulp of `cum`, which no hit could remove — `cum += dust`
  * changes nothing — so the leader stood at "0 HP" and the field never ended.
  */
 export class LocalBossPool {
-  constructor(maxHp, hp = maxHp) {
+  constructor(maxHp, hp = maxHp, quota = null) {
     this.maxHp = Math.max(1, Number(maxHp) || 1);
     const h = Number(hp);
     this.serverHp = Number.isFinite(h) ? Math.max(0, Math.min(this.maxHp, h)) : this.maxHp;
     this.cum = 0;
     this.acked = 0;
+    this.quota = Number.isFinite(quota) && quota > 0 ? quota : null;
+    this.groupRaw = 0;
     /** @type {Record<string, number>} */
     this.byPlayer = {};
   }
 
   get hp() {
-    const h = this.serverHp - Math.max(0, this.cum - this.acked);
+    const pending = Math.max(0, this.cum - this.acked);
+    const credit = this.quota == null ? pending
+      : bossGroupCredit(this.groupRaw + pending, this.quota) - bossGroupCredit(this.groupRaw, this.quota);
+    const h = this.serverHp - credit;
     return h < BOSS_POOL_MIN_HP ? 0 : h;
   }
 
   /** Only used by the sim's fallback path when damage() throws. */
   set hp(v) {
     const n = Number(v);
-    if (Number.isFinite(n)) this.serverHp = Math.max(0, n) + Math.max(0, this.cum - this.acked);
+    if (Number.isFinite(n)) {
+      const pending = Math.max(0, this.cum - this.acked);
+      const credit = this.quota == null ? pending
+        : bossGroupCredit(this.groupRaw + pending, this.quota) - bossGroupCredit(this.groupRaw, this.quota);
+      this.serverHp = Math.max(0, n) + credit;
+    }
   }
 
   damage(playerId, amount) {
     const a = Number(amount);
     const left = this.hp;
     if (!Number.isFinite(a) || a <= 0 || left <= 0) return 0;
-    const dealt = left - a < BOSS_POOL_MIN_HP ? left : a;
+    const before = this.groupRaw + Math.max(0, this.cum - this.acked);
+    const credit = this.quota == null ? a
+      : bossGroupCredit(before + a, this.quota) - bossGroupCredit(before, this.quota);
+    const dealt = left - credit < BOSS_POOL_MIN_HP
+      ? Math.min(a, this.quota == null ? left : bossRawForCredit(before, left, this.quota)) : a;
     this.cum += dealt;
     if (playerId != null) this.byPlayer[playerId] = (this.byPlayer[playerId] || 0) + dealt;
     return dealt;
   }
 
-  sync(serverHp, ackedCum) {
+  sync(serverHp, ackedCum, groupRaw) {
     const h = Number(serverHp);
     if (Number.isFinite(h)) this.serverHp = Math.max(0, Math.min(this.maxHp, h));
     const a = Number(ackedCum);
     if (Number.isFinite(a) && a >= 0) this.acked = a;
+    const raw = Number(groupRaw);
+    if (Number.isFinite(raw) && raw >= 0) this.groupRaw = raw;
   }
 }
 

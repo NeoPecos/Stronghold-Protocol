@@ -19,6 +19,25 @@
 // the promotion reward and random grants pass diyStockEntries (the roll's own tier, DESIGN §30.23). Weighted by its
 // copies like any chess, drawn by that player only.
 
+import { poolGroupSizes, poolCopyScale } from '../../shared/playerCapacity.js';
+
+export function createPoolGroups(gd, players, opts = {}) {
+  const sorted = players.slice().sort((a, b) => a.seat - b.seat);
+  let offset = 0;
+  return poolGroupSizes(sorted.length).map((size, index) => {
+    const members = sorted.slice(offset, offset + size);
+    offset += size;
+    const scale = poolCopyScale(size);
+    return {
+      id: index + 1,
+      playerIds: members.map((player) => player.playerId),
+      scale,
+      pool: new SharedPool(gd, { ...opts, scale }),
+      itemPool: new SharedItemPool(gd, () => members, { scale }),
+    };
+  });
+}
+
 /**
  * Per-match disabled bond set D and banned chess (research 01 A2): D = uniform sample of `core` core bonds and `addon`
  * add-on bonds among weight > 0 bonds that are active in the mode. A visible chess is banned iff every one of its
@@ -56,18 +75,21 @@ function sample(arr, n, rng) {
 export class SharedPool {
   /**
    * @param {import('./gamedata.js').GameData} gd
-   * @param {{ banned?: Iterable<string> }} [opts]
+   * @param {{ banned?: Iterable<string>, scale?: number }} [opts]
    */
-  constructor(gd, { banned = [] } = {}) {
+  constructor(gd, { banned = [], scale = 1 } = {}) {
     this.gd = gd;
+    this.scale = Number.isFinite(scale) && scale > 0 ? scale : 1;
     const ban = new Set(banned);
     /** @type {Map<string, { cap: number, left: number, tier: number }>} */
     this.entries = new Map();
     for (const id of gd.visibleChess) {
       if (ban.has(id)) continue;
-      const cap = gd.poolCopies(id);
+      const tier = gd.tierOf(id);
+      const scaled = gd.poolCopies(id) * this.scale;
+      const cap = this.scale === poolCopyScale(5) && tier === 3 ? Math.floor(scaled) : Math.ceil(scaled);
       if (cap <= 0) continue;
-      this.entries.set(id, { cap, left: cap, tier: gd.tierOf(id) });
+      this.entries.set(id, { cap, left: cap, tier });
     }
     this.banned = [...ban].sort();
   }
@@ -189,8 +211,15 @@ export class SharedPool {
  * experiment BV1eLXXBqEgF, 1:30 and 2:30. [ASSUMED] An item that is consumed/destroyed or removed by elimination no
  * longer occupies stock, consistently with the video's ownership model; this is not a per-match purchase limit. */
 export class SharedItemPool {
-  constructor(gd, players) { this.gd = gd; this.players = players; }
-  cap(id) { return this.gd.itemPoolCopies(id); }
+  constructor(gd, players, { scale = 1 } = {}) {
+    this.gd = gd;
+    this.players = players;
+    this.scale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+  }
+  cap(id) {
+    const cap = this.gd.itemPoolCopies(id);
+    return cap == null ? null : Math.ceil(cap * this.scale);
+  }
   need(id) { return this.gd.isGolden(id) ? 2 : 1; }
   held(id) {
     const base = this.gd.baseIdOf(id);

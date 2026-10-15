@@ -130,7 +130,7 @@ export function attachAudit(m, { invariants = true, limit = 200 } = {}) {
           if (t > ps.shop.level) fail(`${ps.playerId}: rolled tier ${t} at shop level ${ps.shop.level}`);
           // (a slotted 自选 piece comes from the player's own stock, 0.2.0 player/diy.js — once the 调度中心 is at its level)
           const diy = ps.diyStock && ps.diyStock.has(base) ? ps.diyStock.entries.get(base) : null;
-          if (!m.pool.has(base) && !diy) fail(`${ps.playerId}: rolled ${s.id} outside the match pool (banned/hidden)`);
+          if (!m.poolFor(ps).has(base) && !diy) fail(`${ps.playerId}: rolled ${s.id} outside the match pool (banned/hidden)`);
           if (diy && ps.shop.level < diy.shopLevel) fail(`${ps.playerId}: rolled 自选 ${s.id} at shop level ${ps.shop.level} < ${diy.shopLevel}`);
           if (s.basePrice !== gd.chessPrice(s.id)) fail(`${ps.playerId}: ${s.id} basePrice ${s.basePrice} != ${gd.chessPrice(s.id)}`);
         });
@@ -332,30 +332,36 @@ export function attachAudit(m, { invariants = true, limit = 200 } = {}) {
     });
     return res;
   });
-  wrap(m, 'startSpTurn', function (orig) {
-    const res = orig();
+  wrap(m, 'startSpTurn', function (orig, groupIndex = 0) {
+    const res = orig(groupIndex);
     check('sp turn', () => {
       if (m.phase !== PHASE.SP_DRAFT || !m.sp) return;
-      const s = m.sp;
-      if (s.idx >= s.order.length) return;
-      if (m.soloUntimed) { if (m.deadline) fail('untimed 机变 is timed'); } else expectDeadline(s.idx === 0 ? gd.timer('spFirst') : gd.timer('spTurn'), `SP_DRAFT turn ${s.idx}`);
+      const s = m.sp.groups[groupIndex];
+      if (!s || s.done || s.idx >= s.order.length) return;
+      if (m.soloUntimed) {
+        if (s.turnDeadline) fail(`group ${groupIndex + 1}: untimed 机变 is timed`);
+      } else {
+        const seconds = s.idx === 0 ? gd.timer('spFirst') : gd.timer('spTurn');
+        const want = Math.max(0, Math.round(seconds * 1000 * m.timerScale));
+        const got = s.turnDeadline - m.sched.now();
+        if (Math.abs(got - want) > 1) fail(`group ${groupIndex + 1}: deadline in ${got} ms, expected ${want} ms`);
+      }
     });
     return res;
   });
   wrap(m, 'finishSpDraft', function (orig) {
-    const s = m.sp;
-    if (m.phase === PHASE.SP_DRAFT && s) check('sp draft', () => {
-      const alive = m.alivePlayers().map((p) => p.playerId);
+    if (m.phase === PHASE.SP_DRAFT && m.sp && !m.sp.groups.some((group) => group && !group.done)) for (const [groupIndex, s] of m.sp.groups.entries()) if (s) check('sp draft', () => {
+      const alive = m.poolGroups[groupIndex].filter((pid) => m.players.get(pid)?.alive);
       const want = m.isSolo ? 3 : 6;
-      if (s.cards.length > want) fail(`${s.cards.length} 机变 cards (max ${want})`);
-      if (s.order.length !== alive.length) fail(`机变 order ${s.order.length} for ${alive.length} alive`);
+      if (s.cards.length > want) fail(`group ${groupIndex + 1}: ${s.cards.length} 机变 cards (max ${want})`);
+      if (s.order.length !== alive.length) fail(`group ${groupIndex + 1}: 机变 order ${s.order.length} for ${alive.length} alive`);
       for (const pid of alive) {
         const idx = s.picks[pid];
         if (idx == null) fail(`${pid} ends 机变 without a card`);
         else if (s.taken[idx] !== pid) fail(`${pid} picked card ${idx} held by ${s.taken[idx]}`);
       }
       const holders = Object.values(s.taken);
-      if (new Set(holders).size !== holders.length) fail('a player took two 机变 cards');
+      if (new Set(holders).size !== holders.length) fail(`group ${groupIndex + 1}: a player took two 机变 cards`);
     });
     return orig();
   });

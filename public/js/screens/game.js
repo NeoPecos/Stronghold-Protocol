@@ -241,8 +241,12 @@ function MatchScreen() {
   const editable = phase === PHASE.PREP && !!priv && alive && !priv.ready && !watchingOther && !hasPersonalChoice;
   const showShop = !!priv && alive && (phase === PHASE.PREP || phase === PHASE.SP_DRAFT || phase === PHASE.ROUND_START) && !watchingOther;
   const layersDisabled = phase === PHASE.UNITE || isBossPhase(phase);
-  const sp = phase === PHASE.SP_DRAFT ? normalizeSp(pub?.sp, players) : null;
-  const total = phaseTotalSeconds(pub, gd.config, myId);
+  const spGroup = phase === PHASE.SP_DRAFT && Array.isArray(pub?.sp?.groups)
+    ? pub.sp.groups.find((group) => group?.order?.includes(myId)) || pub.sp.groups.find((group) => group?.turn) || pub.sp.groups.find(Boolean)
+    : null;
+  const phasePub = spGroup ? { ...pub, sp: spGroup, deadline: spGroup.turnDeadline || 0 } : pub;
+  const sp = phase === PHASE.SP_DRAFT ? normalizeSp(phasePub?.sp, players) : null;
+  const total = phaseTotalSeconds(phasePub, gd.config, myId);
   // solo pause: offered in the own battle; while m.public.paused every HUD clock stops at the pause moment
   const paused = isPaused(pub);
   const pauseSeenRef = useRef(null);
@@ -769,7 +773,7 @@ function MatchScreen() {
   }, [battleState?.battleId, battleState?.loading, !!pub]);
 
   // timer ticks (≤ 10 s) while the player still has something to do
-  const cd = countdownState(pub?.deadline, serverNow(), total);
+  const cd = countdownState(phasePub?.deadline, serverNow(), total);
   useTicker(cd.remain != null && cd.remain <= 10 ? 1000 : 0);
   const lastTick = useRef(null);
   useEffect(() => {
@@ -1479,7 +1483,7 @@ function MatchScreen() {
     ${showPrep && view && viewKind !== 'loading' && priv && !pen ? html`<${StandInTags} view=${view} priv=${priv} getChess=${gd.chess} backups=${gd.backups} diyData=${{ chess: data.get('chess'), backups: data.get('backups') }} />` : null}
 
     <div class="gm__hud" ref=${hudElRef}>
-      <${TopBar} pub=${pub} priv=${priv} conn=${conn} hud=${hud} total=${total} drawer=${drawer}
+      <${TopBar} pub=${phasePub} priv=${priv} conn=${conn} hud=${hud} total=${total} drawer=${drawer}
         onExit=${() => setExitOpen(true)} onDrawer=${(t) => setDrawer((d) => (d ? null : t))} onReady=${toggleReady}
         readyBusy=${readyBusy} readyCount=${readyCount} playerCount=${solo ? 1 : aliveCount}
         pen=${pen} penAvail=${penAvail} onPen=${togglePen} config=${gd.config} frozenAt=${frozenAt}
@@ -1556,7 +1560,7 @@ function MatchScreen() {
         onRetreat=${retreatSel} onSell=${sellSel} onDestroy=${sellSel} />` : null}
     </div>
 
-    ${sp ? html`<${ChoiceOverlay} pub=${pub} sp=${sp} myId=${myId} solo=${solo} busyIdx=${spBusy} total=${total}
+    ${sp ? html`<${ChoiceOverlay} pub=${phasePub} sp=${sp} myId=${myId} solo=${solo} busyIdx=${spBusy} total=${total}
       onPick=${async (i) => { setSpBusy(i); await actions.choice(i); setSpBusy(null); }} />` : null}
     ${personalChoice ? html`<${ChoiceOverlay} key=${personalChoice.id} pub=${pub} sp=${personalChoice} myId=${myId} solo=${solo} personal=${true}
       busyIdx=${personalBusy?.choiceId === personalChoice.id ? personalBusy.idx : null} total=${total}

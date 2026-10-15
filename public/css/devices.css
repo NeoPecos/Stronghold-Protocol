@@ -158,8 +158,6 @@ html:not(.sp-in-match) .toast-host { margin-top: var(--sa-t); }
   .create-box .btn--xl { height: .8rem; }
 }
 
-.rotate-hint__pwa { pointer-events: auto; margin-top: 6px; }
-.rotate-hint__pwa[hidden] { display: none; }
+.rotate-hint__fullscreen { pointer-events: auto; margin-top: 6px; }
+.rotate-hint__status { min-height: 1.4em; color: var(--text-lo); }
 
-/* #distribution-reopen is positioned by an inline <style> in index.html, which outranks this sheet:
-   the notice button was raised clear of the version label THERE, not here (2026-10-11). */

@@ -60,10 +60,14 @@ export class Matchmaker {
         this.remove(playerId);
     }
     for (const [playerId, entry] of this.queue) {
-      const room = [...this.lobby.rooms.values()].find(candidate => !candidate.disposed && !candidate.match
-        && candidate.mode === 'coop' && !candidate.inviteOnly && candidate.recruitWanted
+      // 候选房间：没在打、同盟模式、没开「仅邀请」、难度一致、有空位、房主在线。
+      // 「仅邀请」是硬门（维护者 m01061）：关着时路人既能在房间列表点「加入同盟」进来，也能被匹配进来；开着时两样都不行。
+      const candidates = [...this.lobby.rooms.values()].filter(candidate => !candidate.disposed && !candidate.match
+        && candidate.mode === 'coop' && !candidate.inviteOnly
         && candidate.difficulty === entry.difficulty && candidate.freeSeat() >= 0
         && this.lobby.registry.byId(candidate.hostId)?.connected);
+      // 开了「期望路人加入」的房间优先被匹配；同一优先级的房间按建房顺序取（rooms 是 Map，迭代顺序即创建顺序）。
+      const room = candidates.find(candidate => candidate.recruitWanted) ?? candidates[0];
       if (!room) continue;
       const joined = this.lobby.join(entry.session, { code: room.code });
       if (joined.error) continue;

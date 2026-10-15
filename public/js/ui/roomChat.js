@@ -59,6 +59,7 @@ export function mountRoomChat() {
   let composing = false, unread = 0, desired = null, position = null;
   let dragging = null, alive = true;
   let historyRequest = null;
+  let wasOnline = net.status === 'online';
   const received = new Map();
   const cleanup = [];
 
@@ -204,12 +205,15 @@ export function mountRoomChat() {
 
   function receiveHistory(msg) {
     if (!identity || msg.code !== identity.code || !Array.isArray(msg.messages)) return;
+    const wasAtBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 28;
+    const previousTop = log.scrollTop;
     // A live message can arrive while the history request is in flight. Merge by server id.
     const all = [...msg.messages.slice(-80), ...received.values()].filter(m => m && typeof m === 'object')
       .sort((a, b) => (a.id || 0) - (b.id || 0) || a.time - b.time);
     received.clear();
     log.replaceChildren();
     for (const message of all) receive(message, true);
+    log.scrollTop = wasAtBottom ? log.scrollHeight : previousTop;
   }
 
   async function send(event) {
@@ -351,7 +355,12 @@ export function mountRoomChat() {
     listen(window.visualViewport, 'scroll', layout);
   }
   cleanup.push(net.on('room.chat', msg => receive(msg)), net.on('room.chat.history', receiveHistory),
-    net.on('status', () => { controls(); requestHistory(); }), store.subscribe(sync));
+    net.on('status', () => {
+      controls();
+      const online = net.status === 'online';
+      if (online && !wasOnline) requestHistory();
+      wasOnline = online;
+    }), store.subscribe(sync));
   sync();
 
   return () => {

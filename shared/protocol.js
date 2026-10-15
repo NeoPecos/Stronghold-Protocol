@@ -1,10 +1,11 @@
 // Normative message catalogue (DESIGN §8). Used by server (validation) and client (building requests).
 // Every client→server message is `{ t, rid?, ...fields }`. Unknown `t` or invalid fields ⇒ ERR.BAD_MSG.
 
-import { DIFFICULTIES, NAME_MAX_LEN, ROOM_CODE_LEN, MAX_SEATS, EMOTES, GEO } from './constants.js';
+import { DIFFICULTIES, NAME_MAX_LEN, ROOM_CODE_LEN, MAX_SEATS, ROOM_CAPACITIES, EMOTES, GEO } from './constants.js';
 import { isDroppableChess } from './standIn.js';
 import { diySlotIds, validateDiyPicks } from './diy.js';
 import { cultivatedStats, isPotential, isCultivate, POTENTIAL_DEFAULT, CULTIVATE_DEFAULT } from './potential.js';
+import { MAX_UNITE_HELPERS } from './playerCapacity.js';
 
 // ---- tiny validators -------------------------------------------------------
 const isInt = (v, lo = -Infinity, hi = Infinity) => Number.isInteger(v) && v >= lo && v <= hi;
@@ -84,13 +85,14 @@ export const isSkinSelection = (v) => isMap(v, SKIN_LIMITS.entries, isId, isSkin
 // ---- 玩家头像 (TASK-004): account.avatar { avatar } -------------------------------------------
 
 /**
- * `account.avatar { avatar }`: 玩家头像 = 一个干员/角色的 id（`char_003_kalts`），空串 = 不用头像
+ * `account.avatar { avatar }`: 玩家头像 = 干员 id、`e2:charId` 或 `skin:charId:skinId`，空串 = 不用头像
  * （显示回落到阵营图标、再回落名字首字）。局外设置，任何阶段都能改；账号级保存，换端可见。
  */
 export const AVATAR_LIMITS = Object.freeze({ idLen: 64 });
-/** Structural check of an avatar value: `''` (clear) or one char id. */
+/** Structural check of an avatar value: `''` (clear) or one known avatar ID form. */
 export const isAvatarId = (v) => v === ''
-  || (typeof v === 'string' && v.length > 0 && v.length <= AVATAR_LIMITS.idLen && /^[A-Za-z0-9_]+$/.test(v));
+  || (typeof v === 'string' && v.length > 0 && v.length <= AVATAR_LIMITS.idLen
+    && /^(?:[A-Za-z0-9_]+|e2:[A-Za-z0-9_]+|skin:[A-Za-z0-9_]+:[A-Za-z0-9_@#+.\-]+)$/.test(v));
 
 // ---- operator loadout (DESIGN §16): room.loadout { entries } -------------------------------------------------
 
@@ -408,7 +410,8 @@ export const C2S = {
     noReplace: isBool, claimAt: (v) => isNum(v, 0, Number.MAX_SAFE_INTEGER), $optional: ['token', 'version', 'auth', 'password', 'remember', 'noReplace', 'claimAt'] },
   ping: { c: (v) => typeof v === 'number' && Number.isFinite(v) },
   'user.activity': {},
-  'room.create': { mode: (v) => v === 'solo' || v === 'coop', difficulty: (v) => DIFFICULTIES.includes(v) },
+  'room.create': { mode: (v) => v === 'solo' || v === 'coop', difficulty: (v) => DIFFICULTIES.includes(v),
+    capacity: (v) => ROOM_CAPACITIES.includes(v), $optional: ['capacity'] },
   'room.list': {},
   'match.queue': { difficulty: (v) => DIFFICULTIES.includes(v) },
   'match.cancel': {},
@@ -421,11 +424,17 @@ export const C2S = {
   'room.leave': {},
   'room.ready': { ready: isBool },
   'room.setDifficulty': { difficulty: (v) => DIFFICULTIES.includes(v) },
+  'room.setCapacity': { capacity: (v) => ROOM_CAPACITIES.includes(v) },
+  'room.setUniteHelpers': { helpers: (v) => isInt(v, 2, MAX_UNITE_HELPERS) && v % 2 === 0 },
+  'room.swapGroupMembers': { firstId: isId, secondId: isId },
+  'room.moveGroup': { groupIndex: (v) => isInt(v, 0, 4) },
+  'room.setBotBand': { seat: (v) => isInt(v, 0, MAX_SEATS - 1), playerId: isId, bandId: nullable(isId) },
   // the co-op room option 「AI 队友最后选择」 (GitHub #338; host, before the match): the strategy and 机变 drafts order every
   // human seat before every AI seat (server/match/match/phases.js humansFirst); room.state.aiPicksLast
   'room.setAiPicksLast': { on: isBool },
   'room.setInviteOnly': { on: isBool },
   'room.setRecruitWanted': { on: isBool },
+  'room.setAllowSpectators': { on: isBool },
   'room.addBot': {},
   'room.removeBot': { seat: (v) => isInt(v, 0, MAX_SEATS - 1) },
   // the host removes another human before the match (server/lobby.js kick; community report #17); playerId = the one the
@@ -512,7 +521,7 @@ export const S2C = [
   'welcome', 'ok', 'error', 'pong',
   'room.list', 'room.state', 'room.closed', 'records.latest', 'room.chat', 'room.chat.history',
   'match.status', 'match.found',
-  'server.announcement',
+  'announcement.notice',
   'm.public', 'm.private', 'm.field', 'm.toast', 'm.ticker', 'm.emote', 'm.result',
   // m.layer { playerId, bondId, add } — own live prep layer gain; ephemeral, never replayed on resync.
   'm.layer',

@@ -41,9 +41,12 @@ export class MatchViews {
       case PHASE.BAND_DRAFT:
         if (this.draft && this.draft.picks[ps.playerId]) return 'ready';
         return this.draft && this.draftTurn() === ps.playerId ? 'deciding' : 'acting';
-      case PHASE.SP_DRAFT:
-        if (this.sp && this.sp.picks[ps.playerId] != null) return 'ready';
-        return this.sp && this.spTurn() === ps.playerId ? 'deciding' : 'acting';
+      case PHASE.SP_DRAFT: {
+        const groupIndex = this.poolGroupByPlayer.get(ps.playerId) ?? 0;
+        const group = this.sp?.groups[groupIndex];
+        if (group && group.picks[ps.playerId] != null) return 'ready';
+        return group && this.spTurn(groupIndex) === ps.playerId ? 'deciding' : 'acting';
+      }
       case PHASE.PREP: return ps.ready ? 'ready' : 'acting';
       case PHASE.COMBAT: case PHASE.FINAL_ASSAULT: case PHASE.HIDDEN_CORE: {
         const f = this.fields.find((x) => x.players.includes(ps.playerId));
@@ -69,6 +72,8 @@ export class MatchViews {
       deadline: this.deadline,
       serverNow: this.sched.now(),
       modeId: this.modeId,
+      poolGroups: this.poolGroups.map((members) => members.slice()),
+      poolGroupLabels: this.poolGroupLabels.slice(),
       difficulty: this.difficulty,
       stageId: this.stageId,
       setupRevision: this.setupRevision,
@@ -140,14 +145,16 @@ export class MatchViews {
       };
     }
     if (this.phase === PHASE.SP_DRAFT && this.sp) {
-      const s = this.sp;
-      v.sp = {
-        family: s.family, name: s.name, desc: s.desc, eventId: s.eventId,
-        cards: s.cards.map(c => ({ ...cardView(c), soldOut: c.kind === 'item' && !this.itemPool.canGain(c.id) })), order: s.order.slice(),
-        turn: this.spTurn(), picks: { ...s.picks }, taken: { ...s.taken }, untimed: !!s.untimed,
-      };
+      const groups = this.sp.groups.map((group, groupIndex) => group ? {
+        groupIndex, family: group.family, name: group.name, desc: group.desc, eventId: group.eventId,
+        cards: group.cards.map((card) => ({ ...cardView(card), soldOut: card.kind === 'item' && !this.groupPools[groupIndex].itemPool.canGain(card.id) })),
+        order: group.order.slice(), turn: this.spTurn(groupIndex), picks: { ...group.picks },
+        taken: { ...group.taken }, untimed: !!group.untimed, turnDeadline: group.turnDeadline,
+      } : null);
+      v.sp = { ...groups.find(Boolean), groups };
     }
-    if (this.phase === PHASE.UNITE && this.unitePlan) v.unite = { helpers: this.unitePlan.helpers.map((p) => p.playerId), leakers: this.unitePlan.leakers.map((p) => p.playerId) };
+    if (this.phase === PHASE.UNITE && this.unitePlan) v.unite = { helpers: this.unitePlan.helpers.map((p) => p.playerId),
+      leakers: this.unitePlan.leakers.map((p) => p.playerId), round: this.unitePlan.round, roundsMax: this.unitePlan.roundsMax };
     // SETTLE after a 联防: its outcome as data (settle.js uniteResultView; GitHub #235, PR #112) — { through, helpers,
     // leakers, losses: { playerId: the LP settlement charged this round } } — the client's result box reads the viewer's
     // own charge from it; absent when no 联防 resolved (the client then shows the round's own battle result)
@@ -252,7 +259,7 @@ export class MatchViews {
    * battleStart, so the prep view always uses the reserve medic, regardless of the current elite count. The stage's
    * normal-board slot is transformed to the correct half of a boss field by _onBossHalf / the client prep camera. */
   prepMapChars(ps) {
-    if (!ps?.alive || this.phase !== PHASE.PREP || !this.teamMedicGranted()) return [];
+    if (!ps?.alive || this.phase !== PHASE.PREP || !this.teamMedicGranted(ps)) return [];
     const id = 'char_605_cmedic';
     const slot = this.stage?.mapChars?.find((m) => m?.key === id && Array.isArray(m.pos) && m.pos[0] >= 9 && m.pos[0] <= 12
       && m.pos[1] >= 0 && m.pos[1] <= 10 && !/multi_only/.test(String(m.alias)));

@@ -13,12 +13,13 @@
 
 import { ResumeMatchButton } from '../ui/resumeMatch.js';
 import { BrowserPrecacheButton } from '../resources/browserPrecacheButton.js';
-import { QuickMatch } from '../ui/matchmaking.js';
+import { AllianceDiscovery, LobbyOnlinePill, LobbyRoomList } from '../ui/lobbyDiscovery.js';
 import { useEffect, useRef, useState } from '../../vendor/hooks.module.js';
-import { DIFFICULTIES, DIFFICULTY_NAMES, DIFFICULTY_COLORS, ROOM_CODE_LEN, MAX_SEATS, MAX_SPECTATORS, modeIdFor, ERR } from '../../../shared/constants.js';
-import { html, Button, Icon, MicroLabel, Panel, TextField, PingPill, AvatarFrame, Tooltip, Spinner, DifficultyIcon, doctorNo } from '../ui/components.js';
+import { DIFFICULTIES, DIFFICULTY_NAMES, DIFFICULTY_COLORS, ROOM_CODE_LEN, MAX_SEATS, DEFAULT_SEATS, ROOM_CAPACITIES, modeIdFor, ERR } from '../../../shared/constants.js';
+import { html, Button, Icon, MicroLabel, PingPill, AvatarFrame, Tooltip, DifficultyIcon, doctorNo } from '../ui/components.js';
 import { toast, toastError } from '../ui/toasts.js';
 import { GuideButton } from '../ui/guide.js';
+import { AnnouncementButton } from '../ui/announcements.js';
 import { openStats } from './stats.js';
 import { SettingsButton } from '../ui/settings.js';
 import { PwaInstallButton } from '../ui/device.js';
@@ -243,63 +244,6 @@ function DifficultyCard({ roomMode, difficulty, selected, onSelect }) {
   </button>`;
 }
 
-function RoomDirectory({ rooms, online, loading, error, busy, code, codeOk, recent, onCode, onRefresh, onJoin, onSpectate }) {
-  return html`<${Panel} class="room-directory" tone="mint" title=${t('服务器房间')} micro="ALLIANCE DIRECTORY"
-    actions=${html`<div class="room-directory__join">
-      <${TextField} size="code" icon="key" value=${code} placeholder=${t('输入同盟密钥 / 粘贴邀请链接')}
-        transform=${normalizeCode} onInput=${(v) => onCode(normalizeCode(v))} onEnter=${() => onJoin()} />
-      <${Button} variant="amber" size="sm" icon="users" loading=${busy === 'join'} disabled=${!codeOk || !online}
-        onClick=${() => onJoin()}>${t('加入同盟')}<//>
-      <${Tooltip} text=${t('以观战者身份进入：不占博士席位，只能观看（每个同盟最多 {MAX_SPECTATORS} 名，模拟进行中也可进入）', { MAX_SPECTATORS })}>
-        <${Button} variant="secondary" size="sm" icon="eye" loading=${busy === 'spectate'} disabled=${!codeOk || !online}
-          onClick=${() => onSpectate()}>${t('观战')}<//>
-      <//>
-      <${Button} variant="ghost" size="sm" icon="refresh" disabled=${!online} loading=${loading}
-        onClick=${onRefresh}>${t('刷新')}<//>
-    </div>`}>
-    <div class="room-directory__recent">
-      ${recent.length ? html`<span class="t-lo">${t('最近的同盟')}</span>
-        ${recent.map((c) => html`<button key=${c} type="button" class="code-chip num" title=${t('填入密钥（不会直接加入）')}
-          onClick=${() => onCode(c)}>${c}</button>`)}`
-        : html`<span class="t-dim">${t('向同伴索取 {ROOM_CODE_LEN} 位同盟密钥，或直接打开邀请链接', { ROOM_CODE_LEN })}</span>`}
-    </div>
-    ${!online ? html`<p class="room-directory__empty">${t('连接服务器后即可查看房间')}</p>`
-      : error && !rooms ? html`<p class="room-directory__empty">${t('房间列表暂时无法加载，请刷新重试')}</p>`
-      : !rooms ? html`<p class="room-directory__empty">${t('正在查找服务器房间…')}</p>`
-      : rooms.length === 0 ? html`<p class="room-directory__empty">${t('暂无同盟房间，创建一个邀请其他博士吧')}</p>`
-      : html`<div class="room-directory__list" role="list" aria-label=${t('服务器房间')}>
-        ${rooms.map((room) => {
-          const occupied = room.players + room.bots;
-          const joinable = !room.inMatch && occupied < room.capacity;
-          const watchable = room.spectators < MAX_SPECTATORS;
-          const status = room.inMatch ? t('模拟中') : joinable ? t('招募中') : t('已满员');
-          return html`<article key=${room.code} class=${`room-directory__room${joinable ? ' is-open' : ''}`} role="listitem">
-            <div class="room-directory__identity">
-              <span class="room-directory__code num">${room.code}</span>
-              <span class="room-directory__host" title=${room.hostName}>${t('房主')} · ${room.hostName || t('博士')}</span>
-              ${room.recruitWanted ? html`<strong class="room-directory__recruit">${t('期望路人加入')}</strong>` : null}
-            </div>
-            <div class="room-directory__details">
-              <span class="room-directory__difficulty" style=${`--d-color:${DIFFICULTY_COLORS[room.difficulty] || 'var(--mint-400)'}`}>
-                <${DifficultyIcon} difficulty=${room.difficulty} />${DIFFICULTY_NAMES[room.difficulty] ? t(DIFFICULTY_NAMES[room.difficulty]) : room.difficulty}
-              </span>
-              <span class="room-directory__count"><${Icon} name="users" /><b class="num">${occupied}/${room.capacity}</b>
-                <span>${t('{players} 位博士', { players: room.players })}${room.bots ? t(' · {bots} 位 AI', { bots: room.bots }) : ''}</span>
-              </span>
-              <span class="room-directory__activity">${t('在线 {n} 人', { n: room.connectedPlayers })} · ${t('近5分钟操作 {n} 人', { n: room.activePlayers })}</span>
-              <span class=${`room-directory__status${joinable ? ' is-open' : ''}`}>${status}</span>
-            </div>
-            <div class="room-directory__actions">
-              <${Button} variant="primary" size="sm" disabled=${!joinable || !!busy} onClick=${() => onJoin(room.code)}>${t('加入同盟')}<//>
-              ${watchable ? html`<${Button} variant="ghost" size="sm" icon="eye" disabled=${!!busy}
-                onClick=${() => onSpectate(room.code)}>${t('观战')}<//>` : null}
-            </div>
-          </article>`;
-        })}
-      </div>`}
-    ${rooms?.length ? html`<div class="room-directory__foot">${t('共 {n} 间同盟房间', { n: rooms.length })}${error ? t(' · 刷新失败，显示上次结果') : ''}</div>` : null}
-  <//>`;
-}
 
 /** Lobby screen component. */
 export function LobbyScreen() {
@@ -313,18 +257,34 @@ export function LobbyScreen() {
     const d = loadPref('lobby.difficulty', 'FUNNY');
     return DIFFICULTIES.includes(d) ? d : 'FUNNY';
   });
+  // 同盟席位（20 人分支）：默认 4 席，和主仓一致；选择记在本机偏好里。
+  const [capacity, setCapacity] = useState(() => {
+    const saved = loadPref('lobby.capacity', DEFAULT_SEATS);
+    return ROOM_CAPACITIES.includes(saved) ? saved : DEFAULT_SEATS;
+  });
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(null);
   const [roomList, setRoomList] = useState(null);
   const [listError, setListError] = useState(false);
   const [listBusy, setListBusy] = useState(false);
   const [recent] = useState(recentRooms);
+  // 房间偏好 (20 人版联机大厅)：最快匹配优先选这一档人数的房间；null = 不限人数。记在本机偏好里。
+  const [matchCapacity, setMatchCapacity] = useState(() => {
+    const saved = Number(loadPref('lobby.matchCapacity', 0));
+    return ROOM_CAPACITIES.includes(saved) ? saved : null;
+  });
+  const [listOpen, setListOpen] = useState(false);
+  const [queue, setQueue] = useState(null); // 最快匹配的服务端队列状态（match.status）
   const alive = useRef(true);
   const inFlight = useRef(false); // synchronous guard against double clicks (state updates are async)
   useEffect(() => () => { alive.current = false; }, []);
 
   const online = conn.status === 'online';
   const codeOk = CODE_RE.test(code);
+  // 在线人数（20 人版左上角读数）：房间目录里的在线真人合计，不新增服务端接口。
+  const onlineHumans = Array.isArray(roomList)
+    ? roomList.reduce((sum, r) => sum + (Number(r.connectedPlayers) || 0), 0)
+    : null;
 
   useEffect(() => {
     let active = true;
@@ -344,6 +304,15 @@ export function LobbyScreen() {
     return () => { active = false; clearInterval(timer); unsubscribe(); };
   }, [online]);
 
+  // 最快匹配的队列状态：订阅 match.status，进大厅时问一次（与「快速匹配」组件同一套协议）。
+  useEffect(() => {
+    let active = true;
+    const off = net.on('match.status', (message) => { if (active) setQueue(message); });
+    if (online) net.request('match.status').catch(() => {});
+    else setQueue(null);
+    return () => { active = false; off(); };
+  }, [online]);
+
   const refreshRooms = async () => {
     if (!online || listBusy) return;
     setListBusy(true);
@@ -353,6 +322,8 @@ export function LobbyScreen() {
 
   const pickMode = (m) => { setRoomMode(m); savePref('lobby.mode', m); };
   const pickDifficulty = (d) => { setDifficulty(d); savePref('lobby.difficulty', d); };
+  const pickCapacity = (n) => { setCapacity(n); savePref('lobby.capacity', n); };
+  const pickMatchCapacity = (n) => { setMatchCapacity(n); savePref('lobby.matchCapacity', n ?? 0); };
 
   const run = async (kind, fn) => {
     if (inFlight.current) return;
@@ -364,7 +335,7 @@ export function LobbyScreen() {
       if (alive.current) setBusy(null);
     }
   };
-  const create = () => run('create', () => net.request('room.create', { mode: roomMode, difficulty }));
+  const create = () => run('create', () => net.request('room.create', { mode: roomMode, difficulty, ...(roomMode === 'coop' ? { capacity } : {}) }));
   const join = (c = code) => {
     // `onClick=${join}` hands the click EVENT as the first argument, and a default parameter only applies to
     // `undefined` — codeArg keeps an event target out of the key and falls back to the input field
@@ -372,6 +343,13 @@ export function LobbyScreen() {
     if (!k) { toast(t('同盟密钥为 {ROOM_CODE_LEN} 位字母或数字', { ROOM_CODE_LEN }), 'warn'); return; }
     run('join', () => net.request('room.join', { code: k }));
   };
+  // 最快匹配 (20 人版联机大厅的按钮)：走服务端的 match.queue / match.cancel —— 与「快速匹配」同一套匹配逻辑
+  // (server/matchmaking.js 优先挑「期望路人加入」的同盟)，队列状态由 match.status 同步。服务端只接受 difficulty，
+  // 所以「房间偏好」这个下拉目前只是界面记忆 (lobby.matchCapacity)，不参与匹配。
+  const quickMatch = () => run('quick', () => net.request(
+    queue?.queued ? 'match.cancel' : 'match.queue',
+    queue?.queued ? {} : { difficulty },
+  ));
   // a spectator seat: no player seat taken, nothing to do but watch (also a match already running)
   const spectate = (c = code) => {
     // same guard as join: `onClick=${spectate}` passes the click event, not a code
@@ -391,6 +369,8 @@ export function LobbyScreen() {
       throw err;
     }));
   };
+  const openRoomList = () => { setListOpen(true); refreshRooms(); };
+  const closeRoomList = () => setListOpen(false);
   const backToTitle = () => {
     identity.setEntered(false);
     store.set((s) => ({ session: { ...s.session, entered: false } }));
@@ -401,6 +381,8 @@ export function LobbyScreen() {
       <div class="topbar__left">
         <${Button} variant="ghost" size="sm" icon="chevronLeft" onClick=${backToTitle} title=${t('返回标题')}>${t('返回')}<//>
         <${PingPill} ms=${conn.ping} online=${online} />
+        <${LobbyOnlinePill} count=${onlineHumans} online=${online} />
+        <${BrowserPrecacheButton} />
         <${MatchRecordsButton} />
         <${Button} variant="secondary" size="sm" icon="chart" class="stats-entry" onClick=${openStats} title=${t('统计数据')} aria-label=${t('统计数据')}>${t('统计')}<//>
       </div>
@@ -410,7 +392,7 @@ export function LobbyScreen() {
       </div>
       <div class="topbar__right">
         <${ResumeMatchButton} />
-        <${PwaInstallButton} class="lobby-pwa" />
+        <${AnnouncementButton} variant="secondary" />
         <${SettingsButton} class="lobby-settings" variant="secondary" label=${t('设置')} />
         <${GuideButton} class="lobby-guide" variant="secondary" label=${t('玩法说明')} />
         <${LoadoutButton} from="lobby" size="sm" class="lobby-loadout" label=${t('干员调配')} />
@@ -427,15 +409,25 @@ export function LobbyScreen() {
     </header>
 
     <div class="lobby-body screen__scroll">
+      <div class="lobby-grid">
       <section class="lobby-left">
         <div class="section-label"><span class="section-label__idx num">01</span>${t('模拟方式')}<${MicroLabel}>MODE<//></div>
         <div class="mode-cards">
           ${MODE_CARDS.map((c) => html`<${ModeCard} key=${c.id} card=${c} selected=${roomMode === c.id} onSelect=${pickMode} />`)}
         </div>
-        <div class="section-label"><span class="section-label__idx num">03</span>${t('查找同盟')}<${MicroLabel}>SERVER ROOMS<//></div>
-        <${RoomDirectory} rooms=${roomList} online=${online} loading=${listBusy} error=${listError} busy=${busy}
-          code=${code} codeOk=${codeOk} recent=${recent} onCode=${setCode}
-          onRefresh=${refreshRooms} onJoin=${join} onSpectate=${spectate} />
+        <!-- 03 联机大厅：原来「03 查找同盟」的位置，模块自带标题（图二那套） -->
+        <${AllianceDiscovery} online=${online} rooms=${roomList} code=${code} codeOk=${codeOk} recent=${recent}
+          busy=${busy} preference=${matchCapacity} loading=${listBusy} normalizeCode=${normalizeCode} onCode=${setCode}
+          onJoin=${join} onSpectate=${spectate} onOpen=${openRoomList} onRefresh=${refreshRooms}
+          onPreference=${pickMatchCapacity} onQuickMatch=${quickMatch}
+          queued=${!!queue?.queued}
+          queueStatus=${queue?.queued ? t('正在寻找同难度队友：{count}/{total}', { count: queue.players, total: queue.target }) : null} />
+        <${LobbyRoomList} rooms=${roomList} online=${online} loading=${listBusy} error=${listError} busy=${busy}
+          open=${listOpen} onClose=${closeRoomList} onRefresh=${refreshRooms} onJoin=${join} onSpectate=${spectate} />
+        <!-- 作战提示挪到左栏「联机大厅」下方（维护者 m00232：大厅的作战提示放在左侧）；右栏底部原来是它的位置。 -->
+        <${TipsPanel} />
+        <!-- 添加到桌面挪到左栏底部：顶栏太挤，之前会压住其它元素（维护者 m06617） -->
+        <div class="lobby-install"><${PwaInstallButton} /></div>
       </section>
 
       <section class="lobby-right">
@@ -443,8 +435,14 @@ export function LobbyScreen() {
         <div class="diff-list">
           ${DIFFICULTIES.map((d) => html`<${DifficultyCard} key=${d} roomMode=${roomMode} difficulty=${d} selected=${difficulty === d} onSelect=${pickDifficulty} />`)}
         </div>
+        ${roomMode === 'coop' ? html`<div class="capacity-select">
+          <div class="capacity-select__label">${t('同盟席位')}<${MicroLabel}>ROOM CAPACITY<//></div>
+          <div class="capacity-select__options" role="radiogroup" aria-label=${t('同盟人数上限')}>
+            ${ROOM_CAPACITIES.map((n) => html`<button key=${n} type="button" role="radio" aria-checked=${capacity === n ? 'true' : 'false'}
+              class=${`capacity-select__opt${capacity === n ? ' is-active' : ''}`} onClick=${() => pickCapacity(n)}>${t('{n} 人', { n })}</button>`)}
+          </div>
+        </div>` : null}
         <div class="create-box">
-          ${roomMode === 'coop' ? html`<${QuickMatch} difficulty=${difficulty} online=${online} />` : null}
           <${Tooltip} block=${true} text=${online ? null : t('正在连接服务器…')}>
             <${Button} variant="primary" size="xl" block=${true} iconRight="chevrons" loading=${busy === 'create'} disabled=${!online} onClick=${create}>
               ${roomMode === 'solo' ? t('开始独立模拟') : t('创建同盟')}
@@ -453,12 +451,11 @@ export function LobbyScreen() {
           <div class="create-box__hint">
             ${online
               ? html`<span>${roomMode === 'solo' ? t('创建后即可开始模拟') : t('创建后可邀请好友或添加 AI 队友')}</span>`
-              : html`<${Spinner} size="sm" label="CONNECTING" />`}
-            <${BrowserPrecacheButton} />
+              : html`<span>${t('正在连接服务器…')}</span>`}
           </div>
         </div>
-        <${TipsPanel} />
       </section>
+      </div>
     </div>
   </div>`;
 }

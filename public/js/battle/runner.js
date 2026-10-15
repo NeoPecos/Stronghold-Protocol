@@ -711,7 +711,8 @@ export function createBattleRunner(deps) {
       e.meter = sim.spec.attachLpMeter(battle);
       e.t0 = clock() - (e.elapsed / e.speed) * 1000;
       if (lastPool && battle.sharedBoss && typeof battle.sharedBoss.sync === 'function') {
-        battle.sharedBoss.sync(lastPool.hp, lastPool.acked ? lastPool.acked[e.fieldId] : undefined);
+        battle.sharedBoss.sync(lastPool.hp, lastPool.acked ? lastPool.acked[e.fieldId] : undefined,
+          lastPool.groupRaw?.[e.spec?.boss?.group]);
       }
       if (e.endReason) endBattle(e);
       // silent catch-up to the field's clock before it is shown (a reconnect / observing a running field) — for the view
@@ -746,7 +747,8 @@ export function createBattleRunner(deps) {
     // a pending battle not built yet takes lastPool when it is built
     for (const e of [...entries.values(), ...pending.values()]) {
       const pool = e.battle ? e.battle.sharedBoss : null;
-      if (pool && typeof pool.sync === 'function') pool.sync(msg.hp, msg.acked ? msg.acked[e.fieldId] : undefined);
+      if (pool && typeof pool.sync === 'function') pool.sync(msg.hp, msg.acked ? msg.acked[e.fieldId] : undefined,
+        msg.groupRaw?.[e.spec?.boss?.group]);
     }
     emit('pool', msg);
   }

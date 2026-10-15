@@ -6,6 +6,7 @@ import { html, Icon, TierChip, Tooltip } from './components.js';
 import { data, useData, localAsset } from '../data.js';
 import { parseRichText, rtClassName } from './richText.js';
 import { t as tr } from '../../../shared/i18n.js';
+import { playerAvatarUrl } from '../../../shared/playerAvatar.js';
 import {
   uiUrl, chessAvatarUrl, chessPortraitUrl, itemIconUrl, tokenAvatarUrl, enemyIconUrl, bondIconUrl, bandIconUrl,
 } from './assetUrls.js';
@@ -257,9 +258,8 @@ export function RichTip({ text, children, placement = 'top' }) {
  * @param {{ player: any, size?: 'sm'|'md', self?: boolean, class?: string }} props
  */
 export function PlayerAvatar({ player, size = 'md', self = false, class: cls }) {
-  // 玩家头像 (TASK-004)：avatar = 干员 id（素材在 assets.chars[*].avatar）；没选回落阵营图标、再回落名字首字
-  const chars = data.get('assets')?.chars;
-  const chosen = player?.avatar && chars ? chars[player.avatar]?.avatar : null;
+  // 玩家头像 (TASK-004)：没选回落阵营图标、再回落名字首字
+  const chosen = playerAvatarUrl(data.get('assets'), player?.avatar);
   const src = chosen || (player?.bandId ? bandIconUrl(data.get('assets'), player.bandId) : null);
   const glyph = [...(player?.name || '').trim()][0] || '?';
   const dead = player?.alive === false || player?.status === 'dead';

@@ -3,7 +3,7 @@
 //
 //   * Merged LP: teamLp = Σ LP of the alive players at the start of the Final Assault (no cap); the Hidden Core
 //     continues with what is left.
-//   * Pairing: shuffled once per match before Final Assault prep; Hidden Core keeps those pairs. If players leave,
+//   * Pairing: shuffled within each fixed four-player group before Final Assault prep; Hidden Core keeps those pairs. If players leave,
 //     intact pairs stay together and the remaining single players pair up. An odd player uses the `_s` template
 //     (solo modes always use `_s`). Field ids 'b1', 'b2'. In a pair the first player is the LEFT side, the second the
 //     RIGHT side (the sim mirrors the right side: board col c → field col 20 − c with the piece direction RIGHT ↔
@@ -15,7 +15,8 @@
 //     count, eliminated and departed seats do not; solo × 1) — the owner's decision of 2026-10-06, adopting PR #209 by
 //     @qingjingshenghuo, which replaces the fixed pool of 「保持固定血量」 (config bossHpScale perPlayer false / solo 0.25
 //     restores it); × the tuning bossHpMul when data/tuning.json still has one (docs/BALANCE.md); bosses are never scaled
-//     by enemyScale and their parts / escorts keep their own HP.
+//     by enemyScale and their parts / escorts keep their own HP. With multiple fixed groups, each group's normal-damage
+//     quota is proportional to its survivors; damage beyond that quota credits half to this common pool.
 //   * Overtime: bossTurnHpReduceTime counts REAL seconds like the level's 120 s maxPlayTime (which runs out first; the
 //     battle goes on): from 150 real s (300 game s on the 2× field clock) the team loses bossOvertimeDrainPerSec (1) LP
 //     per real second (gamedata.js bossOvertimeDue); m.public.deadline = the 120 s countdown, m.public.overtimeAt = the
@@ -35,6 +36,7 @@
 //     co-op 1200) and team LP > minTeamLpExclusive (1).
 
 import { BOSS_ROW_OFFSET, COLS, BOSS_POOL_MIN_HP } from '../sim/constants.js';
+import { bossGroupCredit, bossRawForCredit } from '../../shared/bossDamage.js';
 import { mirrorDir, normDir } from '../sim/dir.js';
 import { bossPoolShareOf } from './gamedata.js';
 
@@ -75,6 +77,18 @@ export function pairPlayers(alive, rng, previous = null) {
   return groups;
 }
 
+export function pairPlayersByGroup(alive, rng, previous, poolGroups, groupByPlayer) {
+  if (!Array.isArray(poolGroups) || poolGroups.length <= 1) return pairPlayers(alive, rng, previous);
+  const groups = [];
+  for (let index = 0; index < poolGroups.length; index++) {
+    const members = alive.filter((player) => groupByPlayer.get(player.playerId) === index);
+    if (!members.length) continue;
+    const prior = Array.isArray(previous) ? previous.filter((pair) => pair.every((id) => groupByPlayer.get(id) === index)) : null;
+    groups.push(...pairPlayers(members, rng, prior));
+  }
+  return groups;
+}
+
 /** Shared boss HP for a boss id with `aliveCount` alive players (GameData.bossPoolShare / bossPoolShareOf; omitted ⇒ a full team). */
 export function bossPoolHp(gd, bossId, aliveCount) {
   const boss = gd.boss(bossId);
@@ -93,22 +107,58 @@ export function bossPoolHp(gd, bossId, aliveCount) {
  * Match._creditBoss (client reports, per player); the hit that would leave less than BOSS_POOL_MIN_HP takes the rest.
  */
 export class SharedBossPool {
-  constructor(hp, { onHit = null } = {}) {
+  constructor(hp, { onHit = null, groupByPlayer = null, groupQuotas = null, onGroupComplete = null } = {}) {
     this.maxHp = Math.max(1, hp);
     this.hp = this.maxHp;
     /** playerId → damage dealt to this pool (this boss round only; the BOSS_HIT tickers' share) */
     this.byPlayer = new Map();
     this.onHit = onHit;
+    this.groupByPlayer = groupByPlayer;
+    this.groupQuotas = groupQuotas;
+    this.rawByGroup = new Map();
+    this.completedGroups = new Set();
+    this.onGroupComplete = onGroupComplete;
+  }
+
+  groupOf(playerId) { return this.groupByPlayer?.get(playerId) ?? null; }
+
+  creditFor(playerId, rawAmount) {
+    const raw = Math.max(0, Number(rawAmount) || 0);
+    const group = this.groupOf(playerId);
+    if (group == null) return raw;
+    const before = this.rawByGroup.get(group) || 0;
+    const quota = this.groupQuotas.get(group);
+    return bossGroupCredit(before + raw, quota) - bossGroupCredit(before, quota);
+  }
+
+  rawForCredit(playerId, credit) {
+    const group = this.groupOf(playerId);
+    return group == null ? credit : bossRawForCredit(this.rawByGroup.get(group) || 0, credit, this.groupQuotas.get(group));
   }
 
   damage(playerId, amount) {
     const a = Number(amount);
     if (!Number.isFinite(a) || a <= 0 || this.hp <= 0) return 0;
-    const dealt = this.hp - a < BOSS_POOL_MIN_HP ? this.hp : a;
+    const credit = this.creditFor(playerId, a);
+    const dealt = this.hp - credit < BOSS_POOL_MIN_HP ? this.hp : credit;
+    const group = this.groupOf(playerId);
+    let completed = false;
+    if (group != null) {
+      const raw = dealt >= credit ? a : this.rawForCredit(playerId, dealt);
+      const total = (this.rawByGroup.get(group) || 0) + raw;
+      this.rawByGroup.set(group, total);
+      if (total >= this.groupQuotas.get(group) - 1e-6 && !this.completedGroups.has(group)) {
+        this.completedGroups.add(group);
+        completed = true;
+      }
+    }
     this.hp -= dealt; // exactly 0 when the rest is taken (x − x): no float dust
     if (playerId != null) this.byPlayer.set(playerId, (this.byPlayer.get(playerId) || 0) + dealt);
     if (this.onHit) {
       try { this.onHit(playerId, dealt); } catch { /* reported by the caller */ }
+    }
+    if (completed && this.onGroupComplete) {
+      try { this.onGroupComplete(group); } catch { /* reported by the caller */ }
     }
     return dealt;
   }

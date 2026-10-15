@@ -3,9 +3,9 @@
    ========================================================================================== */
 
 .lobby-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  gap: .36rem;
+  display: flex;
+  flex-direction: column;
+  gap: .26rem;
   width: 100%;
   max-width: 19.2rem;
   margin: 0 auto;
@@ -134,52 +134,143 @@
 }
 .code-chip:hover { border-color: var(--amber); background: rgba(246, 163, 41, .08); }
 
-/* Fixed-size directory: the left column must not stretch to the right column's height (that height changes with
-   the selected mode/difficulty), so the panel sizes to its own content and the room list below keeps a fixed height. */
-.room-directory { flex: 0 0 auto; min-height: 0; display: flex; flex-direction: column; background: linear-gradient(145deg, rgba(20, 31, 27, .94), rgba(9, 14, 13, .96)); }
-.room-directory .panel__head { align-items: center; padding-block: .1rem; }
-.room-directory .panel__actions { flex: 1; min-width: 0; justify-content: flex-end; }
-.room-directory .panel__body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: .08rem .14rem .1rem; }
-.room-directory__join { display: flex; align-items: center; justify-content: flex-end; gap: .07rem; min-width: 0; width: 100%; }
-.room-directory__join .field { flex: 1; min-width: 2.5rem; max-width: 5.7rem; }
-.room-directory__join .field__box { height: .46rem; }
-.room-directory__join .btn { min-height: .42rem; white-space: nowrap; }
-.room-directory__recent { display: flex; align-items: center; flex-wrap: wrap; gap: .07rem; min-height: .35rem; padding: 0 .02rem .07rem; font-size: calc(.13 * var(--t)); }
-.room-directory__empty { margin: 0; padding: .3rem .16rem; color: var(--text-lo); font-size: calc(.16 * var(--t)); text-align: center; }
-.room-directory__list { flex: 0 0 auto; height: 4.8rem; display: flex; flex-direction: column; gap: .08rem; overflow-y: auto; overscroll-behavior: contain; }
-.room-directory__room {
+/* ---- lobby grid + online count -------------------------------------------------------------------- */
+
+/* The 联机大厅 module takes the full width of the body, so the two columns (01 模拟方式 / 02 模拟难度) live in
+   their own grid. This used to be .lobby-body itself. */
+.lobby-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: .36rem;
+  align-items: start;
+}
+
+/* Topbar readout next to the ping pill: same pill metrics, its own palette. */
+.lobby-online {
+  display: inline-flex;
+  align-items: center;
+  gap: .06rem;
+  height: .32rem;
+  padding: 0 .14rem;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: rgba(0, 0, 0, .5);
+  color: var(--text-md);
+  font-family: var(--font-num);
+  font-size: calc(.18 * var(--t));
+  font-variant-numeric: tabular-nums;
+}
+.lobby-online .icon { width: .18rem; height: .18rem; color: var(--mint-400); }
+.lobby-online.is-offline { color: var(--text-dim); }
+.lobby-online.is-offline .icon { color: var(--text-dim); }
+
+/* ---- 联机大厅 (alliance matchmaking) --------------------------------------------------------------- */
+/* 这一段是参考分支（LongQianChen/feat-IncreasePlayerCapacity）原本的 UI，原样搬过来，不再自己重画。
+   壳 / 标题 / 四角括号走通用 Panel 组件（维护者 m00816「整体颜色，大小，四角，标题样式之类的你还是照抄线上版本，
+   就是上半部分格式照抄，下半部分先不动」）——这里只覆写成线上 .room-directory 的那几条：
+   外壳的渐变底色、.panel__head 居中 + 上下 .1rem、actions 占满整行并右对齐、body 的排版。 */
+.lobby-discovery {
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: .02rem 0 .28rem;
+  background: linear-gradient(145deg, rgba(20, 31, 27, .94), rgba(9, 14, 13, .96));
+}
+.lobby-discovery .panel__head { align-items: center; padding-block: .1rem; }
+.lobby-discovery .panel__actions { flex: 1; min-width: 0; justify-content: flex-end; }
+/* body 的内边距沿用原来的数值（下半部分先不动）；线上是 .08rem .14rem .1rem */
+.lobby-discovery .panel__body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: .1rem .18rem .14rem; }
+/* 标题：字号/字重/字距来自 .panel__title，这里只把 users 图标排在标题前面（维护者 m00123 图二的设计） */
+.lobby-discovery .panel__title { display: flex; align-items: center; gap: .06rem; }
+.lobby-discovery .panel__title .icon { width: .19rem; height: .19rem; color: var(--mint-400); }
+
+/* the key row（维护者 m00701「只是让你扒上半部分的样式」）: 标题带照抄线上面板 —— 密钥框 .46rem 高、
+   加入同盟(amber)/观战/刷新 都是 sm 按钮（行内 min-height .42rem），整行右对齐、按钮贴到右端；
+   这一行**不许换行** —— 位置不够时先压窄密钥框，观战永远跟在加入同盟后面。 */
+.lobby-discovery__join { display: flex; align-items: center; justify-content: flex-end; gap: .07rem; flex: 1 1 6rem; min-width: 0; }
+.lobby-discovery__join .field { flex: 1; min-width: 2.5rem; max-width: 5.7rem; }
+.lobby-discovery__join .field__box { height: .46rem; }
+/* 输入的字比左边钥匙图标略低（维护者 m00862「里面的字往上抬一点，和左边的钥匙图标在相同高度」）——
+   .46rem 的框里装 .34rem 的 code 字，基线本来就偏下，用底部内边距把文字顶上去（数值可再调） */
+.lobby-discovery__join .field__input { padding-bottom: .05rem; }
+.lobby-discovery__join .btn { flex: none; min-height: .42rem; white-space: nowrap; }
+
+/* 最近的同盟：标题带下面独立一整行（维护者 m00512 要的那条分割线，现在由 .panel__head 的 border-bottom 提供，
+   这一行自己不再画线，免得叠成两条） */
+.lobby-discovery__recent { flex: 1 1 100%; display: flex; align-items: center; flex-wrap: wrap; gap: .05rem; min-height: 0; font-size: calc(.12 * var(--t)); }
+
+/* 四个计数：放大并占满它所在的这一整行（维护者 m00361「图二框的放大并占满他所在的这一整行」） */
+/* 分割线：标题带与计数行之间一条（维护者 m00379「模仿图三做好分割线」——图三的分割线在 header|内容 之间）
+   m00862：整排往下挪一点，别贴着最近的同盟、别让上面的线跟它挤在一起 */
+.lobby-discovery__stats { display: flex; flex: 1 1 100%; align-items: center; justify-content: space-between; gap: .1rem; min-width: 0; margin-top: .09rem; border-top: 1px solid var(--line-2); padding-top: .1rem; }
+.lobby-discovery__stats > span { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; min-width: 0; border-left: 1px solid var(--line-2); padding-left: .09rem; }
+.lobby-discovery__stats > span:first-child { border-left: 0; padding-left: 0; }
+.lobby-discovery__stats b { color: var(--mint-400); font-size: calc(.3 * var(--t)); line-height: 1; }
+.lobby-discovery__stats small { margin-top: .05rem; color: var(--text-lo); font-size: calc(.15 * var(--t)); white-space: nowrap; }
+
+/* 工具行（维护者 m00379）：房间列表 / ⟳ / 房间偏好 紧贴「最快匹配」左侧、间隔一致（都是 gap: .08rem），
+   房间列表与房间偏好同高同宽（1.6rem × .36rem —— 图一那两个控件大小长度均匀一致；m00862「调短一点，现在的太长了」，
+   原来是 2rem）；
+   分割线：计数行与工具行之间一条，模仿图三（服务器房间面板）的 内容|底部 那条线。
+   整行右对齐 —— 最快匹配不再靠 margin-left:auto 顶到右端，而是紧跟在房间偏好后面。 */
+.lobby-discovery__actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .08rem; margin-top: .12rem; border-top: 1px solid var(--line-2); padding-top: .1rem; }
+.lobby-discovery__actions .btn { flex: none; }
+.lobby-discovery__actions .btn[data-testid="lobby-directory-open"] { width: 1.6rem; }
+.lobby-discovery__preference { display: inline-flex; flex: none; align-items: center; gap: .05rem; width: 1.6rem; height: .36rem; padding: 0 .06rem 0 .1rem; border: 1px solid var(--line-2); background: rgba(0, 0, 0, .24); color: var(--text-lo); font-size: calc(.13 * var(--t)); white-space: nowrap; }
+/* 下拉框的字一律靠左（维护者 m01014「应该偏左才对！不限和下面所有字都靠左对齐」）：
+   闭合状态靠 select 自己的 text-align，展开的列表项靠 option 的 text-align —— Chrome 只认这两条，不能靠 padding 调 */
+.lobby-discovery__preference select { flex: 1 1 auto; min-width: 0; height: .28rem; padding: 0 .08rem 0 0; border: 0; background: var(--bg-2); color: var(--text-hi); font-size: calc(.15 * var(--t)); text-align: left; }
+.lobby-discovery__preference select option { text-align: left; }
+.lobby-discovery__preference select:disabled { opacity: .5; }
+.lobby-discovery__queue { margin: .08rem 0 0; font-size: calc(.13 * var(--t)); }
+
+/* ---- room-list dialog: our room rows, now inside the 房间列表 modal --------------------------------- */
+.lobby-room-list { background: #101713; }
+.lobby-room-list .modal__body { padding: .12rem .18rem .06rem; }
+.lobby-room-list__head { display: flex; align-items: center; justify-content: space-between; gap: .12rem; margin-bottom: .08rem; font-size: calc(.13 * var(--t)); }
+.lobby-room-list__empty { display: flex; align-items: center; justify-content: center; gap: .1rem; margin: 0; min-height: 1.7rem; color: var(--text-lo); font-size: calc(.16 * var(--t)); text-align: center; }
+.lobby-room-list__rows { display: flex; flex-direction: column; gap: .07rem; max-height: 5.4rem; overflow-y: auto; overscroll-behavior: contain; }
+.lobby-room-list__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: .08rem .16rem;
-  padding: .13rem .16rem;
+  gap: .06rem .16rem;
+  padding: .11rem .14rem;
   border: 1px solid var(--line);
   border-left: .04rem solid var(--line-3);
   background: linear-gradient(90deg, rgba(28, 39, 35, .8), rgba(14, 19, 17, .85));
 }
-.room-directory__room.is-open { border-left-color: var(--mint-500); }
-.room-directory__identity { display: flex; align-items: baseline; gap: .14rem; min-width: 0; }
-.room-directory__code { color: var(--mint-400); font-size: calc(.21 * var(--t)); font-weight: 800; letter-spacing: .14em; }
-.room-directory__host { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-hi); font-size: calc(.16 * var(--t)); }
-.room-directory__recruit { display: inline-flex; align-items: center; flex: 0 0 auto; min-height: .25rem; padding: .025rem .1rem;
+.lobby-room-list__row.is-open { border-left-color: var(--mint-500); }
+.lobby-room-list__identity { display: flex; align-items: baseline; gap: .14rem; min-width: 0; }
+.lobby-room-list__code { color: var(--mint-400); font-size: calc(.21 * var(--t)); font-weight: 800; letter-spacing: .14em; }
+.lobby-room-list__host { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-hi); font-size: calc(.16 * var(--t)); }
+.lobby-room-list__recruit { display: inline-flex; align-items: center; flex: 0 0 auto; min-height: .25rem; padding: .025rem .1rem;
   border: 1px solid rgba(246, 163, 41, .7); background: rgba(246, 163, 41, .09); color: var(--amber);
-  font-size: calc(.14 * var(--t)); font-weight: 850; letter-spacing: .06em; line-height: 1; white-space: nowrap;
-  text-shadow: 0 0 .1rem rgba(246, 163, 41, .2); }
-.room-directory__details { display: flex; align-items: center; flex-wrap: wrap; gap: .06rem .15rem; color: var(--text-md); font-size: calc(.14 * var(--t)); }
-.room-directory__difficulty, .room-directory__count { display: inline-flex; align-items: center; gap: .04rem; white-space: nowrap; }
-.room-directory__difficulty { color: var(--d-color); }
-.room-directory__difficulty .icon, .room-directory__count .icon { width: .16rem; height: .16rem; }
-.room-directory__count b { color: var(--text-hi); font-size: calc(.16 * var(--t)); }
-.room-directory__activity { color: var(--mint-400); white-space: nowrap; }
-.room-directory__status { color: var(--text-dim); white-space: nowrap; }
-.room-directory__status.is-open { color: var(--mint-400); }
-.room-directory__actions { grid-column: 2; grid-row: 1 / span 2; display: flex; align-items: center; gap: .06rem; }
-.room-directory__actions .btn { min-height: .4rem; }
-.room-directory__foot { padding: .1rem .04rem 0; border-top: 1px solid var(--line); color: var(--text-dim); font-size: calc(.13 * var(--t)); text-align: right; }
-@media (max-width: 1050px) {
-  .room-directory .panel__head { align-items: stretch; flex-direction: column; }
-  .room-directory .panel__actions { width: 100%; }
-  .room-directory__room { grid-template-columns: minmax(0, 1fr); }
-  .room-directory__actions { grid-column: 1; grid-row: auto; justify-content: flex-end; }
+  font-size: calc(.14 * var(--t)); font-weight: 850; letter-spacing: .06em; line-height: 1; white-space: nowrap; }
+.lobby-room-list__details { display: flex; align-items: center; flex-wrap: wrap; gap: .06rem .15rem; color: var(--text-md); font-size: calc(.14 * var(--t)); }
+.lobby-room-list__difficulty, .lobby-room-list__count { display: inline-flex; align-items: center; gap: .04rem; white-space: nowrap; }
+.lobby-room-list__difficulty { color: var(--d-color); }
+.lobby-room-list__difficulty .icon, .lobby-room-list__count .icon { width: .16rem; height: .16rem; }
+.lobby-room-list__count b { color: var(--text-hi); font-size: calc(.16 * var(--t)); }
+.lobby-room-list__activity { color: var(--mint-400); white-space: nowrap; }
+.lobby-room-list__status { color: var(--text-dim); white-space: nowrap; }
+.lobby-room-list__status.is-open { color: var(--mint-400); }
+.lobby-room-list__actions { grid-column: 2; grid-row: 1 / span 2; display: flex; align-items: center; gap: .06rem; }
+.lobby-room-list__actions .btn { min-height: .4rem; }
+.lobby-room-list__foot { margin: .1rem .04rem 0; padding-top: .1rem; border-top: 1px solid var(--line); color: var(--text-dim); font-size: calc(.13 * var(--t)); text-align: right; }
+.lobby-room-list__footer { display: flex; align-items: center; justify-content: space-between; gap: .12rem; width: 100%; }
+.lobby-room-list__pager { display: flex; align-items: center; gap: .1rem; color: var(--text-lo); font-size: calc(.14 * var(--t)); white-space: nowrap; }
+.lobby-room-list__pager .btn { min-height: .4rem; }
+
+/* narrow windows: the two columns stack, the heading strip becomes two lines (标题 + 计数 / 密钥行) and a room row
+   loses its right-hand action column. */
+@media (max-width: 740px) {
+  .lobby-grid { grid-template-columns: minmax(0, 1fr); gap: .22rem; }
+  .lobby-discovery__join { flex: 1 1 100%; order: 3; }
+  .lobby-discovery__join .field { flex: 1 1 100%; max-width: none; }
+  .lobby-discovery__stats { order: 2; margin-left: auto; }
+  .lobby-room-list__row { grid-template-columns: minmax(0, 1fr); }
+  .lobby-room-list__actions { grid-column: 1; grid-row: auto; justify-content: flex-end; }
 }
 
 /* ---- tips -------------------------------------------------------------------------------------------- */
@@ -190,7 +281,8 @@
   background: rgba(8, 10, 9, .55);
   border: 1px solid var(--line);
 }
-.lobby-right > .tips { margin-top: auto; margin-bottom: 0; }
+/* 作战提示从左栏底部搬到左栏「联机大厅」下方（维护者 m00232）；左栏不再需要用 auto 外边距把它顶到底部。 */
+.lobby-left > .tips { margin-top: 0; margin-bottom: 0; }
 .tips__head { display: flex; align-items: center; gap: .1rem; font-size: calc(.16 * var(--t)); font-weight: 700; color: var(--text-md); }
 .tips__head > .icon { width: .2rem; height: .2rem; color: var(--mint-500); }
 .tips__idx { margin-left: auto; font-size: calc(.16 * var(--t)); color: var(--text-md); }
@@ -313,7 +405,19 @@
   .lobby-body { padding-top: .06rem; padding-bottom: .08rem; }
   .mode-card { min-height: 2.35rem; padding: .12rem .2rem .11rem; }
   .mode-card__desc { line-height: 1.25; }
-  .room-directory__room { padding-block: .1rem; }
+  .lobby-room-list__row { padding-block: .1rem; }
   .create-box { margin-top: .08rem; gap: .05rem; }
   .create-box .btn--xl { height: .70rem; font-size: calc(.28 * var(--t)); }
 }
+
+/* --- 大厅「同盟席位」选择器（取自 20 人分支 d7d541e7） --- */
+.capacity-select { display: flex; align-items: center; justify-content: space-between; gap: .18rem; margin-top: .2rem; padding: .14rem .18rem; border: 1px solid var(--line-2); background: rgba(9, 13, 11, .7); }
+.capacity-select__label { display: flex; flex-direction: column; flex: none; color: var(--text-md); font-size: calc(.19 * var(--t)); font-weight: 700; }
+.capacity-select__options { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .06rem; }
+.capacity-select__opt { min-width: .66rem; height: .42rem; padding: 0 .12rem; border: 1px solid var(--line-2); background: rgba(255, 255, 255, .03); color: var(--text-lo); font-size: calc(.16 * var(--t)); font-weight: 700; }
+.capacity-select__opt:hover { color: var(--text-hi); border-color: var(--mint-600); }
+.capacity-select__opt.is-active { color: var(--mint-400); border-color: var(--mint-500); background: var(--mint-a20); }
+
+/* --- 「添加到桌面」：贴屏幕左下角（顶栏太挤会压元素；维护者 m06617） --- */
+.lobby-install { position: absolute; left: .32rem; bottom: .14rem; z-index: 6; display: flex; }
+

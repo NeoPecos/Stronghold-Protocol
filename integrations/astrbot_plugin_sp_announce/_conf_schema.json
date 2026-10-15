@@ -1,0 +1,50 @@
+{
+  "enabled": {
+    "description": "启用插件",
+    "hint": "总开关。关掉后本插件对任何命令都不响应。",
+    "type": "bool",
+    "default": true
+  },
+  "allowed_senders": {
+    "description": "允许使用的 QQ 号",
+    "hint": "一行一个（或用逗号分隔）。留空 = 谁都不能用（安全默认，不会「未配置就所有人可用」）。",
+    "type": "text",
+    "default": ""
+  },
+  "announce_token": {
+    "description": "公告发布令牌",
+    "hint": "必须与游戏服 systemd 里的 SP_ANNOUNCE_TOKEN 完全一致。它只能新增公告，不能踢人/改密码/删公告；仍请不要截图或外发。",
+    "type": "string",
+    "default": ""
+  },
+  "base_url": {
+    "description": "游戏服地址",
+    "hint": "公告发布接口的地址，一般不用改。",
+    "type": "string",
+    "default": "https://sp.bs.leio.fun"
+  },
+  "allow_group": {
+    "description": "允许在群里使用",
+    "hint": "关闭时只有私聊能用。开启后还需要群号在白名单里、并且 @ 了机器人，才会响应。",
+    "type": "bool",
+    "default": false
+  },
+  "allowed_groups": {
+    "description": "允许的群号",
+    "hint": "一行一个（或用逗号分隔）。只有 allow_group 打开时才生效。",
+    "type": "text",
+    "default": ""
+  },
+  "draft_ttl_seconds": {
+    "description": "草稿有效期（秒）",
+    "hint": "超过这个时间没动的草稿会被清掉，默认 1800 秒（30 分钟）。",
+    "type": "int",
+    "default": 1800
+  },
+  "verbose": {
+    "description": "详细日志",
+    "hint": "排查问题时打开：会打印每次草稿/发布操作与服务器返回。",
+    "type": "bool",
+    "default": false
+  }
+}

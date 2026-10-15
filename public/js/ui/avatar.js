@@ -1,7 +1,7 @@
 // 玩家头像 (TASK-004)：客户端状态与同步。
 //
-// 头像 = 一个干员 id（`char_003_kalts`），空串 = 不用头像 —— 显示回落到阵营图标、再回落名字首字。
-// 图片直接用随包素材里已有的 `assets.chars[id].avatar`（210 个干员），没有新增下载，也不接受外链/上传。
+// 头像 = 干员基础、精二或皮肤的素材 id，空串 = 不用头像 —— 显示回落到阵营图标、再回落名字首字。
+// 图片直接用随包素材里已有的头像，没有新增下载，也不接受外链/上传。
 //
 // 选择按浏览器存在 localStorage，并镜像到**账号画像**（`account.avatar`）：与干员调配 / 皮肤 / 持有 / 自选编队
 // 同一套机制（见 ui/skins.js、server/net.js 的 PROFILE_FIELDS），所以换端、换浏览器后会自动恢复。
@@ -11,6 +11,7 @@
 import { createStore, loadPref, savePref } from '../store.js';
 import { data } from '../data.js';
 import { AVATAR_NAMES } from './avatarNames.js';
+import { playerAvatarUrl } from '../../../shared/playerAvatar.js';
 
 export const AVATAR_PREF = 'avatar';
 export const SYNC_DEBOUNCE_MS = 400;
@@ -42,9 +43,7 @@ export const closeAvatarPicker = () => avatarStore.set({ open: false });
  * @param {string} id
  */
 export function avatarUrl(id) {
-  const chars = data.get('assets')?.chars;
-  const entry = id && chars ? chars[id] : null;
-  return entry && typeof entry.avatar === 'string' ? entry.avatar : '';
+  return playerAvatarUrl(data.get('assets'), id);
 }
 
 /** 本机所选头像的图片地址。 */
@@ -57,10 +56,10 @@ export function loadAvatarData() {
 }
 
 /**
- * 可选头像清单：所有带头像素材的干员，按名字排序。
+ * 可选头像清单：所有带头像素材的干员及其精二、皮肤，按干员名排序。
  * 名字优先取 data/chess.json（干员在棋盘上的正式名，`name` + `backup.charId`），
  * 棋盘上没有的干员用 ui/avatarNames.js 里的官方数据表名字补齐（生成脚本见该文件头部）。
- * @returns {{ id: string, name: string, url: string }[]}
+ * @returns {{ id: string, name: string, variant: string, url: string, search: string }[]}
  */
 export function avatarChoices() {
   const chars = data.get('assets')?.chars || {};
@@ -77,9 +76,17 @@ export function avatarChoices() {
   const out = [];
   for (const [id, entry] of Object.entries(chars)) {
     if (!entry || typeof entry.avatar !== 'string' || !entry.avatar) continue;
-    out.push({ id, name: names.get(id) || id, url: entry.avatar });
+    const name = names.get(id) || id;
+    out.push({ id, name, variant: '默认', url: entry.avatar, search: `${name} ${id} 默认` });
+    if (entry.avatarE2) out.push({ id: `e2:${id}`, name, variant: '精英2', url: entry.avatarE2, search: `${name} ${id} 精英2 精二` });
+    for (const [skinId, skin] of Object.entries(entry.skins || {})) {
+      if (!skin?.avatar) continue;
+      const variant = skin.name || skinId;
+      out.push({ id: `skin:${id}:${skinId}`, name, variant, url: skin.avatar, search: `${name} ${id} ${variant} ${skin.group || ''} ${skinId} 皮肤` });
+    }
   }
-  return out.sort((a, b) => (a.name === a.id ? 1 : 0) - (b.name === b.id ? 1 : 0) || a.name.localeCompare(b.name, 'zh'));
+  return out.sort((a, b) => (a.name === a.id ? 1 : 0) - (b.name === b.id ? 1 : 0)
+    || a.name.localeCompare(b.name, 'zh') || a.id.localeCompare(b.id));
 }
 
 /**

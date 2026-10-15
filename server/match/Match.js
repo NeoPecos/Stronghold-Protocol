@@ -172,7 +172,7 @@
 //   common.js        what the modules share (FLOW_TICKER_PRIORITY, DELAYS, BAND_TURN_SECONDS — re-exported here, OK,
 //                    fail, BOSS_CLOCK_MS)
 
-import { PHASE, modeIdFor } from '../../shared/constants.js';
+import { PHASE, MAX_SEATS, modeIdFor } from '../../shared/constants.js';
 import { Battle } from '../sim/Battle.js';
 import { DataSource } from '../sim/simdata.js';
 import { createRng, deriveSeed } from '../sim/rng.js';
@@ -198,6 +198,7 @@ import { MatchCombat } from './match/combat.js';
 import { MatchClientCombat } from './match/clientCombat.js';
 import { MatchReports } from './match/reports.js';
 import { MatchUnite } from './match/unitePhase.js';
+import { poolCopyScale, poolGroupMembers, uniteHelperLimit, uniteTimeBonus } from '../../shared/playerCapacity.js';
 import { MatchBoss } from './match/bossRounds.js';
 import { MatchSettle } from './match/settle.js';
 
@@ -247,6 +248,11 @@ export class Match {
     this.isSolo = this.mode === 'solo' || this.gd.isSolo;
     /** 「AI 队友最后选择」 (opts.aiPicksLast, GitHub #338): humans draft before AI seats (MatchPhases.humansFirst) */
     this.aiPicksLast = !this.isSolo && opts.aiPicksLast === true;
+    const participantCount = Math.min(opts.seats.length, MAX_SEATS);
+    const uniteLimit = uniteHelperLimit(participantCount);
+    this.uniteHelpers = !this.isSolo && Number.isInteger(opts.uniteHelpers) && opts.uniteHelpers >= 2
+      && opts.uniteHelpers % 2 === 0 && opts.uniteHelpers <= uniteLimit ? opts.uniteHelpers : 2;
+    this.uniteTimeBonus = this.isSolo ? 0 : uniteTimeBonus(participantCount, this.uniteHelpers);
     this.ownsScheduler = !opts.scheduler;
     this.sched = opts.scheduler || new RealScheduler({ now: opts.now || Date.now, onError: (e) => this.reportError('timer', e) });
     this.registry = opts.registry || getDefaultRegistry();
@@ -306,6 +312,17 @@ export class Match {
     }
     if (!this.players.size) throw new TypeError('Match: seats required');
     this.order = [...this.players.values()].sort((a, b) => a.seat - b.seat);
+    this.poolGroups = poolGroupMembers(this.order, opts.groupOrder);
+    this.poolGroupLabels = this.poolGroups.map((members, index) => {
+      const slot = Array.isArray(opts.groupOrder) ? opts.groupOrder.findIndex((group) => Array.isArray(group) && group.includes(members[0])) : -1;
+      return slot >= 0 ? slot + 1 : index + 1;
+    });
+    this.poolGroupByPlayer = new Map(this.poolGroups.flatMap((members, index) => members.map((id) => [id, index])));
+    this.botBands = new Map();
+    for (const ps of this.order) {
+      const bandId = opts.botBands?.[ps.playerId];
+      if (ps.isBot && typeof bandId === 'string' && this.gd.bandAllowed(bandId)) this.botBands.set(ps.playerId, bandId);
+    }
     /**
      * Spectator seats (opts.spectators / addSpectator): playerId → a stand-in every watch path treats like an eliminated
      * human (alive false; no PlayerState, never a field's player or authority).
@@ -331,8 +348,16 @@ export class Match {
     this.disabledBonds = bans.drawn;
     this.staticInactiveBonds = bans.staticOff;
     this.bannedChess = bans.banned;
-    this.pool = new SharedPool(this.gd, { banned: bans.banned });
-    this.itemPool = new SharedItemPool(this.gd, () => this.order);
+    this.groupPools = this.poolGroups.map((members) => {
+      const players = members.map((id) => this.players.get(id));
+      const scale = poolCopyScale(members.length);
+      return {
+        pool: new SharedPool(this.gd, { banned: bans.banned, scale }),
+        itemPool: new SharedItemPool(this.gd, () => players, { scale }),
+      };
+    });
+    this.pool = this.groupPools[0].pool;
+    this.itemPool = this.groupPools[0].itemPool;
     // 自选编队 (0.2.0): each human's slotted DIY pieces get their own stock — none for one whose bonds are all off this
     // match (player/diy.js initDiyStock); no randomness is drawn here
     const off = new Set([...bans.drawn, ...bans.staticOff]);
@@ -385,6 +410,7 @@ export class Match {
      */
     this.watchPref = new Map();
     this.lastResults = new Map();
+    this.uniteAssistedRound = new Map();
     this.unitePlan = null;
     /** 联防 outcome for the SETTLE view: { through, helpers, leakers, losses } (settle()), null when no 联防 resolved */
     this.uniteResultView = null;
@@ -398,6 +424,14 @@ export class Match {
     this.hiddenReached = false;
     this.outcome = null;
     this._turnToken = 0;
+  }
+
+  poolFor(player) {
+    return this.groupPools[this.poolGroupByPlayer.get(player.playerId) ?? 0].pool;
+  }
+
+  itemPoolFor(player) {
+    return this.groupPools[this.poolGroupByPlayer.get(player.playerId) ?? 0].itemPool;
   }
 }
 

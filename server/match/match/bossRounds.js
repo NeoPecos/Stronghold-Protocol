@@ -8,9 +8,10 @@
 import { PHASE, GEO } from '../../../shared/constants.js';
 import { createRng, deriveSeed } from '../../sim/rng.js';
 import { buildBossWave, bountySpawns } from '../waves.js';
-import { pairPlayers, bossPoolHp, SharedBossPool, CreditPool, hiddenEligible, BOSS_HIT_STEPS } from '../finalAssault.js';
+import { pairPlayersByGroup, bossPoolHp, SharedBossPool, CreditPool, hiddenEligible, BOSS_HIT_STEPS } from '../finalAssault.js';
 import { FieldRunner, HeadlessPacer, syntheticResult, BOSS_SILENCE_MS, CATCHUP_TICKS_PER_INTERVAL } from '../fields.js';
 import { FLOW_TICKER_PRIORITY, BOSS_CLOCK_MS, DELAYS } from './common.js';
+import { msg } from '../../../shared/i18n.js';
 
 /** b.pool broadcasts at most this often (ms). */
 const POOL_MIN_GAP_MS = 250;
@@ -50,7 +51,18 @@ export class MatchBoss {
     // the pool's own per-player tally, one pool per boss round. stats.bossDamage (the result's 领袖伤害) adds up both
     // rounds, so it would credit the Final Assault's damage to the hidden leader ("隐藏boss还没打就出了50%播报").
     const hitSteps = new Map();
-    const pool = new SharedBossPool(bossPoolHp(this.gd, bossId, alive.length), {
+    const maxHp = bossPoolHp(this.gd, bossId, alive.length);
+    const groupCounts = new Map();
+    for (const player of alive) {
+      const group = this.poolGroupByPlayer.get(player.playerId) ?? 0;
+      groupCounts.set(group, (groupCounts.get(group) || 0) + 1);
+    }
+    const groupQuotas = new Map([...groupCounts].map(([group, count]) => [group, maxHp * count / alive.length]));
+    const pool = new SharedBossPool(maxHp, {
+      groupByPlayer: groupQuotas.size > 1 ? this.poolGroupByPlayer : null,
+      groupQuotas: groupQuotas.size > 1 ? groupQuotas : null,
+      onGroupComplete: (group) => this.tickerText(msg('第{group}小队已经完成自己的任务，开始协助其他小队继续战斗！',
+        { group: this.poolGroupLabels[group] ?? group + 1 }), FLOW_TICKER_PRIORITY),
       onHit: (pid, dmg) => {
         const ps = this.players.get(pid);
         if (!ps) return;
@@ -66,7 +78,8 @@ export class MatchBoss {
       },
     });
     this.bossPool = pool;
-    const groups = pairPlayers(alive, createRng(deriveSeed(this.seed, 'boss-pairs')), this.bossPairs);
+    const groups = pairPlayersByGroup(alive, createRng(deriveSeed(this.seed, 'boss-pairs')),
+      this.bossPairs, this.poolGroups, this.poolGroupByPlayer);
     this.bossPairs = groups.map(g => g.map(p => p.playerId));
     const reuse = this.bossWaves && this.bossWaves.length === groups.length && this.bossWaves.every((w, i) => w.players.join() === groups[i].map((p) => p.playerId).join());
     this.fields = groups.map((g, i) => {
@@ -140,7 +153,11 @@ export class MatchBoss {
 
   _startFinalClient(hidden) {
     const pool = this.bossPool;
-    const recs = this.fields.map((x) => this._ccField({ fieldId: x.fieldId, kind: x.kind, players: x.players, opts: x.opts, boss: { poolHp: pool.hp, poolMax: pool.maxHp } }));
+    const recs = this.fields.map((x) => {
+      const group = this.poolGroupByPlayer.get(x.players[0]) ?? 0;
+      return this._ccField({ fieldId: x.fieldId, kind: x.kind, players: x.players, opts: x.opts,
+        boss: { poolHp: pool.hp, poolMax: pool.maxHp, group, quota: pool.groupQuotas?.get(group) ?? null } });
+    });
     this._finalEnding = null;
     this._bossStartAt = this.sched.now();
     this.watchers.clear();
@@ -211,7 +228,7 @@ export class MatchBoss {
       }
     }
     if (delta - attributed > 0) {
-      const pid = by ? null : f.players[0];
+      const pid = f.players[0];
       if (pid) f.bossBy[pid] = (f.bossBy[pid] || 0) + (delta - attributed);
       pool.damage(pid, delta - attributed);
     }
@@ -398,6 +415,7 @@ export class MatchBoss {
     const msg = {
       t: 'b.pool', hp: Math.max(0, this.bossPool.hp), max: this.bossPool.maxHp,
       teamLp: this.teamLp == null ? null : Math.max(0, Math.round(this.teamLp)), acked,
+      groupRaw: Object.fromEntries(this.bossPool.rawByGroup),
     };
     const key = JSON.stringify(msg);
     if (!force && key === this._lastPoolKey) return;
@@ -520,7 +538,10 @@ export class MatchBoss {
       for (const pid of f.players) {
         const pp = res.perPlayer && res.perPlayer[pid];
         const ps = this.players.get(pid);
-        if (pp) this.lastResults.set(pid, pp);
+        if (pp) {
+          pp.bossDamage = this.bossPool.byPlayer.get(pid) || 0;
+          this.lastResults.set(pid, pp);
+        }
         if (pp && ps) {
           ps.stats.dmgDealt += Number(pp.damageDealt) || 0;
           ps.stats.kills += Number(pp.killed) || 0;

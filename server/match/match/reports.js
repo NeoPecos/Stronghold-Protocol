@@ -74,7 +74,10 @@ export class MatchReports {
       // float dust from summing the fields' reports in another order — the boss is down (pools never hold less than
       // BOSS_POOL_MIN_HP, finalAssault.js: this only catches a noise-level disagreement at that boundary)
       const pool = this.bossPool;
-      if (result.reason === 'cleared' && this._finalEnding !== 'forced' && pool && pool.hp > 0 && pool.hp < 1 + 1e-6) pool.damage(f.players[0] ?? null, pool.hp);
+      if (result.reason === 'cleared' && this._finalEnding !== 'forced' && pool && pool.hp > 0 && pool.hp < 1 + 1e-6) {
+        const pid = f.players[0] ?? null;
+        pool.damage(pid, pool.rawForCredit(pid, pool.hp));
+      }
       // a boss field ends only when the shared pool is empty (the client saw it reach 0) or the match forced the end
       // (b.end): any other result — 'forced' / 'timeout' at t = 0, 'cleared' while the pool still holds — would stop
       // the pair's fight (and, with every field done, end the Final Assault as a defeat). The field is handed to the
@@ -87,7 +90,7 @@ export class MatchReports {
         // the field with it — no takeover, nothing credited faster than the budget (a forged report gains nothing a
         // b.progress could not already get). The 1 HP slack is the pool's dust floor (BOSS_POOL_MIN_HP).
         const reported = Math.max(sum, f.bossReported ? f.bossReported.cum : 0);
-        if (result.reason === 'cleared' && pool && reported - f.bossAcked >= pool.hp - 1) {
+        if (result.reason === 'cleared' && pool && pool.creditFor(f.players[0] ?? null, reported - f.bossAcked) >= pool.hp - 1) {
           f.heldResult = result;
           return OK;
         }

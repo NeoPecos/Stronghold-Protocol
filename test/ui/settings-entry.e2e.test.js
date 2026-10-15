@@ -53,9 +53,7 @@ describe('the settings entry of the lobby and the room', { skip: !ENABLED && 'se
     page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`); });
     page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
     await page.goto(`${base}/`, { waitUntil: 'networkidle0', timeout: 60000 });
-    // 全屏浏览器公告默认弹出（ui/notice.js），会盖住整屏拦截点击：先关掉再操作标题页。
-      await page.evaluate(() => document.querySelector('[data-notice-dismiss]')?.click());
-      await page.waitForSelector('input', { timeout: 15000 });
+    await page.waitForSelector('input', { timeout: 15000 });
     await page.type('input', '测试博士');
     // the title screen now DEFAULTS to 登录 (owner request, 2026-10-11): a test that types a fresh
     // account still has to pick 注册账号 first, or it tries to log into an account that does not exist.

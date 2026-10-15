@@ -2,7 +2,7 @@
 // (i18n-ignore-file: the error pages are bilingual by design, 中文 · English — docs/I18N.md)
 //
 //   * a URL longer than 4096 characters → 414; one that does not parse → 400;
-//   * any method but GET / HEAD → 405 with `Allow: GET, HEAD`, except the one POST below;
+//   * any method but GET / HEAD → 405 with `Allow: GET, HEAD`, except the authenticated POST routes below;
 //   * GET /healthz → JSON status (protocol `version`, release `app`, uptime, the served `build`, sockets, sessions,
 //     rooms, matches), never cached; `?traffic=1` adds the traffic counters (traffic.js: bytes by category since the
 //     start, WebSocket wire and payload bytes) for a loopback or private-network client only — the maintainer's
@@ -11,6 +11,8 @@
 //   * GET /api/records/<CODE> → the latest finished match of that room code (4 letters), `publicRecord` only;
 //   * GET /api/records/account/<NAME> → the latest finished match of that account;
 //   * POST /api/account/password → change an account's password, requiring the admin token and old password;
+//   * GET /api/announcements[/<ID>] → current announcement index or article; announcement assets are read-only;
+//   * POST /api/admin/kick → remove a player from a room, requiring the admin token;
 //   * everything else → the static files (static.js).
 // Every response's body bytes count in the traffic counters (traffic.js meter). A route that throws is logged and
 // answers 500.
@@ -21,6 +23,10 @@ import { PROTOCOL_VERSION, APP_VERSION } from '../../shared/constants.js';
 import { buildTag } from './buildTag.js';
 import { setSecurityHeaders, sendError, sendJson, splitUrl } from './common.js';
 import { clientAddress, isLocalIp } from '../net.js';
+import { isAnnouncementId } from '../../shared/announcements.js';
+import { ANNOUNCEMENT_ASSET_URL_PREFIX } from '../../shared/announcementAssets.js';
+import { serveAnnouncementAsset } from './announcementAssets.js';
+import { ANNOUNCE_PUBLISH_PATH, ANNOUNCE_TOKEN_HEADER, createAnnouncementPublisher } from './announcementAdmin.js';
 
 const MAX_URL_LENGTH = 4096;
 const MAX_ADMIN_BODY = 8192;
@@ -83,20 +89,25 @@ const wantsTraffic = (query) => /(?:^|&)traffic(?:=(?:1|true|yes))?(?:&|$)/i.tes
  *             rawPath: string, query: string) => Promise<void>,
  *           health: Parameters<typeof healthReport>[0], records?: import('../matchRecords.js').MatchRecords,
  *           accounts?: import('../accounts.js').AccountStore|null, adminToken?: string|null,
+ *           announcements?: import('../announcementStore.js').AnnouncementStore,
  *           log: object, trustProxy?: 'auto' | boolean }} deps
  *   trustProxy: whose forwarding headers name the client (net.js clientAddress; the server's TRUST_PROXY)
  * @returns {(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) => void}
  */
-export function createRequestHandler({ serveStatic, health, records, accounts = null, adminToken = null, log, trustProxy = 'auto' }) {
+export function createRequestHandler({ serveStatic, health, records, accounts = null, adminToken = null, announceToken = null, announcements, log, trustProxy = 'auto' }) {
   const token = typeof adminToken === 'string' && adminToken.length >= MIN_TOKEN_LENGTH ? adminToken : null;
   if (adminToken && !token) log.warn(`[http] SP_ADMIN_TOKEN 短于 ${MIN_TOKEN_LENGTH} 字符，账号接口保持关闭 · admin token too short, account routes stay off`);
+  // 公告发布是独立窄令牌（TASK-049）：机器人只能发公告，拿不到踢人/改密码。
+  const announceSecret = typeof announceToken === 'string' && announceToken.length >= MIN_TOKEN_LENGTH ? announceToken : null;
+  if (announceToken && !announceSecret) log.warn(`[http] SP_ANNOUNCE_TOKEN 短于 ${MIN_TOKEN_LENGTH} 字符，公告发布桥接保持关闭 · announce token too short, publisher stays off`);
+  const announcementPublisher = announceSecret && announcements ? createAnnouncementPublisher({ announcements }) : null;
   async function handleRequest(req, res) {
     const url = req.url || '/';
     if (url.length > MAX_URL_LENGTH) { sendError(req, res, 414, '请求地址过长 · URI too long'); return; }
     const parts = splitUrl(url);
     if (!parts) { sendError(req, res, 400, '请求地址无效 · Bad request'); return; }
 
-    if (['/api/admin/announcement', '/api/admin/announcement/cancel', '/api/admin/kick'].includes(parts.rawPath)) {
+    if (parts.rawPath === '/api/admin/kick') {
       res.setHeader('Cache-Control', 'no-store');
       if (!token) { sendJson(req, res, 404, { error: 'NOT_ENABLED' }); return; }
       if (req.method !== 'POST') {
@@ -112,9 +123,8 @@ export function createRequestHandler({ serveStatic, health, records, accounts = 
       const body = await readJsonBody(req);
       if (body === 'too-large') { sendJson(req, res, 413, { error: 'TOO_LARGE' }); return; }
       if (!body || typeof body !== 'object' || Array.isArray(body)) { sendJson(req, res, 400, { error: 'BAD_REQUEST' }); return; }
-      const operations = health.lobby.announcements;
-      const result = parts.rawPath.endsWith('/cancel') ? operations.cancel(body.id)
-        : parts.rawPath.endsWith('/kick') ? operations.kick(body.playerId) : operations.publish(body);
+      const operations = health.lobby.roomAdmin;
+      const result = operations.kick(body.playerId);
       sendJson(req, res, result.error ? 400 : 200, result);
       return;
     }
@@ -142,6 +152,31 @@ export function createRequestHandler({ serveStatic, health, records, accounts = 
       return;
     }
 
+    if (parts.rawPath === ANNOUNCE_PUBLISH_PATH) {
+      res.setHeader('Cache-Control', 'no-store');
+      if (!announcementPublisher) { sendJson(req, res, 404, { error: 'NOT_ENABLED' }); return; }
+      if (req.method !== 'POST') {
+        res.setHeader('Allow', 'POST');
+        sendJson(req, res, 405, { error: 'METHOD_NOT_ALLOWED' });
+        return;
+      }
+      if (!sameSecret(req.headers[ANNOUNCE_TOKEN_HEADER], announceSecret)) {
+        log.warn('[announce] rejected unauthenticated request');
+        sendJson(req, res, 401, { error: 'UNAUTHORIZED' });
+        return;
+      }
+      const body = await readJsonBody(req);
+      if (body === 'too-large') { sendJson(req, res, 413, { error: 'TOO_LARGE' }); return; }
+      const result = announcementPublisher.publish(body);
+      sendJson(req, res, result.status, result.payload);
+      return;
+    }
+
+    if (parts.rawPath === '/api/admin/announcement' || parts.rawPath === '/api/admin/announcement/cancel') {
+      sendJson(req, res, 404, { error: 'NOT_FOUND' });
+      return;
+    }
+
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.setHeader('Allow', 'GET, HEAD');
       sendError(req, res, 405, '不支持的请求方法 · Method not allowed');
@@ -150,6 +185,23 @@ export function createRequestHandler({ serveStatic, health, records, accounts = 
     if (parts.rawPath === '/healthz') {
       const withTraffic = wantsTraffic(parts.query) && isLocalIp(clientAddress(req, trustProxy).ip);
       sendJson(req, res, 200, healthReport(health, withTraffic));
+      return;
+    }
+    if (parts.rawPath === '/api/announcements') {
+      res.setHeader('Cache-Control', 'no-store');
+      sendJson(req, res, 200, announcements?.list() || { revision: '', pinnedId: null, items: [] });
+      return;
+    }
+    if (parts.rawPath.startsWith('/api/announcements/')) {
+      res.setHeader('Cache-Control', 'no-store');
+      let id;
+      try { id = decodeURIComponent(parts.rawPath.slice('/api/announcements/'.length)); } catch { /* invalid URL */ }
+      const article = isAnnouncementId(id) ? announcements?.read(id) : null;
+      sendJson(req, res, article ? 200 : 404, article || { error: 'ANNOUNCEMENT_NOT_FOUND' });
+      return;
+    }
+    if (parts.rawPath === ANNOUNCEMENT_ASSET_URL_PREFIX.slice(0, -1) || parts.rawPath.startsWith(ANNOUNCEMENT_ASSET_URL_PREFIX)) {
+      await serveAnnouncementAsset(req, res, parts.rawPath.slice(ANNOUNCEMENT_ASSET_URL_PREFIX.length), announcements, log);
       return;
     }
     // 按账号名查（先于按房间码的规则，因为两者前缀相同、账号名可能不是 4 个字母）

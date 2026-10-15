@@ -35,6 +35,14 @@ LOBBY(room) → INFO_CHECK (co-op 25 s; solo and any single-human match untimed 
 ```
 Solo FUNNY has 9 rounds (boss at R9); everything is read from `data/config.json → modes[modeId]`.
 
+The local, unvalidated multiplayer expansion fixes occupied players into groups of at most four at match start. A room displays all group slots permitted by its capacity; humans may select any non-full slot on their own seat card, while the host may swap occupied members in room rules. AI seats count, and empty seats do not form a match pool. Each occupied group has separate operator/equipment stock and a concurrent 机变 draft; opening-strategy duplicates are forbidden only within one group. A team-wide 机变 card affects only surviving members of the picker's group, at full strength. Reconnect and elimination do not reshuffle the groups. A unanimous INFO_CHECK setup reroll rebuilds every group's operator pool from the newly drawn bans rather than only the legacy first-pool alias. Unbanned operators remain copy-weighted random offers, not guaranteed offers. The room-rules page holds the existing host-only AI-picks-last option. These are implementation intent, not validated release claims.
+
+The same local follow-up records the last match round in which each player actually entered 联防. A perfect player used in the preceding three rounds ranks behind another eligible player; otherwise higher active-bond layers lead. Among only recently used candidates, the one who has waited longer leads. The selected order also determines which two helpers take the first wave and which one meets enemies first. A sole eligible player is never excluded by the rotation.
+
+TASK-058 local multiplayer rule: a teammate-targeted effect stays inside its fixed four-player group. This includes Touch's retained 外勤医疗 map character, 鸭爵's team strategy and teammate-directed items. A group with fewer than four players uses the same rule; an eliminated Touch holder's group keeps its grant for the match, but other groups never acquire it.
+
+In 最终攻势 and 隐秘核心, boss field pairs are drawn within each fixed group. The shared boss HP is unchanged. At each boss fight's start, each surviving group's normal-damage quota is `bossMaxHp × alivePlayersInGroup / totalAlivePlayers`; after the group has dealt that much raw boss damage, further raw boss damage from the group contributes 50% to the shared HP pool. This threshold is shared by all players and fields of that group, not renewed per player or pair. Each group reaching its quota announces once that it is helping the other squads. The boss is defeated only when the full shared HP reaches zero. The server counts weighted credits for leader-damage statistics and victory; clients report raw hits and predict HP from the server's per-group raw totals. Single-group matches keep their previous full-damage rule.
+
 ### 6.2 Player state (PlayerState.js) — authoritative per player
 
 ```js

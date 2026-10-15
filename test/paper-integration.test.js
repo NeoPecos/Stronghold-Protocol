@@ -104,7 +104,7 @@ test('manual creation cancels matchmaking and stale queues expire', context => {
   assert.equal(setup.lobby.matchmaker.queue.size, 0);
 });
 
-test('announcement and kick routes require the existing admin token', async context => {
+test('legacy announcement route is gone; kick still requires the existing admin token', async context => {
   const setup = harness(context);
   const host = setup.player('host');
   host.send({ t: 'room.create', mode: 'coop', difficulty: 'NORMAL' });
@@ -116,13 +116,9 @@ test('announcement and kick routes require the existing admin token', async cont
   const request = (path, body, token) => fetch('http://127.0.0.1:' + server.address().port + '/api/admin/' + path, {
     method: 'POST', headers: { 'content-type': 'application/json', 'x-sp-admin-token': token || '' }, body: JSON.stringify(body),
   });
-  assert.equal((await request('announcement', { text: 'test' })).status, 401);
-  assert.equal((await request('announcement', { text: 'test' }, 'test-paper-admin-token')).status, 200);
-  assert.equal(host.messages.at(-1).t, 'server.announcement');
-  const scheduled = await (await request('announcement', { text: 'later', delaySeconds: 10 }, 'test-paper-admin-token')).json();
-  assert.equal(setup.lobby.announcements.pending.size, 1);
-  assert.equal((await request('announcement/cancel', { id: scheduled.id }, 'test-paper-admin-token')).status, 200);
-  assert.equal(setup.lobby.announcements.pending.size, 0);
+  assert.equal((await request('announcement', { text: 'test' }, 'test-paper-admin-token')).status, 404);
+  assert.equal((await request('announcement/cancel', { id: 'old' }, 'test-paper-admin-token')).status, 404);
+  assert.equal((await request('kick', { playerId: host.session.playerId })).status, 401);
   assert.equal((await request('kick', { playerId: host.session.playerId }, 'test-paper-admin-token')).status, 200);
   assert.equal(host.session.roomCode, null);
 });

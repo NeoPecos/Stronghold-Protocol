@@ -42,6 +42,8 @@ packs/index.json
 test/e2e/out/
 logs/
 var/
+# Published Markdown, images, and urgent-notice commands are private per-server data.
+runtime/announcements/
 *.log
 
 # --- per-machine config (scripts/install-service-windows.ps1) ------------------------------------

@@ -14,7 +14,6 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { NOTICE_VERSION, NOTICE_STORAGE_KEY } from '../../public/js/ui/notice.js';
 
 const CHROME = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const ENABLED = process.env.SP_E2E === '1' && existsSync(CHROME);
@@ -71,7 +70,6 @@ describe('TASK-003: the circular deployment wheel geometry', { skip: !ENABLED &&
     page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
     // the browser-support notice is a full-screen panel over the app; a real user dismisses it before playing, so the
     // wheel must be exercised with the notice already dismissed or the panel swallows the pointer events
-    await page.evaluateOnNewDocument((key) => localStorage.setItem(key[0], key[1]), [NOTICE_STORAGE_KEY, String(NOTICE_VERSION)]);
     await page.goto(`${base}/`, { waitUntil: 'networkidle0' });
     await pumpWheel(page);
     return { page, problems };

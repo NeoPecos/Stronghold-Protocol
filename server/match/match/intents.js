@@ -77,7 +77,9 @@ export class MatchIntents {
     if (!ps.botControlled || this.ended) return;
     if (this.phase === PHASE.INFO_CHECK && !ps.infoReady) { ps.infoReady = true; this.markPublic(); this.maybeEndInfo(); }
     else if (this.phase === PHASE.BAND_DRAFT && this.draftTurn() === ps.playerId) this.scheduleBandBot();
-    else if (this.phase === PHASE.SP_DRAFT && this.spTurn() === ps.playerId) this.scheduleSpBot();
+    else if (this.phase === PHASE.SP_DRAFT && this.spTurn(this.poolGroupByPlayer.get(ps.playerId) ?? 0) === ps.playerId) {
+      this.scheduleSpBot(this.poolGroupByPlayer.get(ps.playerId) ?? 0);
+    }
     else if (this.phase === PHASE.PREP && ps.alive && !ps.ready) this.scheduleBotPrep(ps, 0);
   }
 

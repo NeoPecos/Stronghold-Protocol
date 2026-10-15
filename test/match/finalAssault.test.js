@@ -64,7 +64,8 @@ test('boss pool = bloodPoint[difficulty] × the players alive at the fight\'s st
   const gd = new GameData(RAW, 'mode_multi_hard');
   for (const n of [1, 2, 3, 4]) assert.equal(bossPoolHp(gd, 'boss_1', n), 1800000 * n, `${n} alive`);
   assert.equal(bossPoolHp(gd, 'boss_1'), 1800000 * 4, 'no count given: a full team');
-  assert.equal(bossPoolHp(gd, 'boss_1', 9), 1800000 * 4, 'at most aliveFull (4) players');
+  assert.equal(bossPoolHp(gd, 'boss_1', 9), 1800000 * 9, 'nine alive players each add a share');
+  assert.equal(bossPoolHp(gd, 'boss_1', 20), 1800000 * 20, 'twenty alive players are five times the four-player pool');
   assert.equal(gd.bossPoolHp('boss_1', 2), bossPoolHp(gd, 'boss_1', 2), 'GameData agrees');
   assert.equal(bossPoolHp(new GameData(RAW, 'mode_single_abyss'), 'boss_5', 1), 3000000, 'solo: the table value');
   assert.equal(bossPoolHp(new GameData(RAW, 'mode_single_funny'), 'boss_2', 1), 225000);
